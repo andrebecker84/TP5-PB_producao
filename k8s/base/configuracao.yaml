@@ -1,0 +1,61 @@
+# =========================================================================
+# Configuração do ambiente — o que muda de um cluster para outro, e nada mais.
+#
+# Os JARs e as imagens são os mesmos do Compose. O que um serviço precisa saber
+# para rodar AQUI — onde está o broker, onde está o Keycloak, para onde mandar
+# os spans — chega por variável de ambiente, lida deste ConfigMap. É o terceiro
+# fator do Twelve-Factor App: configuração no ambiente, não no código.
+#
+# Senhas não ficam aqui: estão no Secret infnethub-segredos, gerado pelo
+# overlay (k8s/overlays/*).
+# =========================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: infnethub
+  labels:
+    app.kubernetes.io/part-of: infnethub
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: infnethub-ambiente
+data:
+  # prod: a configuração de produção de cada serviço, inteira.
+  # k8s:  o que muda num orquestrador (application-k8s.*).
+  # demo: a carga de demonstração; tirá-lo daqui dá a base vazia de uma
+  #       implantação real.
+  SPRING_PROFILES_ACTIVE: prod,k8s,demo
+
+  # JVM ciente do contêiner: o heap acompanha o limite de memória do pod. Os
+  # demais ajustes trocam desempenho de pico por memória e partida rápida —
+  # o que cabe num notebook. O overlay de produção os substitui.
+  JAVA_TOOL_OPTIONS: >-
+    -XX:MaxRAMPercentage=70
+    -XX:+UseSerialGC
+    -XX:TieredStopAtLevel=1
+    -Xss512k
+    -XX:+ExitOnOutOfMemoryError
+
+  # Identidade. Pública: o endereço que o navegador usa, e que aparece no
+  # campo "iss" dos tokens. Interna: o que os pods alcançam.
+  KEYCLOAK_URL_PUBLICA: http://localhost:21180
+  KEYCLOAK_URL_INTERNA: http://keycloak:8080
+  KEYCLOAK_REALM: infnethub
+  CORS_ORIGINS: http://localhost:21000
+  FRONTEND_URL: http://localhost:21000
+
+  # O Service do RabbitMQ distribui as conexões entre os três nós; se um cair,
+  # a reconexão cai num dos outros.
+  SPRING_RABBITMQ_ADDRESSES: rabbitmq:5672
+  RABBIT_USER: infnethub
+
+  # Observabilidade: spans ao Alloy, que os repassa ao Tempo.
+  OTLP_HABILITADO: "true"
+  OTLP_TRACES_URL: http://alloy:4318/v1/traces
+  TRACING_AMOSTRAGEM: "1.0"
+  AMBIENTE: kubernetes
+
+  # Conexões com o banco por réplica. Com o autoescalonamento, o total é
+  # réplicas × pool, e o PostgreSQL tem teto (max_connections = 100).
+  DB_POOL_SIZE: "8"

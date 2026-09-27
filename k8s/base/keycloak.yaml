@@ -1,0 +1,89 @@
+# =========================================================================
+# Keycloak — o provedor de identidade, com o mesmo realm e o mesmo tema de
+# login do Compose (infra/keycloak/), montados de ConfigMaps.
+#
+# Modo de desenvolvimento, com banco embutido e sem estado persistido: o realm
+# é importado a cada subida, e um reinício só encerra as sessões abertas. Uma
+# implantação real usa "start" com um PostgreSQL próprio e duas ou mais
+# réplicas — é a diferença registrada no overlay de produção.
+#
+# Duas URLs, como no Compose: KC_HOSTNAME é o endereço do navegador (vai no
+# campo "iss" dos tokens), e os pods falam com http://keycloak:8080.
+# =========================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+  labels: { app.kubernetes.io/name: keycloak, app.kubernetes.io/component: identidade }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: keycloak }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: keycloak, app.kubernetes.io/component: identidade }
+    spec:
+      containers:
+        - name: keycloak
+          image: quay.io/keycloak/keycloak:26.7.4
+          imagePullPolicy: IfNotPresent
+          args: ["start-dev", "--import-realm"]
+          env:
+            - { name: KC_BOOTSTRAP_ADMIN_USERNAME, value: admin }
+            - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+              valueFrom: { secretKeyRef: { name: infnethub-segredos, key: KEYCLOAK_ADMIN_PASS } }
+            - { name: KC_HOSTNAME, value: "http://localhost:21180" }
+            - { name: KC_HOSTNAME_BACKCHANNEL_DYNAMIC, value: "true" }
+            - { name: KC_HEALTH_ENABLED, value: "true" }
+            - { name: KC_HTTP_ENABLED, value: "true" }
+            - { name: JAVA_OPTS_KC_HEAP, value: "-XX:MaxRAMPercentage=65" }
+          ports:
+            - { name: http, containerPort: 8080 }
+            - { name: gestao, containerPort: 9000 }
+          startupProbe:
+            httpGet: { path: /health/started, port: gestao }
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet: { path: /health/ready, port: gestao }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health/live, port: gestao }
+            periodSeconds: 20
+            failureThreshold: 4
+          resources:
+            requests: { cpu: 200m, memory: 512Mi }
+            limits: { memory: 1Gi }
+          volumeMounts:
+            - name: realm
+              mountPath: /opt/keycloak/data/import/realm-infnethub.json
+              subPath: realm-infnethub.json
+            - name: tema
+              mountPath: /opt/keycloak/themes/infnethub/login
+      volumes:
+        - name: realm
+          configMap: { name: keycloak-realm }
+        # O tema tem subpastas; o ConfigMap é plano. Cada chave é devolvida
+        # ao caminho de onde veio.
+        - name: tema
+          configMap:
+            name: keycloak-tema
+            items:
+              - { key: theme.properties, path: theme.properties }
+              - { key: messages_pt_BR.properties, path: messages/messages_pt_BR.properties }
+              - { key: infnethub.css, path: resources/css/infnethub.css }
+              - { key: infnethub.js, path: resources/js/infnethub.js }
+              - { key: digital.svg, path: resources/img/digital.svg }
+              - { key: logo.svg, path: resources/img/logo.svg }
+              - { key: olho.svg, path: resources/img/olho.svg }
+              - { key: olho-fechado.svg, path: resources/img/olho-fechado.svg }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+  labels: { app.kubernetes.io/name: keycloak }
+spec:
+  selector: { app.kubernetes.io/name: keycloak }
+  ports:
+    - { name: http, port: 8080, targetPort: http }

@@ -1,0 +1,101 @@
+// =========================================================================
+// Grafana Alloy no Kubernetes — o mesmo papel do Compose, outras fontes.
+//
+//   logs    lidos pela API do cluster (sem montar diretórios do nó), de todos
+//           os pods do namespace; o JSON dos serviços é interpretado e o
+//           traceId separado, como em infra/alloy/config.alloy
+//   traces  recebidos por OTLP e repassados ao Tempo
+//
+// O rótulo "servico" é o nome da aplicação no pod (app.kubernetes.io/name),
+// que foi escolhido igual ao nome do serviço no Compose: as mesmas consultas
+// funcionam nos dois ambientes.
+// =========================================================================
+
+discovery.kubernetes "pods" {
+  role = "pod"
+
+  namespaces {
+    own_namespace = true
+  }
+}
+
+discovery.relabel "pods" {
+  targets = discovery.kubernetes.pods.targets
+
+  rule {
+    source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+    target_label  = "servico"
+  }
+  rule {
+    source_labels = ["__meta_kubernetes_pod_name"]
+    target_label  = "pod"
+  }
+  rule {
+    source_labels = ["__meta_kubernetes_pod_node_name"]
+    target_label  = "node"
+  }
+}
+
+loki.source.kubernetes "pods" {
+  targets    = discovery.relabel.pods.output
+  forward_to = [loki.process.json.receiver]
+}
+
+loki.process "json" {
+  stage.static_labels {
+    values = { ambiente = "kubernetes" }
+  }
+
+  stage.json {
+    expressions = {
+      nivel   = "log.level",
+      traceId = "traceId",
+      spanId  = "spanId",
+    }
+  }
+
+  stage.labels {
+    values = { nivel = "" }
+  }
+
+  stage.structured_metadata {
+    values = {
+      traceId = "",
+      spanId  = "",
+    }
+  }
+
+  forward_to = [loki.write.loki.receiver]
+}
+
+loki.write "loki" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
+
+otelcol.receiver.otlp "servicos" {
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+
+  output {
+    traces = [otelcol.processor.batch.lote.input]
+  }
+}
+
+otelcol.processor.batch "lote" {
+  output {
+    traces = [otelcol.exporter.otlp.tempo.input]
+  }
+}
+
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "tempo:4317"
+
+    tls {
+      insecure = true
+    }
+  }
+}

@@ -1,0 +1,35 @@
+# Entrada HTTPS por nome de domínio, no lugar dos NodePort do ambiente local.
+# O certificado é emitido pelo cert-manager (Let's Encrypt), e o controlador
+# de entrada é o do cluster — a classe "nginx" é a mais comum; troca-se pelo
+# que a instalação tiver.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: infnethub
+  namespace: infnethub
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [infnethub.exemplo.com.br, api.infnethub.exemplo.com.br, login.infnethub.exemplo.com.br]
+      secretName: infnethub-tls
+  rules:
+    - host: infnethub.exemplo.com.br
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: frontend, port: { number: 3000 } } }
+    - host: api.infnethub.exemplo.com.br
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: gateway-navegador, port: { number: 21080 } } }
+    - host: login.infnethub.exemplo.com.br
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: keycloak, port: { number: 8080 } } }

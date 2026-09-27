@@ -1,0 +1,86 @@
+# =========================================================================
+# Infnet Hub no Kubernetes — a base, comum a todos os ambientes.
+#
+# Os overlays (k8s/overlays/) dizem de onde vêm as imagens, quais são os
+# segredos e como o cluster é alcançado de fora. Esta base não tem nenhuma das
+# três coisas: é o sistema, não o lugar onde ele roda.
+#
+# Os arquivos de configuração compartilhados com o Compose — realm e tema do
+# Keycloak, topologia do RabbitMQ, regras de alerta, painéis do Grafana — são
+# lidos da pasta infra/, e não copiados: uma fonte só. Por estarem fora desta
+# pasta, a montagem precisa de --load-restrictor LoadRestrictionsNone:
+#
+#   kubectl kustomize --load-restrictor LoadRestrictionsNone k8s/overlays/local
+#
+# (é o que k8s/implantar.sh faz).
+# =========================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: infnethub
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: infnethub
+    includeSelectors: false
+
+resources:
+  - configuracao.yaml
+  - postgres.yaml
+  - rabbitmq.yaml
+  - keycloak.yaml
+  - backend.yaml
+  - boletim.yaml
+  - notificacao.yaml
+  - gateway.yaml
+  - frontend.yaml
+  - autoescala.yaml
+  - rede.yaml
+  - observabilidade/observabilidade.yaml
+
+configMapGenerator:
+  - name: rabbitmq-definicoes
+    files:
+      - definitions.json=../../infra/rabbitmq/definitions.json
+  - name: keycloak-realm
+    files:
+      - realm-infnethub.json=../../infra/keycloak/realm-infnethub.json
+  - name: keycloak-tema
+    files:
+      - theme.properties=../../infra/keycloak/temas/infnethub/login/theme.properties
+      - messages_pt_BR.properties=../../infra/keycloak/temas/infnethub/login/messages/messages_pt_BR.properties
+      - infnethub.css=../../infra/keycloak/temas/infnethub/login/resources/css/infnethub.css
+      - infnethub.js=../../infra/keycloak/temas/infnethub/login/resources/js/infnethub.js
+      - digital.svg=../../infra/keycloak/temas/infnethub/login/resources/img/digital.svg
+      - logo.svg=../../infra/keycloak/temas/infnethub/login/resources/img/logo.svg
+      - olho.svg=../../infra/keycloak/temas/infnethub/login/resources/img/olho.svg
+      - olho-fechado.svg=../../infra/keycloak/temas/infnethub/login/resources/img/olho-fechado.svg
+  - name: prometheus-config
+    files:
+      - observabilidade/config/prometheus.yml
+  - name: prometheus-regras
+    files:
+      - regras.yml=../../infra/prometheus/regras.yml
+  - name: loki-config
+    files:
+      - observabilidade/config/loki.yml
+  - name: tempo-config
+    files:
+      - observabilidade/config/tempo.yml
+  - name: alloy-config
+    files:
+      - observabilidade/config/config.alloy
+  - name: grafana-fontes
+    files:
+      - observabilidade/config/fontes-de-dados.yml
+  - name: grafana-provedor
+    files:
+      - ../../infra/grafana/provisionamento/dashboards/infnethub.yml
+  - name: grafana-alertas
+    files:
+      - ../../infra/grafana/provisionamento/alerting/infnethub.yml
+  - name: grafana-paineis
+    files:
+      - ../../infra/grafana/paineis/infnethub.json
+      - ../../infra/grafana/paineis/infnethub-servicos.json
+      - ../../infra/grafana/paineis/infnethub-logs-traces.json
