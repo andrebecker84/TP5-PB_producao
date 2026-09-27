@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="128" viewBox="0 0 920 128" font-family="Segoe UI, -apple-system, Helvetica, Arial, sans-serif" text-anchor="middle">
+<rect x="0.5" y="0.5" width="142.33333333333334" height="127" rx="10" fill="#1b1e24" stroke="#2a2e36"/>
+<rect x="18.0" y="0.5" width="107.33333333333334" height="3" rx="1.5" fill="#2f9cf0"/>
+<text x="71.66666666666667" y="58" font-size="38" font-weight="700" fill="#2f9cf0">20</text>
+<text x="71.66666666666667" y="86" font-size="12.5" fill="#d5d9e0">pods</text>
+<text x="71.66666666666667" y="104" font-size="12.5" fill="#7d8590">no cluster</text>
+<rect x="155.83333333333334" y="0.5" width="142.33333333333334" height="127" rx="10" fill="#1b1e24" stroke="#2a2e36"/>
+<rect x="173.33333333333334" y="0.5" width="107.33333333333334" height="3" rx="1.5" fill="#b07cf2"/>
+<text x="227.0" y="58" font-size="38" font-weight="700" fill="#b07cf2">3</text>
+<text x="227.0" y="86" font-size="12.5" fill="#d5d9e0">nós</text>
+<text x="227.0" y="104" font-size="12.5" fill="#7d8590">Kubernetes</text>
+<rect x="311.1666666666667" y="0.5" width="142.33333333333334" height="127" rx="10" fill="#1b1e24" stroke="#2a2e36"/>
+<rect x="328.6666666666667" y="0.5" width="107.33333333333334" height="3" rx="1.5" fill="#3fb950"/>
+<text x="382.33333333333337" y="58" font-size="38" font-weight="700" fill="#3fb950">246</text>
+<text x="382.33333333333337" y="86" font-size="12.5" fill="#d5d9e0">testes</text>
+<text x="382.33333333333337" y="104" font-size="12.5" fill="#7d8590">automatizados</text>
+<rect x="466.5" y="0.5" width="142.33333333333334" height="127" rx="10" fill="#1b1e24" stroke="#2a2e36"/>
+<rect x="484.0" y="0.5" width="107.33333333333334" height="3" rx="1.5" fill="#e3b341"/>
+<text x="537.6666666666666" y="58" font-size="38" font-weight="700" fill="#e3b341">0</text>
+<text x="537.6666666666666" y="86" font-size="12.5" fill="#d5d9e0">falhas em 70.190</text>
+<text x="537.6666666666666" y="104" font-size="12.5" fill="#7d8590">requisições sob carga</text>
+<rect x="621.8333333333334" y="0.5" width="142.33333333333334" height="127" rx="10" fill="#1b1e24" stroke="#2a2e36"/>
+<rect x="639.3333333333334" y="0.5" width="107.33333333333334" height="3" rx="1.5" fill="#f0883e"/>
+<text x="693.0" y="58" font-size="38" font-weight="700" fill="#f0883e">3</text>
+<text x="693.0" y="86" font-size="12.5" fill="#d5d9e0">pilares observados</text>
+<text x="693.0" y="104" font-size="12.5" fill="#7d8590">logs · métricas · traces</text>
+<rect x="777.1666666666667" y="0.5" width="142.33333333333334" height="127" rx="10" fill="#1b1e24" stroke="#2a2e36"/>
+<rect x="794.6666666666667" y="0.5" width="107.33333333333334" height="3" rx="1.5" fill="#f25f5c"/>
+<text x="848.3333333333334" y="58" font-size="38" font-weight="700" fill="#f25f5c">8</text>
+<text x="848.3333333333334" y="86" font-size="12.5" fill="#d5d9e0">cenários de</text>
+<text x="848.3333333333334" y="104" font-size="12.5" fill="#7d8590">demonstração</text>
+</svg>

@@ -1,0 +1,73 @@
+# Vagas — Oportunidades
+
+### Listar todas as vagas
+GET {{baseUrl}}/api/v1/vagas
+Authorization: Bearer {{tokenAluno}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200);
+    });
+%}
+
+### Buscar vagas por tipo
+# Tipos: ESTAGIO, CLT, PJ, TRAINEE, AUTONOMO, EXTERIOR
+GET {{baseUrl}}/api/v1/vagas/tipo/ESTAGIO
+Authorization: Bearer {{tokenAluno}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200);
+    });
+    client.test("só devolve vagas do tipo pedido", () => {
+        if (Array.isArray(response.body)) {
+            response.body.forEach(v =>
+                client.assert(v.tipo === "ESTAGIO", "veio tipo " + v.tipo));
+        }
+    });
+%}
+
+### Buscar vaga por ID
+GET {{baseUrl}}/api/v1/vagas/1
+Authorization: Bearer {{tokenAluno}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200);
+    });
+%}
+
+### Criar vaga
+POST {{baseUrl}}/api/v1/vagas
+Authorization: Bearer {{tokenSecretaria}}
+Content-Type: application/json
+
+{
+  "titulo": "Estágio em Engenharia de Software",
+  "empresa": "TechCorp Brasil",
+  "descricao": "Desenvolvimento de aplicações web com Java e React.",
+  "localizacao": "Rio de Janeiro, RJ (Híbrido)",
+  "tipo": "ESTAGIO",
+  "categoria": "Backend",
+  "criadorId": 3
+}
+
+> {%
+    client.test("responde 201", () => {
+        client.assert(response.status === 201, "esperado 201, veio " + response.status);
+    });
+    client.global.set("vagaId", response.body.id);
+%}
+
+### Deletar vaga
+DELETE {{baseUrl}}/api/v1/vagas/{{vagaId}}
+Authorization: Bearer {{tokenSecretaria}}
+
+> {%
+    client.test("responde 204", () => {
+        client.assert(response.status === 204, "esperado 204, veio " + response.status);
+    });
+%}

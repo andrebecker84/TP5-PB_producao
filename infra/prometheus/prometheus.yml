@@ -1,0 +1,57 @@
+# =========================================================================
+# Prometheus do Infnet Hub — o que coletar, e de onde.
+#
+# Os serviços são encontrados pelo DNS do Docker (dns_sd_configs, tipo A): o
+# nome do serviço no Compose resolve para o IP de CADA instância. É o que faz
+# as três instâncias do notificacao-service, no cenário de escala, aparecerem
+# como três alvos, e não como um nome só sorteado a cada coleta.
+#
+# Tudo por TLS. Como o alvo é um IP — e o certificado não tem os IPs do Docker,
+# que mudam a cada subida —, `server_name` diz qual nome conferir: a conexão vai
+# ao IP, e a verificação é feita contra o nome do serviço, que está no
+# certificado.
+# =========================================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# Alertas (TP5): ver o arquivo.
+rule_files:
+  - /etc/prometheus/regras.yml
+
+scrape_configs:
+
+  - job_name: infnethub-core
+    scheme: https
+    metrics_path: /actuator/prometheus
+    tls_config: { ca_file: /certs/ca.crt, server_name: backend }
+    dns_sd_configs: [{ names: [backend], type: A, port: 21081 }]
+
+  - job_name: boletim-service
+    scheme: https
+    metrics_path: /actuator/prometheus
+    tls_config: { ca_file: /certs/ca.crt, server_name: boletim }
+    dns_sd_configs: [{ names: [boletim], type: A, port: 21082 }]
+
+  - job_name: notificacao-service
+    scheme: https
+    metrics_path: /actuator/prometheus
+    tls_config: { ca_file: /certs/ca.crt, server_name: notificacao }
+    dns_sd_configs: [{ names: [notificacao], type: A, port: 21083 }]
+
+  - job_name: api-gateway
+    scheme: https
+    metrics_path: /actuator/prometheus
+    tls_config: { ca_file: /certs/ca.crt, server_name: gateway }
+    dns_sd_configs: [{ names: [gateway], type: A, port: 21443 }]
+
+  # Os três nós do broker. /metrics/per-object traz as medidas por fila —
+  # profundidade, consumidores, taxas —, que é o que o painel mostra; o
+  # endpoint padrão agrega tudo num número por nó.
+  - job_name: rabbitmq
+    scheme: https
+    metrics_path: /metrics/per-object
+    tls_config: { ca_file: /certs/ca.crt }
+    static_configs:
+      - targets: [rabbitmq-1:15691, rabbitmq-2:15691, rabbitmq-3:15691]

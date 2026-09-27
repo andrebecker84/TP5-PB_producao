@@ -1,0 +1,129 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   Telas de entrada da plataforma (/login e /entrando). O formulário de
+   usuário e senha é do provedor de identidade, com o tema do Infnet Hub
+   (infra/keycloak/temas/infnethub); estas telas são o antes e o depois dele,
+   com o mesmo fundo, a mesma marca e o mesmo cartão.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.page {
+  position: relative; min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 2rem 1rem;
+  background: linear-gradient(180deg, #071630 0%, var(--bg) 55%, #02060e 100%);
+  overflow: hidden;
+}
+/* meio-tom animado por trás de tudo (FundoMeioTom) */
+.meioTom { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+/* a luz da tela: uma meia-lua larga no topo — o centro fica acima da borda */
+.luz {
+  position: absolute; top: -560px; left: 50%; transform: translateX(-50%);
+  width: max(1400px, 130vw); height: 1000px; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 50%, rgba(59,142,245,.2), rgba(59,142,245,.06) 45%, transparent 70%);
+}
+
+.coluna {
+  position: relative; z-index: 1;
+  width: 100%; max-width: 400px;
+  display: flex; flex-direction: column; align-items: center; gap: 1.5rem;
+}
+
+/* ── Marca, no canto inferior direito ── */
+.marca {
+  position: fixed; right: 1.5rem; bottom: 1.5rem; z-index: 2;
+  display: flex; align-items: center; gap: .7rem;
+}
+.marcaTxt { font-size: 1.3rem; font-weight: 300; letter-spacing: .18em; color: var(--text-dim); }
+.marcaTxt b { font-weight: 600; color: var(--text); }
+
+/* ── Cartão ── */
+.card {
+  width: 100%;
+  display: flex; flex-direction: column; gap: 1.25rem;
+  padding: 1.75rem;
+  /* vidro, igual ao cartão do provedor de identidade: reflexo claro e borda iluminada */
+  background:
+    linear-gradient(145deg, rgba(255,255,255,.055), rgba(255,255,255,.01) 55%),
+    rgba(10,22,44,.06);
+  -webkit-backdrop-filter: blur(1.5px) saturate(170%);
+          backdrop-filter: blur(1.5px) saturate(170%);
+  border: 1px solid rgba(255,255,255,.09);
+  border-top-color: rgba(255,255,255,.18);
+  border-left-color: rgba(255,255,255,.13);
+  border-radius: 16px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 24px 60px -28px rgba(0,0,0,.75);
+}
+.titulo {
+  text-align: center;
+  font-size: 1.5rem; font-weight: 700; letter-spacing: -.02em;
+  color: var(--text); line-height: 1.1;
+}
+
+/* /entrando continua o cartão do provedor de identidade: mesma altura (o
+   formulário e os botões ocupam 430 px lá), mesmo espaço entre título e
+   digital e, abaixo, o lugar da nota sobre a senha (16 px + 62 px, menos o
+   espaço da coluna) — assim nada se move na troca e o efeito parece seguir
+   dentro do mesmo cartão */
+.cardContinuo { min-height: 430px; gap: .9rem; }
+.lugarDaNota { height: 54px; }
+.corpo {
+  flex: 0 1 0; min-height: 0; display: flex; align-items: center; justify-content: center; width: 100%;
+  transition: flex-grow .6s cubic-bezier(.22,1,.36,1);
+}
+/* /entrando: antes do carregamento a digital fica no centro do cartão; os
+   espaços se recolhem enquanto o corpo cresce, e ela sobe junto */
+.espaco { flex: 1 1 0; transition: flex-grow .6s cubic-bezier(.22,1,.36,1); }
+.espaco[data-recolhido] { flex-grow: 0; }
+.corpo[data-aberto] { flex-grow: 2; }
+.seguindo { width: 100%; display: flex; flex-direction: column; align-items: center; gap: .75rem; }
+.semAcesso {
+  width: 100%; padding: .6rem .8rem; border-radius: 10px; text-align: center;
+  font-size: .8125rem; line-height: 1.45; color: #fde68a;
+  background: rgba(251,191,36,.08); border: 1px solid rgba(251,191,36,.38);
+}
+
+/* lugar da digital (o componente Digital tem o próprio CSS) */
+.digitalLugar { align-self: center; margin-top: .4rem; }
+
+/* rótulo da leitura: durante o scanner e na confirmação */
+.leitura {
+  margin: -.15rem 0 -.5rem; line-height: 1.2; text-align: center;
+  font-size: .75rem; font-weight: 700; letter-spacing: .22em; text-transform: uppercase;
+  color: transparent; transition: color .25s, text-shadow .25s;
+}
+.leitura[data-estado="escaneando"] { color: #93c5fd; animation: pisca .6s ease-in-out infinite alternate; }
+.leitura[data-estado="confirmado"] {
+  color: var(--success);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--success) 70%, transparent);
+  animation: libera .45s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes pisca { to { opacity: .45; } }
+@keyframes libera { from { transform: scale(.8); opacity: 0; } }
+
+/* ── Erro (servidor fora do ar) ── */
+.erro {
+  display: flex; align-items: flex-start; gap: .55rem;
+  padding: .7rem .85rem; border-radius: 10px;
+  font-size: .8125rem; line-height: 1.4; color: var(--danger);
+  background: rgba(248,113,113,.09);
+  border: 1px solid rgba(248,113,113,.24);
+}
+.erroIco { flex-shrink: 0; margin-top: 1px; }
+
+.btn {
+  display: flex; align-items: center; justify-content: center; gap: .4rem;
+  width: 100%; padding: .7rem 1rem;
+  font-size: .9375rem; font-weight: 600; color: #fff;
+  background: var(--primary);
+  border-radius: 10px;
+  transition: background .15s;
+}
+.btn:hover { background: var(--primary-hover); }
+.btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+@media (max-width: 420px) {
+  .card { padding: 1.4rem 1.2rem; }
+  .marca { right: 1rem; bottom: 1rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .leitura { animation: none; }
+}

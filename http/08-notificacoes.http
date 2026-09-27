@@ -1,0 +1,114 @@
+# Notificações — o serviço que só existe por causa dos eventos
+#
+# Nenhuma requisição aqui cria notificação: não há endpoint para isso. Elas
+# nascem dos eventos publicados no RabbitMQ — uma curtida, um comentário, uma
+# vaga nova — e este arquivo verifica o outro lado: a leitura, a contagem de
+# não lidas e a baixa.
+#
+# Repare no que NÃO aparece em nenhuma URL: o id do destinatário. O serviço
+# responde sempre "as notificações do dono do token"; pedir as de outra pessoa
+# não é proibido, é impossível.
+
+### As minhas notificações
+GET {{notificacaoUrl}}/api/v1/notificacoes
+Authorization: Bearer {{tokenAluno}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+    });
+    client.test("devolve uma lista", () => {
+        client.assert(Array.isArray(response.body), "esperada uma lista");
+    });
+    client.global.set("temNotificacao", response.body.length > 0);
+    if (response.body.length > 0) {
+        client.global.set("notificacaoId", response.body[0].id);
+        client.test("cada notificação traz tipo, texto e data com fuso", () => {
+            const n = response.body[0];
+            client.assert(n.tipo !== undefined, "sem tipo");
+            client.assert(n.texto !== undefined, "sem texto");
+            // O sufixo Z é o que faz o navegador mostrar "agora" em vez de
+            // "3h atrás" para quem está em Brasília.
+            client.assert(String(n.criadaEm).endsWith("Z"), "data sem fuso: " + n.criadaEm);
+        });
+    }
+%}
+
+### Contagem de não lidas — é o número do sino
+GET {{notificacaoUrl}}/api/v1/notificacoes/nao-lidas
+Authorization: Bearer {{tokenAluno}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+    });
+    client.test("traz o total", () => {
+        client.assert(typeof response.body.total === "number", "sem total numérico");
+    });
+%}
+
+### Sem token não há notificação nenhuma — 401
+GET {{notificacaoUrl}}/api/v1/notificacoes
+Accept: application/json
+
+> {%
+    client.test("responde 401", () => {
+        client.assert(response.status === 401, "esperado 401, veio " + response.status);
+    });
+%}
+
+### Marcar todas como lidas
+POST {{notificacaoUrl}}/api/v1/notificacoes/lidas/todas
+Authorization: Bearer {{tokenAluno}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+    });
+%}
+
+### Depois da baixa, o sino zera
+GET {{notificacaoUrl}}/api/v1/notificacoes/nao-lidas
+Authorization: Bearer {{tokenAluno}}
+Accept: application/json
+
+> {%
+    client.test("nenhuma não lida", () => {
+        client.assert(response.body.total === 0, "ainda restam " + response.body.total);
+    });
+%}
+
+### Seleção vazia é recusada — 400
+# Um "excluir" sem ids não pode ser interpretado como "excluir tudo".
+POST {{notificacaoUrl}}/api/v1/notificacoes/excluir
+Authorization: Bearer {{tokenAluno}}
+Content-Type: application/json
+
+{
+  "ids": []
+}
+
+> {%
+    client.test("responde 400", () => {
+        client.assert(response.status === 400, "esperado 400, veio " + response.status);
+    });
+%}
+
+### A conexão ao vivo é um fluxo, não uma resposta que termina
+# Aqui ela é apenas aberta e encerrada: o HTTP Client não acompanha
+# Server-Sent Events. A entrega ao vivo é verificada pelo teste de integração
+# FluxoAoVivoIntegracaoTest e, na prática, pelo sino do front-end.
+GET {{notificacaoUrl}}/api/v1/notificacoes/ao-vivo
+Authorization: Bearer {{tokenAluno}}
+Accept: text/event-stream
+
+> {%
+    client.test("abre o fluxo de eventos", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+        const tipo = response.contentType.mimeType;
+        client.assert(tipo === "text/event-stream", "tipo inesperado: " + tipo);
+    });
+%}

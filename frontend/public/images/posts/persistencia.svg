@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500" width="1200" height="500" role="img" aria-label="Camada de persistência: discos de dados ligados a uma malha de tabelas">
+  <defs>
+    <linearGradient id="ceu" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0a1c36"/><stop offset=".55" stop-color="#071427"/><stop offset="1" stop-color="#040d1c"/>
+    </linearGradient>
+    <linearGradient id="disco" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3b8ef5"/><stop offset="1" stop-color="#1b4fa8"/>
+    </linearGradient>
+    <linearGradient id="discoTopo" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7cc0ff"/><stop offset="1" stop-color="#2f7ae0"/>
+    </linearGradient>
+    <radialGradient id="brilho" cx="50%" cy="18%" r="70%">
+      <stop offset="0" stop-color="#3b8ef5" stop-opacity=".28"/><stop offset="1" stop-color="#3b8ef5" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1200" height="500" fill="url(#ceu)"/>
+  <rect width="1200" height="500" fill="url(#brilho)"/>
+
+  <g stroke="#5a78c8" stroke-opacity=".16" stroke-width="1">
+    <path d="M0 120h1200M0 250h1200M0 380h1200"/>
+    <path d="M200 0v500M480 0v500M760 0v500M1000 0v500"/>
+  </g>
+
+  <!-- pilha de discos: os três estados de uma linha versionada -->
+  <g transform="translate(300 128)">
+    <g opacity=".35">
+      <ellipse cx="0" cy="212" rx="132" ry="34" fill="#0a1830"/>
+      <path d="M-132 212v-46a132 34 0 0 0 264 0v46a132 34 0 0 1-264 0z" fill="url(#disco)"/>
+      <ellipse cx="0" cy="166" rx="132" ry="34" fill="url(#discoTopo)"/>
+    </g>
+    <g opacity=".7">
+      <path d="M-132 148v-46a132 34 0 0 0 264 0v46a132 34 0 0 1-264 0z" fill="url(#disco)"/>
+      <ellipse cx="0" cy="102" rx="132" ry="34" fill="url(#discoTopo)"/>
+    </g>
+    <g>
+      <path d="M-132 84v-46a132 34 0 0 0 264 0v46a132 34 0 0 1-264 0z" fill="url(#disco)"/>
+      <ellipse cx="0" cy="38" rx="132" ry="34" fill="url(#discoTopo)"/>
+      <ellipse cx="0" cy="38" rx="86" ry="22" fill="#071427" opacity=".45"/>
+      <ellipse cx="0" cy="38" rx="34" ry="9" fill="#9fd0ff" opacity=".55"/>
+    </g>
+  </g>
+
+  <!-- malha de entidades ligadas -->
+  <g transform="translate(700 90)">
+    <g stroke="#22d3ee" stroke-opacity=".45" stroke-width="2" fill="none">
+      <path d="M110 92 L260 46"/><path d="M110 92 L268 190"/><path d="M110 92 L96 250"/>
+      <path d="M268 190 L96 250"/>
+    </g>
+    <g fill="#0d2440" stroke="#3b8ef5" stroke-width="2.5">
+      <rect x="30" y="52" width="160" height="80" rx="10"/>
+      <rect x="222" y="6" width="150" height="72" rx="10"/>
+      <rect x="196" y="152" width="164" height="76" rx="10"/>
+      <rect x="20" y="212" width="152" height="76" rx="10"/>
+    </g>
+    <g fill="#8fb6e8" opacity=".85">
+      <rect x="48" y="70" width="86" height="8" rx="4"/><rect x="48" y="88" width="120" height="6" rx="3"/><rect x="48" y="102" width="72" height="6" rx="3"/>
+      <rect x="240" y="24" width="74" height="8" rx="4"/><rect x="240" y="42" width="112" height="6" rx="3"/>
+      <rect x="214" y="170" width="90" height="8" rx="4"/><rect x="214" y="188" width="126" height="6" rx="3"/>
+      <rect x="38" y="230" width="80" height="8" rx="4"/><rect x="38" y="248" width="110" height="6" rx="3"/>
+    </g>
+    <g fill="#22d3ee">
+      <circle cx="110" cy="92" r="6"/><circle cx="268" cy="42" r="6"/><circle cx="268" cy="190" r="6"/><circle cx="96" cy="250" r="6"/>
+    </g>
+  </g>
+</svg>

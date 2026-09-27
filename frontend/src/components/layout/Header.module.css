@@ -1,0 +1,1063 @@
+/* container transparente que define a região; a barra em si vive no .inner
+   e fica centralizada, com largura do próprio conteúdo (não de ponta a ponta) */
+.header {
+  position: fixed; top: 14px; left: calc(var(--sidebar-w) + 28px); right: 14px; z-index: 200;
+  height: var(--header-h);
+  display: flex; align-items: center; justify-content: center;
+  transition: left .24s cubic-bezier(.4,0,.2,1);
+  pointer-events: none;
+}
+
+/* pílula flutuante — mesma cor/vidro da sidebar */
+.inner {
+  pointer-events: auto;
+  width: fit-content; max-width: 100%;
+  height: 100%;
+  padding: 0 .55rem;
+  display: flex; align-items: center; gap: .6rem;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  backdrop-filter: var(--glass-blur);
+  /* tema escuro (padrão): luz sutil em TODO o contorno, sem sombra dura */
+  box-shadow:
+    0 0 20px rgba(34,211,238,.16),
+    0 0 40px -8px rgba(59,142,245,.12),
+    inset 0 1px 0 rgba(255,255,255,.1);
+}
+/* tema claro: sombra suave neutra */
+:global([data-theme="light"]) .inner {
+  box-shadow:
+    0 14px 34px -16px rgba(10,20,60,.2),
+    inset 0 1px 0 rgba(255,255,255,.7);
+}
+
+/* ── Left: hamburger + logo ──
+   .left e .right dividem o espaço igualmente (flex: 1) para que o centro
+   fique no centro geométrico do header, não no espaço que sobrar. */
+.left {
+  display: flex; align-items: center; gap: .5rem;
+  flex: 1; min-width: 0;
+}
+.hamburger {
+  width: 36px; height: 36px; border-radius: var(--radius);
+  background: none; color: var(--text-dim);
+  display: flex; align-items: center; justify-content: center;
+}
+.hamburger:hover { background: var(--surface-2); color: var(--primary); }
+
+.logo {
+  display: flex; align-items: center; gap: .4rem; cursor: pointer;
+  transition: opacity .18s ease, transform .18s ease;
+}
+.logoHidden {
+  opacity: 0;
+  transform: translateX(-8px);
+  pointer-events: none;
+}
+.logoIcon { color: var(--primary); filter: drop-shadow(0 0 6px var(--primary)); }
+.logoText {
+  font-size: .82rem; font-weight: 300; letter-spacing: .16em;
+  background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.logoText b { font-weight: 500; }
+
+/* ── Centro: busca centralizada ── */
+.center {
+  flex: 0 1 auto;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* salto com mola dos ícones — dispara uma vez a cada hover */
+@keyframes icoSalta {
+  0%   { transform: none; }
+  35%  { transform: translateY(-4px) scale(1.25); }
+  70%  { transform: translateY(1px)  scale(1.05); }
+  100% { transform: none; }
+}
+
+/* ── Right: icons + usuário ── */
+.right {
+  display: flex; align-items: center; justify-content: flex-end; gap: .375rem;
+  flex: 0 0 auto;
+}
+
+/* Search — sempre expandida, a maior pill do header (é o centro da tab bar) */
+.searchWrap {
+  position: relative; display: flex; align-items: center;
+  width: 350px; height: 38px;
+  transition: width .3s cubic-bezier(.22,1,.36,1);
+}
+.searchWrap.searchFocused { width: 430px; }
+
+.searchKnob {
+  position: absolute; top: 5px; left: 5px; z-index: 3; pointer-events: none;
+  width: 26px; height: 26px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--primary);   /* lupa no mesmo azul dos ícones da sidebar */
+  /* fundo do knob levemente escurecido no centro para a lupa saltar */
+  background:
+    radial-gradient(circle at 50% 42%, rgba(9,24,45,.55), rgba(9,24,45,.15) 70%),
+    linear-gradient(145deg, rgba(255,255,255,.26), rgba(255,255,255,.06));
+  border: 1px solid rgba(255,255,255,.32);
+  box-shadow: 0 2px 8px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.35);
+}
+/* sem animação de entrada — movimento só nas interações */
+.searchIconAnim {
+  display: flex; align-items: center; justify-content: center;
+}
+.searchIconAnim svg {
+  stroke-width: 2.6;
+  filter: drop-shadow(0 0 3px currentColor) drop-shadow(0 0 8px rgba(59,142,245,.85));
+}
+:global([data-theme="light"]) .searchKnob {
+  color: #0891b2;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(255,255,255,.7), rgba(255,255,255,.2) 70%),
+    linear-gradient(145deg, #ffffff, #e8ecf5);
+}
+:global([data-theme="light"]) .searchIconAnim svg {
+  filter: drop-shadow(0 0 2px rgba(8,145,178,.5));
+}
+.searchWrap:hover .searchIconAnim svg { animation: icoSalta .5s cubic-bezier(.34,1.56,.64,1); }
+
+/* cursor de terminal: barra fina esmaecendo suave, espaçada antes de "Buscar" */
+.caret {
+  position: absolute; left: 2.9rem; top: 50%; z-index: 2;
+  width: 2px; height: 16px; transform: translateY(-50%);
+  background: var(--accent); border-radius: 1px;
+  box-shadow: 0 0 6px rgba(34,211,238,.7);
+  pointer-events: none;
+  animation: caretFade 1.5s ease-in-out infinite;
+}
+@keyframes caretFade {
+  0%, 100% { opacity: .85; }
+  50%      { opacity: .12; }
+}
+
+.searchInput {
+  width: 100%; height: 38px;
+  caret-color: var(--accent);
+  /* mesma receita de vidro do resto (surface tingido, não o branco que
+     destoava): fio de luz sutil no topo + superfície translúcida escura */
+  background:
+    linear-gradient(160deg, rgba(255,255,255,.05), transparent 46%),
+    color-mix(in srgb, var(--surface-2) 80%, transparent);
+  border: 1px solid var(--border-2);
+  backdrop-filter: blur(12px);
+  border-radius: var(--pill); padding: .35rem 6.5rem .35rem 3rem;
+  color: var(--text); font-size: .85rem;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.06),
+    inset 0 -1px 2px rgba(0,0,0,.28),
+    0 0 10px rgba(59,142,245,.1);
+  transition: box-shadow .25s ease, border-color .25s ease;
+}
+.searchInput:hover { border-color: rgba(59,142,245,.4); }
+.searchInput:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.08),
+    inset 0 -1px 2px rgba(0,0,0,.28),
+    0 0 0 3px var(--primary-dim),
+    0 0 18px rgba(59,142,245,.28);
+}
+.searchInput::placeholder { color: var(--text-muted); letter-spacing: .02em; font-size: .82rem; }
+/* enquanto vazio, o cursor nativo do navegador não compete com o caret decorativo:
+   só o caret com fade aparece — mesmo efeito de piscar em foco ou fora dele */
+.searchInputEmpty { caret-color: transparent; }
+
+:global([data-theme="light"]) .searchInput {
+  background: linear-gradient(135deg, rgba(255,255,255,.92), rgba(255,255,255,.55));
+  border-color: rgba(255,255,255,.9);
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 2px 10px rgba(10,20,60,.1),
+    0 0 16px rgba(255,255,255,.8);
+}
+:global([data-theme="light"]) .searchInput:focus {
+  border-color: rgba(10,102,194,.45);
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 2px 12px rgba(10,20,60,.14),
+    0 0 24px rgba(255,255,255,1);
+}
+.searchKbd {
+  position: absolute; right: .95rem;
+  display: flex; align-items: center; gap: .25rem;
+  font-size: .65rem; font-family: inherit;
+  color: var(--text-muted); pointer-events: none;
+  white-space: nowrap;
+}
+.searchKbd kbd {
+  display: inline-flex; align-items: center;
+  padding: .08rem .32rem;
+  background: var(--surface); border: 1px solid var(--border-2);
+  border-bottom: 2px solid var(--border-2);
+  border-radius: 3px; font-family: inherit;
+  font-size: .65rem; font-weight: 600; color: var(--text-muted);
+  line-height: 1.4;
+  transition: transform .1s ease, background .1s ease,
+              border-color .1s ease, color .1s ease;
+}
+/* tecla pressionada: afunda, preenche em azul, acende e dá um "pop" */
+.kbdPress {
+  transform: translateY(1.5px) scale(.94);
+  border-bottom-width: 1px !important;
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+  color: #fff !important;
+  box-shadow: 0 0 10px var(--primary-glow);
+  animation: kbdPop .18s ease;
+}
+@keyframes kbdPop {
+  0%   { transform: translateY(0) scale(1); }
+  55%  { transform: translateY(2.5px) scale(.88); }
+  100% { transform: translateY(1.5px) scale(.94); }
+}
+.kbdSep { opacity: .4; margin: 0 .15rem; font-size: .6rem; }
+
+/* glifos Apple/Windows/Linux discretos (muted) — fica mais elegante */
+.kbdGlifo {
+  color: var(--text-muted);
+  opacity: .7;
+}
+/* os atalhos ficam visíveis com o campo aberto; ao digitar, o React troca
+   o hint pelo botão de limpar — não é preciso escondê-los no foco */
+
+/* "voltar": um botão redondo igual ao de limpar, logo à esquerda dele; aparece
+   depois de abrir um resultado da busca e leva à tela de onde ela partiu */
+.searchVoltar {
+  position: absolute; right: calc(.6rem + 24px);
+  width: 18px; height: 18px; border-radius: 50%;
+  background: color-mix(in srgb, var(--primary) 18%, transparent); color: var(--primary);
+  display: flex; align-items: center; justify-content: center;
+  border: none;
+}
+.searchVoltar:hover { background: color-mix(in srgb, var(--primary) 30%, transparent); }
+.searchClear {
+  position: absolute; right: .6rem;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--surface-3); color: var(--text-muted);
+  display: flex; align-items: center; justify-content: center;
+  border: none;
+}
+.searchClear:hover { background: var(--border-2); color: var(--text); }
+
+.suggBox {
+  position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+  background:
+    linear-gradient(160deg, rgba(255,255,255,.06), rgba(255,255,255,0) 45%),
+    color-mix(in srgb, var(--surface) 95%, transparent);
+  backdrop-filter: blur(28px) saturate(1.5);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: 9999;
+  overflow: hidden;
+  animation: fadeDown .12s ease;
+}
+.suggCat {
+  display: flex; align-items: center; gap: .3rem;
+  padding: .45rem .875rem .2rem;
+  font-size: .68rem; font-weight: 800; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--text-muted);
+}
+.suggItem {
+  display: flex; flex-direction: column; gap: .1rem;
+  width: 100%; text-align: left; background: none;
+  padding: .45rem .875rem; border: none;
+  transition: background .12s;
+}
+.suggItem:hover { background: var(--surface-2); }
+.suggLabel { font-size: .8125rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.suggSub   { font-size: .72rem; color: var(--text-muted); }
+
+/* Icon buttons */
+.iconBtn {
+  position: relative; width: 36px; height: 36px; border-radius: 50%;
+  background: none; color: var(--text-muted);
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s, color .15s;
+}
+.iconBtn:hover { background: var(--surface-2); color: var(--text); }
+.iconBtn:hover svg { animation: icoSalta .5s cubic-bezier(.34,1.56,.64,1); }
+
+/* ── Switch de tema — pílula de vidro com knob deslizante ── */
+.themeToggle {
+  position: relative;
+  width: 78px; height: 30px; flex-shrink: 0;
+  border-radius: 99px;
+  background: linear-gradient(135deg, rgba(255,255,255,.10), rgba(255,255,255,.03));
+  border: 1px solid var(--border-2);
+  backdrop-filter: blur(8px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.14),
+    inset 0 -1px 2px rgba(0,0,0,.25),
+    0 0 12px rgba(59,142,245,.22);
+  transition: box-shadow .25s ease, border-color .25s ease;
+}
+.themeToggle:hover {
+  border-color: rgba(59,142,245,.5);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.18),
+    inset 0 -1px 2px rgba(0,0,0,.25),
+    0 0 20px rgba(59,142,245,.4);
+}
+.themeToggle:active { transform: none; }   /* anula o scale global de button */
+
+.themeKnob {
+  position: absolute; top: 2px; left: 2px;
+  width: 24px; height: 24px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: #4d9bff;   /* lua azul acesa — destaque */
+  background: linear-gradient(145deg, rgba(255,255,255,.26), rgba(255,255,255,.06));
+  border: 1px solid rgba(255,255,255,.32);
+  box-shadow: 0 2px 8px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.35);
+  transition: transform .35s cubic-bezier(.34,1.56,.64,1);
+}
+.themeKnobDireita { transform: translateX(48px); }
+
+.themeLabel {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  font-size: .68rem; font-weight: 700; letter-spacing: .04em;
+  color: var(--text-dim); pointer-events: none;
+  text-shadow: 0 0 8px rgba(255,255,255,.25);
+}
+.themeLabelDireita  { right: 13px; }
+.themeLabelEsquerda { left: 13px; }
+
+/* No tema claro a pílula vira o vidro leitoso com brilho branco da referência */
+:global([data-theme="light"]) .themeToggle {
+  background: linear-gradient(135deg, rgba(255,255,255,.92), rgba(255,255,255,.55));
+  border-color: rgba(255,255,255,.9);
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 2px 10px rgba(10,20,60,.12),
+    0 0 18px rgba(255,255,255,.85);
+}
+:global([data-theme="light"]) .themeToggle:hover {
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 2px 12px rgba(10,20,60,.15),
+    0 0 26px rgba(255,255,255,1);
+}
+:global([data-theme="light"]) .themeKnob {
+  background: linear-gradient(145deg, #ffffff, #e8ecf5);
+  border-color: rgba(255,255,255,.95);
+  box-shadow: 0 2px 8px rgba(10,20,60,.22), inset 0 1px 0 #fff;
+  color: #f59e0b;   /* sol dourado */
+}
+:global([data-theme="light"]) .themeLabel { text-shadow: 0 0 8px rgba(255,255,255,.9); }
+
+.themeIcon {
+  display: flex; align-items: center; justify-content: center;
+  animation: themeSpin .5s cubic-bezier(.34,1.56,.64,1);
+}
+/* o astro aceso: duas camadas de brilho na cor do próprio ícone */
+.themeIcon svg {
+  filter: drop-shadow(0 0 4px currentColor) drop-shadow(0 0 10px currentColor);
+}
+@keyframes themeSpin {
+  from { transform: rotate(-150deg) scale(.3); opacity: 0; }
+  to   { transform: rotate(0)       scale(1);  opacity: 1; }
+}
+.badge {
+  position: absolute; top: 3px; right: 3px;
+  background: var(--primary); color: #fff;
+  font-size: .62rem; font-weight: 700; border-radius: 99px;
+  padding: 0 4px; min-width: 16px; height: 16px; line-height: 16px; text-align: center;
+}
+
+/* Popups (notifications + messages) */
+.popWrap { position: relative; }
+
+.popup {
+  position: absolute; top: calc(100% + 10px); right: 0;
+  width: 320px;
+  background:
+    linear-gradient(160deg, rgba(255,255,255,.06), rgba(255,255,255,0) 45%),
+    color-mix(in srgb, var(--surface) 95%, transparent);
+  backdrop-filter: blur(28px) saturate(1.5);
+  border: 1px solid var(--border-2); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg), var(--glow); z-index: 300;
+  /* com muitas notificações, a lista rola dentro do popup em vez de vazar a tela */
+  max-height: min(480px, calc(100vh - 96px)); overflow-y: auto; overscroll-behavior: contain;
+  scrollbar-width: thin; scrollbar-color: var(--border-2) transparent;
+  animation: fadeDown .15s ease;
+}
+@keyframes fadeDown { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:none} }
+
+.popHeader {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .875rem 1rem; border-bottom: 1px solid var(--border);
+  /* o cabeçalho fica parado enquanto a lista rola por baixo */
+  position: sticky; top: 0; z-index: 2;
+  background: color-mix(in srgb, var(--surface) 97%, transparent);
+  backdrop-filter: blur(12px);
+}
+.popTitle { font-size: .9rem; font-weight: 600; color: var(--text); display: inline-flex; align-items: center; gap: .45rem; }
+.popTitleIco { color: var(--primary); flex-shrink: 0; }
+.popAction {
+  display: flex; align-items: center; gap: .3rem;
+  font-size: .8rem; font-weight: 600; color: var(--primary); background: none;
+}
+.popAction:hover { color: var(--accent); }
+
+/* Notification items */
+.notifItem {
+  display: flex; align-items: center; gap: .75rem;
+  padding: .75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: background .15s;
+}
+.notifItem:last-child { border-bottom: none; }
+.notifItem:hover { background: var(--surface-2); }
+/* não lida: o mesmo efeito das mensagens — um fio de luz na borda esquerda e
+   um brilho que sangra para dentro, texto em negrito e um ponto azul pulsando */
+.notifItem.unread {
+  background: linear-gradient(90deg, rgba(45,95,255,.10) 0%, rgba(45,95,255,.03) 34%, transparent 62%);
+  box-shadow: inset 2.5px 0 0 rgba(60,110,255,.85), inset 16px 0 20px -16px rgba(60,110,255,.5);
+}
+.notifItem.unread:hover {
+  box-shadow: inset 2.5px 0 0 rgba(90,140,255,1), inset 18px 0 24px -16px rgba(60,110,255,.6);
+}
+.notifItem.unread .notifText { font-weight: 600; }
+:global([data-theme="light"]) .notifItem.unread {
+  background: linear-gradient(90deg, rgba(10,102,194,.09) 0%, rgba(10,102,194,.03) 34%, transparent 62%);
+  box-shadow: inset 2.5px 0 0 rgba(20,90,220,.7), inset 16px 0 20px -16px rgba(20,90,220,.35);
+}
+/* o botão de lida/não lida da notificação: o mesmo das mensagens, centrado */
+.notifLidaBtn { align-self: center; flex-shrink: 0; }
+
+.notifIconWrap {
+  width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+  background: var(--primary-dim);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--primary);
+}
+.notifBody { flex: 1; }
+.notifText { display: block; font-size: .8125rem; color: var(--text); line-height: 1.4; }
+.notifTime { font-size: .74rem; color: var(--text-muted); margin-top: .2rem; display: block; }
+
+/* Message items */
+.msgItem {
+  display: flex; align-items: center; gap: .75rem;
+  padding: .75rem 1rem; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: background .15s;
+}
+.msgItem:last-child { border-bottom: none; }
+.msgItem:hover { background: var(--surface-2); }
+.msgItem.unread { background: rgba(59,142,245,.05); }
+.msgAv {
+  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .74rem; font-weight: 600; color: #fff;
+}
+.msgBody { flex: 1; min-width: 0; }
+.msgNome { display: block; font-size: .84rem; font-weight: 600; color: var(--text); }
+/* MarqueeText aplica esta classe ao wrap (que já recorta o overflow);
+   o texto desliza no hover do item (data-marquee-host) para leitura */
+.msgTexto { font-size: .8rem; color: var(--text-muted); }
+.msgTime { font-size: .74rem; color: var(--text-muted); flex-shrink: 0; }
+
+/* amarelo de placa de obra: o aviso se destaca do resto do popup */
+.popConstruct {
+  display: flex; align-items: center; justify-content: center; gap: .4rem;
+  padding: .625rem; font-size: .78rem; font-weight: 700;
+  color: var(--warning);
+  background: rgba(251, 191, 36, .09);
+  border-top: 1px solid rgba(251, 191, 36, .3);
+}
+
+/* Avatar / dropdown */
+.avatarWrap { position: relative; }
+/* sem contorno: só o avatar com o status */
+.avatarBtn {
+  display: flex; align-items: center; justify-content: center;
+  height: 36px; width: 36px;
+  padding: 2px; border-radius: 50%;
+  background: none; border: none;
+  transition: transform .18s ease;
+}
+.avatarBtn:hover { transform: translateY(-1px); }
+.avatarContainer { position: relative; flex-shrink: 0; }
+.avatar {
+  width: 24px; height: 24px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .68rem; font-weight: 700; color: #fff;
+  box-shadow: 0 0 0 2px rgba(59,142,245,.4);
+}
+/* bolinha de presença no avatar — a cor vem do status escolhido (useStatus) */
+.onlineDot {
+  position: absolute; bottom: -2px; right: -2px;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #22c55e;
+  border: 2px solid rgba(4,12,26,.96);
+  transition: background .25s;
+}
+.onlineDot[data-status="online"]   { animation: dotPulso 2.2s ease-in-out infinite; }
+.onlineDot[data-status="ausente"]  { animation: dotRespira 3.6s ease-in-out infinite; }
+.onlineDot[data-status="dormindo"] { animation: dotRespira 3.2s ease-in-out infinite; }
+.onlineDot[data-status="offline"]  { opacity: .8; }
+@keyframes dotPulso {
+  0%, 100% { box-shadow: 0 0 0 rgba(34,197,94,0); }
+  15%      { box-shadow: 0 0 9px 1px rgba(34,197,94,.85); }
+  60%      { box-shadow: 0 0 5px rgba(34,197,94,.5); }
+}
+@keyframes dotRespira { 0%, 100% { opacity: .6; } 50% { opacity: 1; } }
+
+/* seletor de status dentro do menu do perfil */
+.dropStatus { margin-top: .45rem; display: flex; justify-content: center; }
+.avatarName {
+  font-size: .8125rem; font-weight: 600; color: var(--text-dim);
+  max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.chevron { color: var(--text-muted); }
+
+.dropdown {
+  position: absolute; top: calc(100% + 8px); right: 0; width: 240px;
+  background:
+    linear-gradient(160deg, rgba(255,255,255,.06), rgba(255,255,255,0) 45%),
+    color-mix(in srgb, var(--surface) 95%, transparent);
+  border: 1px solid var(--border-2); border-radius: var(--radius-lg);
+  backdrop-filter: blur(28px) saturate(1.5);
+  box-shadow: var(--shadow-lg), var(--glow); overflow: hidden; z-index: 300;
+  animation: fadeDown .15s ease;
+}
+/* Cartão do usuário: avatar centralizado, nome, papel e e-mail empilhados —
+   o e-mail quebra linha em vez de cortar. */
+.dropUser {
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center; gap: .3rem;
+  padding: 1.125rem 1rem .875rem;
+}
+.dropAvatar {
+  width: 48px; height: 48px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem; font-weight: 700; color: #fff; flex-shrink: 0;
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px rgba(59,142,245,.35);
+  margin-bottom: .35rem;
+}
+.dropName  { font-size: .9rem; font-weight: 700; color: var(--text); }
+.dropPapel { font-size: .75rem; font-weight: 600; color: var(--primary); }
+.dropEmail {
+  font-size: .74rem; color: var(--text-muted);
+  word-break: break-all; line-height: 1.4; max-width: 100%;
+}
+
+.dropDivider { height: 1px; background: var(--border); margin: .25rem 0; }
+.dropItem {
+  display: flex; align-items: center; gap: .625rem;
+  width: 100%; padding: .5rem 1rem; font-size: .875rem; color: var(--text-dim); background: none;
+}
+.dropItem:hover { background: var(--surface-2); color: var(--text); }
+.dropSair {
+  display: flex; align-items: center; gap: .625rem;
+  width: 100%; padding: .5rem 1rem; font-size: .875rem; color: var(--danger); background: none;
+}
+.dropSair:hover { background: rgba(248,113,113,.08); }
+
+/* ── Responsividade: evita ícones sobre a busca e enxuga o usuário ── */
+.center { min-width: 0; }
+
+/* mais estreito: a busca encolhe para não colidir com os ícones */
+@media (max-width: 880px) {
+  .searchWrap { width: 220px; }
+  .searchWrap.searchFocused { width: 260px; }
+}
+/* muito estreito: a busca sai de cena */
+@media (max-width: 620px) { .searchWrap { display: none; } }
+
+/* ── Popups: ferramentas do header, checkbox radar, status ── */
+.popTools { display: flex; align-items: center; gap: .3rem; }
+.popIco {
+  width: 28px; height: 28px; border-radius: 50%; color: var(--text-muted);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  background: none; transition: background .15s, color .15s;
+}
+.popIco:hover { background: var(--surface-2); color: var(--primary); }
+.popIcoDanger:hover { background: rgba(248,113,113,.14); color: var(--danger); }
+.popVazio { padding: 1.4rem 1rem; text-align: center; font-size: .84rem; color: var(--text-muted); }
+
+/* checkbox redondo estilo radar — maior; verde com tick quando marcado */
+.radar {
+  flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted); background: none; cursor: pointer;
+  transition: color .15s, transform .15s, background .15s;
+}
+.radar { position: relative; }
+.radar svg { width: 22px; height: 22px; }
+.radar:hover { color: var(--primary); transform: scale(1.1); background: var(--surface-2); }
+/* selecionado: o CONTORNO (anel) fica neutro — apenas o TICK é verde */
+.radarOn { color: var(--text-dim); }
+.radar .radarTick {
+  position: absolute; inset: 0; margin: auto;
+  width: 13px; height: 13px; color: var(--success);
+  filter: drop-shadow(0 0 4px rgba(34,197,94,.55)); stroke-width: 3;
+}
+.notifItem.marcada {
+  background: rgba(34,197,94,.07); box-shadow: inset 2px 0 0 rgba(34,197,94,.6);
+}
+
+/* meu avatar + status no cabeçalho das mensagens (não junto da lista) */
+.meuStatus { display: flex; align-items: center; gap: .55rem; min-width: 0; }
+/* avatar SEM contorno, só um leve efeito de luz (brilho interno + halo suave) */
+.meuAv {
+  width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .7rem; font-weight: 700; color: #fff;
+  box-shadow:
+    inset 0 1px 1px rgba(255,255,255,.45),
+    inset 0 -2px 3px rgba(0,0,0,.25),
+    0 0 10px rgba(255,255,255,.14);
+}
+
+/* divisórias entre mensagens */
+.msgList .msgItem { border-bottom: 1px solid var(--border); }
+.msgList .msgItem:last-child { border-bottom: none; }
+
+/* ── Dock de mensagens: PASTA DE ARQUIVO (fundo escuro + frente clara) ── */
+.msgDock {
+  /* ancorado na MARGEM INFERIOR (bottom: 0) — faz parte da borda da página,
+     não flutua; os cantos de baixo do path são retos pelo mesmo motivo */
+  position: fixed; bottom: 0; right: 16px; top: auto; left: auto; z-index: 400;
+  width: 344px; max-height: 560px;
+  display: flex; flex-direction: column; overflow: visible;
+  /* fundo, borda e sombra da pasta são desenhados pelo SVG (.pastaSvg);
+     o dock em si é só o container transparente do conteúdo. */
+  transform-origin: bottom right;
+  animation: dockUp .24s cubic-bezier(.22,1,.36,1);
+}
+/* pasta em DUAS camadas na mesma forma (path dinâmico → cresce com a lista):
+   1) vidro: div com backdrop-filter recortado no path = glassmorphism real;
+   2) contorno: SVG só com o stroke por cima. A sombra/glow seguem a forma. */
+.pastaGlass {
+  /* top = -ABA_PEEK (34px, Header.tsx) — vidro, SVG e caixa do título
+     precisam partir do MESMO y, senão o título desalinha dentro da aba */
+  position: absolute; top: -34px; left: 0; z-index: 0; pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(59,142,245,.13), transparent 80px),
+    linear-gradient(160deg, rgba(255,255,255,.06), transparent 45%),
+    color-mix(in srgb, var(--surface) 60%, transparent);
+  /* SÓ backdrop-filter aqui: um `filter` no MESMO elemento faz o Chrome
+     descartar o backdrop-filter (o vidro some). A sombra vai no SVG.
+     Sem a linha -webkit-*: ela fazia o Lightning CSS (build) descartar tudo.
+     Preenchimento a 60% → o blur atravessa um pouco mais (glass presente,
+     ainda discreto). */
+  backdrop-filter: blur(26px) saturate(1.5);
+}
+:global([data-theme="light"]) .pastaGlass {
+  background:
+    linear-gradient(180deg, rgba(10,102,194,.09), transparent 80px),
+    linear-gradient(160deg, rgba(255,255,255,.6), transparent 45%),
+    color-mix(in srgb, var(--surface) 48%, transparent);
+}
+/* contorno + sombra/glow da pasta (segue a forma; filter aqui não afeta o vidro) */
+.pastaSvg {
+  position: absolute; top: -34px; left: 0; z-index: 0;
+  overflow: visible; pointer-events: none;
+  filter: drop-shadow(0 15px 26px rgba(0,0,0,.55)) drop-shadow(0 0 18px rgba(59,142,245,.12));
+}
+:global([data-theme="light"]) .pastaSvg {
+  filter: drop-shadow(0 12px 24px rgba(10,20,60,.18));
+}
+.pastaStroke { fill: none; stroke: var(--border-2); stroke-width: 1; }
+/* conteúdo acima do SVG — a .msgAba fica de FORA desta lista: ela é
+   position:absolute (ancorada na aba, fora do fluxo) e esta regra, mais
+   específica, a rebaixava para relative — virava item do flex, ocupava
+   espaço no fluxo (o vão em branco sob a aba) e ainda encolhia. */
+.msgDock > .msgList { position: relative; z-index: 1; }
+/* o plano superior fica ACIMA da lista: além da sombra que ele projeta nos
+   cartões, é dele que sai o menu de status, que não pode ficar por baixo */
+.msgDock > .msgPlano { position: relative; z-index: 5; }
+
+/* plano superior: barra do avatar + busca como uma peça ERGUIDA acima da
+   lista — fio de luz no lábio de cima (pega a luz), sombra descendo sobre as
+   mensagens e uma folga separando os dois planos */
+.msgPlano {
+  position: relative; z-index: 2;
+  display: flex; flex-direction: column;
+  margin-bottom: .55rem; /* folga entre o plano e a lista */
+  /* sombra DIFUSA descendo sobre a lista — spread bem negativo + blur alto para
+     ser um esfumado suave, nunca uma linha marcada sob o título */
+  box-shadow: 0 14px 22px -18px rgba(0,0,0,.45);
+}
+:global([data-theme="light"]) .msgPlano {
+  box-shadow: 0 14px 22px -18px rgba(10,20,60,.22);
+}
+@keyframes dockUp { from { opacity: 0; transform: translateY(24px) scale(.96); } to { opacity: 1; transform: none; } }
+
+/* TÍTULO dentro da abinha: tamanho PADRÃO dos títulos de painel (.9rem/700,
+   como "Tarefas & Entregas"), centralizado na altura da aba (34px) e com o
+   mesmo efeito cravejado dos botões da janela — na fonte e no ícone
+   (sombra escura em cima + fio de luz embaixo = entalhado na aba). */
+.msgAba {
+  position: absolute; top: -34px; left: 0; z-index: 1;
+  height: 34px; width: 186px;
+  display: flex; align-items: center; gap: .45rem;
+  /* mesmo padding-esquerdo da barra do avatar (.msgTab): ícone do título e
+     avatar alinham na mesma coluna */
+  padding: 0 .5rem 0 .8rem; pointer-events: none;
+}
+/* ícone e texto ENTALHADOS na aba — mesma receita dos botões da janela:
+   contorno escuro (= borda do botão) + sombra do corte no topo (= inset
+   escuro) + fio de luz no lábio de baixo (= 0 1px branco), mesma espessura. */
+/* ícone colorido (azul do tema) + título claro legível, com um relevo bem
+   discreto (só um fio de luz embaixo) para não ficar totalmente chapado */
+/* ENTALHE (carve): sombra escura no lábio de cima + fio de luz embaixo →
+   a letra e o contorno do ícone parecem afundados na aba. Mantém a cor
+   (ícone azul, título claro), só adiciona o relevo cravado. */
+.msgAbaIco {
+  color: var(--primary); flex-shrink: 0;
+  filter:
+    drop-shadow(0 -1px 1px rgba(0,0,0,.6))
+    drop-shadow(0 1px 0 rgba(255,255,255,.14));
+}
+.msgAbaTitle {
+  font-size: .9rem; font-weight: 700; letter-spacing: .01em;
+  color: var(--text);
+  text-shadow:
+    0 -1px 1px rgba(0,0,0,.6),        /* corte escuro em cima */
+    0 1px 0 rgba(255,255,255,.14);    /* lábio de luz embaixo */
+}
+:global([data-theme="light"]) .msgAbaIco {
+  color: var(--primary);
+  filter:
+    drop-shadow(0 1px 0 rgba(255,255,255,.85))
+    drop-shadow(0 -1px 1px rgba(10,20,60,.35));
+}
+:global([data-theme="light"]) .msgAbaTitle {
+  color: var(--text-dim);
+  text-shadow:
+    0 1px 0 rgba(255,255,255,.85),
+    0 -1px 1px rgba(10,20,60,.32);
+}
+
+/* barra abaixo da aba: avatar + nome + controles — TUDO centralizado na
+   vertical (padding simétrico; align-items já centra os itens entre si) */
+.msgTab {
+  position: relative; z-index: 2;
+  display: flex; align-items: center; gap: .5rem;
+  padding: .45rem .55rem .55rem .8rem;
+  background: none;
+}
+.msgTab .meuNome { min-width: 0; }
+
+/* ações (selecionar/marcar/excluir/nova) — FLAT, distintas dos botões da
+   janela; empurradas p/ a direita, coladas à janela */
+.msgTabActions { margin-left: auto; display: flex; align-items: center; gap: .12rem; flex-shrink: 0; }
+.msgTabActions .popIco { width: 26px; height: 26px; color: var(--text-muted); }
+.msgTabActions .popIco:hover { background: var(--surface-2); color: var(--primary); }
+.msgTabActions .popIcoDanger:hover { background: rgba(248,113,113,.14); color: var(--danger); }
+.msgTabActions .popIcoOn { color: var(--primary); }
+
+/* ── Cores dos botões de interação (mensagens e notificações) ──
+   cada ação com identidade própria; a janela (recolher/fechar) fica de fora */
+.popIco.icoAzul { color: var(--primary); }
+.popIco.icoAzul:hover { background: var(--primary-dim); color: var(--primary); }
+.popIco.icoVerde { color: var(--success); }
+.popIco.icoVerde:hover { background: rgba(52,211,153,.12); color: var(--success); }
+.popIco.icoCiano { color: var(--accent); }
+.popIco.icoCiano:hover { background: rgba(34,211,238,.12); color: var(--accent); }
+.popIco.icoAmbar { color: var(--warning); }
+.popIco.icoAmbar:hover { background: rgba(251,191,36,.12); color: var(--warning); }
+.popIco.icoVermelho { color: var(--danger); }
+.popIco.icoVermelho:hover { background: rgba(248,113,113,.14); color: var(--danger); }
+.popIco.icoNeutro { color: var(--text-dim); }
+.popIco.icoNeutro:hover { background: var(--surface-2); color: var(--text); }
+
+/* janela (recolher/expandir + fechar): contorno ESCURO, vincado — distinto */
+.msgTabWindow { display: flex; align-items: center; gap: .35rem; flex-shrink: 0; margin-left: .5rem; }
+.msgTabWindow .popIco {
+  width: 28px; height: 28px; color: var(--text-dim);
+  background: none;
+  border: 1px solid rgba(2,6,15,.55);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.35), 0 1px 0 rgba(255,255,255,.05);
+  transition: color .15s, box-shadow .15s;
+}
+.msgTabWindow .popIco:hover { color: var(--text); }
+.msgTabWindow .popIcoClose:hover { color: var(--danger); }
+:global([data-theme="light"]) .msgTabWindow .popIco {
+  border-color: rgba(10,20,60,.22);
+  box-shadow: inset 0 1px 2px rgba(10,20,60,.14), 0 1px 0 rgba(255,255,255,.8);
+}
+
+/* linha do usuário: só avatar + nome/status */
+.msgUser {
+  display: flex; align-items: center; gap: .55rem;
+  padding: .55rem .7rem .55rem .8rem;
+  border-bottom: 1px solid var(--border);
+}
+.msgUser .meuInfo { flex: 1; min-width: 0; }
+
+/* ── Busca dentro das mensagens ── */
+/* a linha das ações da seleção, logo abaixo da aba: contagem à esquerda,
+   botões à direita — nunca passa da borda do dock */
+.msgSelBarra {
+  position: relative; z-index: 1; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+  margin: .35rem .55rem 0; padding: .25rem .35rem .25rem .75rem;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  border: 1px solid var(--border);
+  animation: fadeDown .15s ease;
+}
+.msgSelInfo { font-size: .75rem; font-weight: 600; color: var(--text-dim); white-space: nowrap; }
+.msgSelAcoes { display: flex; align-items: center; gap: .15rem; flex-shrink: 0; }
+
+.msgBusca {
+  position: relative; z-index: 1; flex-shrink: 0;
+  display: flex; align-items: center; gap: .45rem;
+  margin: .4rem .55rem .5rem; padding: 0 .4rem 0 .7rem;
+  height: 40px; border-radius: 99px;
+  /* fundo mais fundo que o entorno reforça o "buraco" onde ela está cravada */
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+  border: 1px solid var(--border);
+  /* CRAVADA PARA DENTRO (inner shadow): sombra funda no topo interno + fio de
+     luz no lábio de baixo → parece afundada, não suspensa */
+  box-shadow:
+    inset 0 2px 5px rgba(0,0,0,.55),
+    inset 0 1px 2px rgba(0,0,0,.4),
+    inset 0 -1px 0 rgba(255,255,255,.05);
+  transition: border-color .15s, box-shadow .15s;
+}
+.msgBusca:focus-within {
+  border-color: var(--primary);
+  box-shadow:
+    inset 0 2px 5px rgba(0,0,0,.55),
+    inset 0 1px 2px rgba(0,0,0,.4),
+    0 0 0 3px var(--primary-dim);
+}
+:global([data-theme="light"]) .msgBusca {
+  background: color-mix(in srgb, var(--surface-3) 85%, transparent);
+  box-shadow:
+    inset 0 2px 4px rgba(10,20,60,.16),
+    inset 0 1px 2px rgba(10,20,60,.12),
+    inset 0 -1px 0 rgba(255,255,255,.6);
+}
+:global([data-theme="light"]) .msgBusca:focus-within {
+  box-shadow:
+    inset 0 2px 4px rgba(10,20,60,.16),
+    inset 0 1px 2px rgba(10,20,60,.12),
+    0 0 0 3px var(--primary-dim);
+}
+.msgBuscaIco { color: var(--text-muted); flex-shrink: 0; }
+.msgBuscaInput {
+  flex: 1; min-width: 0; background: none; border: none; outline: none;
+  color: var(--text); font-size: .82rem;
+}
+.msgBuscaInput::placeholder { color: var(--text-muted); }
+.msgBuscaClear {
+  flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted); background: none;
+}
+.msgBuscaClear:hover { background: var(--surface-2); color: var(--text); }
+
+.msgDock .msgList {
+  overflow-y: auto; overflow-x: hidden;
+  padding: .4rem .55rem .75rem;
+  display: flex; flex-direction: column;
+}
+.msgDock .msgList::-webkit-scrollbar { width: 6px; }
+.msgDock .msgList::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 99px; }
+
+/* DECK: a mais nova (1ª) fica inteira à frente; as antigas recuam atrás —
+   sobrepostas, menores, mais escuras, com sombra de profundidade */
+.msgDock .msgItem {
+  border: 1px solid var(--border-2); border-radius: 12px;
+  /* cards SÓLIDOS — o glassmorphism é só da janela, não das mensagens */
+  background: var(--surface-2);
+  box-shadow: 0 4px 12px -6px rgba(0,0,0,.45);
+  /* espaçadas: uma abaixo da outra, sem sobreposição apertada */
+  margin-bottom: 6px; position: relative;
+  transform-origin: center top;
+  /* mola no transform (overshoot só PRA CIMA — crescer nunca tira o cursor
+     de cima do card, então não há flicker) */
+  transition: transform .32s cubic-bezier(.34,1.56,.64,1),
+              box-shadow .22s ease, border-color .22s ease, opacity .22s ease;
+}
+/* profundidade SUTIL só pela escala (cards opacos, sem opacidade nem
+   escurecimento) — cada camada um tico menor que a anterior */
+.msgDock .msgItem:nth-child(1) { z-index: 6; }
+.msgDock .msgItem:nth-child(2) { z-index: 5; transform: scale(.99); }
+.msgDock .msgItem:nth-child(3) { z-index: 4; transform: scale(.98); }
+.msgDock .msgItem:nth-child(4) { z-index: 3; transform: scale(.972); }
+.msgDock .msgItem:nth-child(n+5) { z-index: 2; transform: scale(.965); }
+.msgDock .msgItem:last-child { margin-bottom: 0; }
+/* no hover: vem à frente com efeito de mola (a transição do transform tem
+   overshoot). REGRA: nada de translate/margin/keyframe que mova ou encolha o
+   card — mover o box sob o cursor dispara loop hover↔unhover e a mensagem
+   fica "pulando" quando o mouse está na borda. */
+.msgDock .msgItem:hover {
+  transform: scale(1) !important;
+  filter: none !important; opacity: 1 !important;
+  z-index: 10;
+  /* borda INTEIRA acesa (via border-color, casa com o raio) + elevação + glow */
+  border-color: rgba(59,142,245,.85);
+  box-shadow:
+    0 12px 26px -6px rgba(0,0,0,.6),
+    0 0 16px rgba(59,142,245,.32);
+}
+
+/* não lida em hover: pausa o pulso e apenas INTENSIFICA o mesmo inner shadow
+   do repouso (o fio + o brilho interno) — nada se move separado, é a mesma peça */
+.msgDock .msgItem.unread:hover {
+  animation: none;
+  border-color: rgba(59,142,245,.85);
+  box-shadow:
+    inset 2.5px 0 0 rgba(90,140,255,1),
+    inset 18px 0 24px -16px rgba(60,110,255,.6),
+    0 12px 26px -6px rgba(0,0,0,.6),
+    0 0 16px rgba(59,142,245,.32);
+}
+:global([data-theme="light"]) .msgDock .msgItem.unread:hover {
+  box-shadow:
+    inset 2.5px 0 0 rgba(20,90,220,.9),
+    inset 18px 0 24px -16px rgba(20,90,220,.45),
+    0 12px 26px -6px rgba(10,20,60,.25),
+    0 0 16px rgba(59,142,245,.25);
+}
+
+/* X de fechar: vermelho no hover */
+.popIcoClose:hover { background: rgba(248,113,113,.14); color: var(--danger); }
+
+/* recolhida: somem a lista e a busca; ficam a aba + a linha do usuário */
+.msgDockCollapsed .msgList,
+.msgDockCollapsed .msgBusca,
+.msgDockCollapsed .msgSelBarra,
+/* recolhido não há lista para selecionar — o botão sai junto */
+.msgDockCollapsed .msgBtnSel { display: none; }
+.msgDockCollapsed .msgTab { cursor: pointer; }
+/* recolhida: sem lista embaixo, o plano não deve deixar folga nem sombra/risco */
+.msgDockCollapsed .msgPlano { margin-bottom: 0; box-shadow: none; }
+
+/* radar dentro das mensagens do dock */
+.msgDock .msgItem .radar { width: 30px; height: 30px; }
+
+/* ── Não lidas: a luz é INTERNA ao card (inner shadow), não uma barra colada.
+   Um fio de luz fino na borda esquerda + um brilho suave que sangra pra dentro
+   e esmaece — tudo no box-shadow do PRÓPRIO card. Assim é uma peça só, e o
+   hover apenas intensifica o mesmo efeito (nada se move em separado). ── */
+.msgDock .msgItem.unread {
+  background:
+    linear-gradient(90deg, rgba(45,95,255,.10) 0%, rgba(45,95,255,.03) 34%, transparent 62%),
+    var(--surface-2);
+  border-color: var(--border-2);
+  box-shadow:
+    inset 2.5px 0 0 rgba(60,110,255,.85),         /* fio de luz na borda esquerda, por dentro */
+    inset 16px 0 20px -16px rgba(60,110,255,.5),  /* brilho suave sangrando pra dentro */
+    0 4px 12px -6px rgba(0,0,0,.4);
+}
+.msgDock .msgItem.unread .msgNome { font-weight: 700; }
+:global([data-theme="light"]) .msgDock .msgItem.unread {
+  background:
+    linear-gradient(90deg, rgba(10,102,194,.09) 0%, rgba(10,102,194,.03) 34%, transparent 62%),
+    var(--surface-2);
+  border-color: var(--border-2);
+  box-shadow:
+    inset 2.5px 0 0 rgba(20,90,220,.7),
+    inset 16px 0 20px -16px rgba(20,90,220,.35),
+    0 4px 12px -6px rgba(10,20,60,.15);
+}
+
+/* coluna final: hora em cima, controle de leitura embaixo */
+.msgFim {
+  display: flex; flex-direction: column; align-items: flex-end;
+  gap: .1rem; flex-shrink: 0;
+}
+/* marcar como lida: em repouso é o ponto azul pulsante (indicador de não
+   lida); no hover da mensagem o ponto dá lugar ao envelope aberto (ação) */
+.lidaBtn {
+  position: relative; width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  /* envelope "marcar como lida" em CIANO — mesma cor da ação em lote */
+  color: var(--accent); background: none;
+}
+/* envelope com LUZ ciano, no lugar do ícone cru sobre o ponto */
+.lidaBtn svg {
+  opacity: 0; transition: opacity .15s;
+  filter: drop-shadow(0 0 4px rgba(34,211,238,.95)) drop-shadow(0 0 9px rgba(34,211,238,.5));
+}
+.lidaDot {
+  position: absolute; width: 8px; height: 8px; border-radius: 50%;
+  /* AZUL ELÉTRICO (igual à borda esquerda) — sem branco: núcleo azul + halo azul */
+  background: radial-gradient(circle at 40% 38%, #6f97ff 16%, #3c6eff 62%, #244fe8 100%);
+  box-shadow: 0 0 10px rgba(60,110,255,1), 0 0 5px rgba(70,120,255,.95);
+  animation: lidaPulsa 2s ease-in-out infinite;
+  transition: opacity .15s;
+}
+@keyframes lidaPulsa {
+  0%, 100% { transform: scale(1);    opacity: 1; }
+  50%      { transform: scale(1.3);  opacity: .7; }
+}
+.msgDock .msgItem:hover .lidaBtn svg { opacity: 1; }
+/* animation: none é OBRIGATÓRIO: a lidaPulsa anima opacity e, sem desligar a
+   animação, ela vence o opacity:0 do hover — o ponto ficava sob o envelope */
+.msgDock .msgItem:hover .lidaDot { opacity: 0; animation: none; }
+/* nas notificações, o mesmo: o envelope aparece no passar do mouse */
+.notifItem:hover .lidaBtn svg { opacity: 1; }
+.notifItem:hover .lidaDot { opacity: 0; animation: none; }
+.lidaBtn:hover { background: rgba(34,211,238,.12); }
+
+/* marcar como NÃO lida (mensagens já lidas): envelope fechado em ÂMBAR —
+   mesma cor da ação em lote; só aparece no hover da mensagem */
+.naoLidaBtn { color: var(--warning); }
+.naoLidaBtn svg {
+  filter: drop-shadow(0 0 4px rgba(251,191,36,.85)) drop-shadow(0 0 9px rgba(251,191,36,.4));
+}
+.naoLidaBtn:hover { background: rgba(251,191,36,.12); }
+@media (prefers-reduced-motion: reduce) { .lidaDot { animation: none; } }
+
+/* ── Popup de confirmação de exclusão ── */
+.confirmOverlay {
+  position: fixed; inset: 0; z-index: 9600;
+  background: rgba(4,12,26,.62); backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center;
+  animation: confFade .16s ease;
+}
+@keyframes confFade { from { opacity: 0; } to { opacity: 1; } }
+.confirmBox {
+  width: 90vw; max-width: 340px; padding: 1.4rem 1.3rem 1.1rem; text-align: center;
+  background:
+    linear-gradient(160deg, rgba(255,255,255,.06), rgba(255,255,255,0) 45%),
+    color-mix(in srgb, var(--surface) 97%, transparent);
+  backdrop-filter: blur(28px) saturate(1.5);
+  border: 1px solid var(--border-2); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  animation: confPop .18s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes confPop { from { opacity: 0; transform: translateY(12px) scale(.96); } to { opacity: 1; transform: none; } }
+.confirmIco {
+  width: 46px; height: 46px; border-radius: 50%; margin: 0 auto .7rem;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--danger); background: rgba(248,113,113,.14);
+  border: 1px solid rgba(248,113,113,.3);
+}
+.confirmTxt { font-size: .95rem; font-weight: 700; color: var(--text); line-height: 1.4; }
+.confirmSub { display: block; font-size: .78rem; color: var(--text-muted); margin-top: .3rem; }
+.confirmActions { display: flex; gap: .6rem; margin-top: 1.2rem; }
+.confirmCancel, .confirmDel {
+  flex: 1; padding: .6rem; border-radius: var(--radius);
+  font-size: .85rem; font-weight: 700; cursor: pointer;
+  transition: background .15s, box-shadow .15s, border-color .15s;
+}
+.confirmCancel {
+  color: var(--text-dim); background: var(--surface-2); border: 1px solid var(--border-2);
+}
+.confirmCancel:hover { background: var(--surface-3); color: var(--text); }
+.confirmDel {
+  color: #fff; background: linear-gradient(160deg, #f26d6d, #dc4a4a);
+  border: 1px solid rgba(248,113,113,.5);
+}
+.confirmDel:hover { box-shadow: 0 0 16px rgba(248,113,113,.5); }
+
+/* ── Impressão: a barra superior não sai no papel ── */
+@media print {
+  .header { display: none !important; }
+  .msgDock, .popup, .dropdown { display: none !important; }
+}

@@ -1,0 +1,128 @@
+// =========================================================================
+// Grafana Alloy — o coletor do Infnet Hub no Compose (TP5).
+//
+// Um processo, dois trabalhos:
+//
+//   logs    lê a saída padrão de cada contêiner deste projeto pelo Docker,
+//           interpreta o JSON que os serviços escrevem e envia ao Loki
+//   traces  recebe os spans dos serviços por OTLP, agrupa em lotes e envia
+//           ao Tempo
+//
+// Os serviços não conhecem nem o Loki nem o Tempo: escrevem na saída padrão e
+// mandam spans a um endereço OTLP. Trocar o destino — outro Loki, um serviço
+// gerenciado de observabilidade — é trocar este arquivo, sem novo build.
+//
+// Alloy é o sucessor do Promtail (descontinuado) e do Grafana Agent, e fala
+// OpenTelemetry nativamente.
+// =========================================================================
+
+// ── Logs ─────────────────────────────────────────────────────────────────────
+
+// Todos os contêineres do Docker; o filtro vem logo abaixo.
+discovery.docker "conteineres" {
+  host = "unix:///var/run/docker.sock"
+}
+
+// Só os deste projeto, e com nomes que façam sentido no Grafana: o serviço do
+// Compose ("backend", "notificacao") e o nome do contêiner — que distingue as
+// três instâncias do serviço de notificação quando ele está escalado.
+discovery.relabel "infnethub" {
+  targets = discovery.docker.conteineres.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    regex         = "infnethub-tp5"
+    action        = "keep"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "servico"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "conteiner"
+  }
+}
+
+loki.source.docker "infnethub" {
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.relabel.infnethub.output
+  relabel_rules = discovery.relabel.infnethub.rules
+  labels        = { ambiente = "compose" }
+  forward_to    = [loki.process.json.receiver]
+}
+
+// Os serviços Java escrevem no formato ECS (Elastic Common Schema), em JSON.
+// Daqui saem o nível, que vira rótulo, e o traceId, que vira metadado
+// estruturado: pesquisável e ligado ao trace no Tempo, sem virar rótulo — um
+// rótulo com um valor novo por requisição multiplicaria os fluxos do Loki.
+// Linhas que não são JSON (PostgreSQL, RabbitMQ, Keycloak) passam como estão.
+loki.process "json" {
+  stage.json {
+    expressions = {
+      nivel   = "log.level",
+      traceId = "traceId",
+      spanId  = "spanId",
+    }
+  }
+
+  stage.labels {
+    values = { nivel = "" }
+  }
+
+  stage.structured_metadata {
+    values = {
+      traceId = "",
+      spanId  = "",
+    }
+  }
+
+  forward_to = [loki.write.loki.receiver]
+}
+
+loki.write "loki" {
+  endpoint {
+    url = "https://loki:3100/loki/api/v1/push"
+
+    tls_config {
+      ca_file     = "/certs/ca.crt"
+      server_name = "loki"
+    }
+  }
+}
+
+// ── Traces ───────────────────────────────────────────────────────────────────
+
+// OTLP por HTTPS: é o protocolo que o exportador do Spring Boot usa por padrão.
+otelcol.receiver.otlp "servicos" {
+  http {
+    endpoint = "0.0.0.0:4318"
+
+    tls {
+      cert_file = "/certs/servidor.crt"
+      key_file  = "/certs/servidor.key"
+    }
+  }
+
+  output {
+    traces = [otelcol.processor.batch.lote.input]
+  }
+}
+
+otelcol.processor.batch "lote" {
+  output {
+    traces = [otelcol.exporter.otlp.tempo.input]
+  }
+}
+
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "tempo:4317"
+
+    tls {
+      ca_file     = "/certs/ca.crt"
+      server_name = "tempo"
+    }
+  }
+}

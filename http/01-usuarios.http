@@ -1,0 +1,56 @@
+# Usuários — Identidade
+#
+# Selecione o ambiente antes de executar (canto superior direito do editor):
+#   local       monolito e boletim-service em portas separadas (21081 / 21082)
+#   gateway     tudo através do API Gateway (21080)
+#
+# Ambientes ficam em http-client.env.json, ao lado deste arquivo.
+
+### Listar todos os usuários
+GET {{baseUrl}}/api/v1/usuarios
+Authorization: Bearer {{tokenSecretaria}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+    });
+    client.test("devolve uma lista", () => {
+        client.assert(Array.isArray(response.body), "corpo não é lista");
+    });
+    // Guarda o primeiro id para as requisições seguintes: evita depender de
+    // um id fixo que some assim que alguém apaga o registro de teste.
+    if (Array.isArray(response.body) && response.body.length > 0) {
+        client.global.set("usuarioId", response.body[0].id);
+    }
+%}
+
+### Buscar usuário por ID
+GET {{baseUrl}}/api/v1/usuarios/1
+Authorization: Bearer {{tokenSecretaria}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200);
+    });
+    client.test("traz nome e papel", () => {
+        client.assert(response.body.nome !== undefined, "sem campo nome");
+        client.assert(response.body.papel !== undefined, "sem campo papel");
+    });
+%}
+
+### Buscar usuário inexistente — deve devolver 404 em JSON
+GET {{baseUrl}}/api/v1/usuarios/999999
+Authorization: Bearer {{tokenSecretaria}}
+Accept: application/json
+
+> {%
+    client.test("responde 404", () => {
+        client.assert(response.status === 404, "esperado 404, veio " + response.status);
+    });
+    client.test("erro vem em JSON, não em HTML", () => {
+        client.assert(response.contentType.mimeType === "application/json",
+            "tipo de conteúdo inesperado: " + response.contentType.mimeType);
+    });
+%}

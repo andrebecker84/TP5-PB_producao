@@ -1,0 +1,234 @@
+.banner {
+  position: relative; overflow: hidden;
+  height: 96px;
+  /* rolou pra fora da tela → o navegador pula o render do banner inteiro
+     (a cena tem dezenas de animações; sem isto elas repintavam à toa) */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 96px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.14),
+    0 6px 20px -8px rgba(0,0,0,.4);
+}
+
+/* paisagem cobre todo o banner */
+.cena {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  display: block;
+}
+
+/* véu que escurece a esquerda para o texto ficar legível sobre qualquer céu */
+.scrim {
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg, rgba(6,12,32,.62) 0%, rgba(6,12,32,.34) 38%, rgba(6,12,32,0) 66%);
+}
+.manha .scrim {
+  background: linear-gradient(90deg, rgba(20,50,95,.5) 0%, rgba(20,50,95,.22) 40%, rgba(20,50,95,0) 68%);
+}
+
+.texto {
+  position: relative; z-index: 2;
+  height: 100%;
+  display: flex; flex-direction: column; justify-content: center; gap: .18rem;
+  padding: 0 1.5rem;
+  color: #fff;
+}
+.saud {
+  font-size: 1.15rem; font-weight: 700; letter-spacing: -.01em;
+  text-shadow: 0 1px 8px rgba(0,0,0,.45);
+}
+/* mão 3D acenando (emoji do sistema) */
+.mao {
+  display: inline-block; font-size: 1.15em; margin-left: .1rem;
+  transform-origin: 72% 82%;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,.35));
+  animation: acena 2.6s ease-in-out infinite;
+}
+@keyframes acena {
+  0%, 65%, 100% { transform: rotate(0); }
+  8%  { transform: rotate(16deg); }
+  16% { transform: rotate(-8deg); }
+  24% { transform: rotate(16deg); }
+  32% { transform: rotate(-6deg); }
+  40% { transform: rotate(12deg); }
+  48% { transform: rotate(0); }
+}
+@media (prefers-reduced-motion: reduce) { .mao { animation: none; } }
+.sub {
+  font-size: .82rem; color: rgba(226,232,246,.72);
+  text-shadow: 0 1px 6px rgba(0,0,0,.4);
+}
+
+/* gaivotas flutuam de leve */
+.gaivotas { animation: gaivotaFlutua 7s ease-in-out infinite; }
+@keyframes gaivotaFlutua {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+@media (prefers-reduced-motion: reduce) { .gaivotas { animation: none; } }
+
+/* astro (sol/lua) respira de leve */
+.astro {
+  transform-box: fill-box; transform-origin: center;
+  animation: astroPulsa 5s ease-in-out infinite;
+}
+@keyframes astroPulsa {
+  0%, 100% { opacity: .92; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.05); }
+}
+
+/* nuvem deriva devagar */
+.nuvem { animation: nuvemDeriva 26s linear infinite; }
+@keyframes nuvemDeriva {
+  0%   { transform: translateX(-30px); }
+  100% { transform: translateX(60px); }
+}
+
+/* ── Manhã: arco-íris, avião+risco, passarinhos, árvore, borboletas ── */
+
+/* arco-íris ao fundo: bem esmaecido e levemente desfocado (fundido ao céu) */
+.arcoIris { opacity: .26; filter: blur(1px); animation: arcoBrilha 10s ease-in-out infinite; }
+@keyframes arcoBrilha { 0%, 100% { opacity: .2; } 50% { opacity: .32; } }
+
+/* avião voa na DIAGONAL: grupo interno rotacionado no ângulo (~-9°), grupo
+   externo translada ao longo da mesma diagonal. O risco (gradiente) esmaece
+   atrás dele — some a uma certa distância. */
+.aviaoInner { transform-box: fill-box; transform-origin: center; transform: rotate(-9deg); }
+.aviao { transform-box: fill-box; animation: aviaoVoa 16s linear infinite; animation-delay: 2s; }
+@keyframes aviaoVoa {
+  0%   { opacity: 0; transform: translate(-130px, 104px); }
+  6%   { opacity: 1; }
+  90%  { opacity: 1; transform: translate(720px, -30px); }
+  100% { opacity: 0; transform: translate(760px, -37px); }
+}
+
+/* passarinhos derivam pelo céu, em ondinha */
+.passaros { transform-box: fill-box; animation: passarosVoa 24s linear infinite; }
+@keyframes passarosVoa {
+  0%   { transform: translate(-70px, 30px); }
+  25%  { transform: translate(140px, 20px); }
+  50%  { transform: translate(350px, 30px); }
+  75%  { transform: translate(560px, 18px); }
+  100% { transform: translate(790px, 26px); }
+}
+
+/* árvore: copa balança de leve na base */
+.copa { transform-box: fill-box; transform-origin: 50% 90%; animation: copaBalanca 6s ease-in-out infinite; }
+@keyframes copaBalanca { 0%, 100% { transform: rotate(-1.6deg); } 50% { transform: rotate(1.6deg); } }
+
+/* borboletas: voam em looping curto e batem as asas */
+.borboleta { transform-box: fill-box; animation: borboletaVoa 7s ease-in-out infinite; }
+@keyframes borboletaVoa {
+  0%, 100% { transform: translate(0, 0)      rotate(-6deg); }
+  25%      { transform: translate(-6px, -8px) rotate(6deg); }
+  50%      { transform: translate(4px, -15px) rotate(-4deg); }
+  75%      { transform: translate(10px, -6px) rotate(6deg); }
+}
+.asas { transform-box: fill-box; transform-origin: center; animation: asaFlap .28s ease-in-out infinite; }
+@keyframes asaFlap { 0%, 100% { transform: scaleX(1); } 50% { transform: scaleX(.4); } }
+
+/* criança no morro: acena com o bracinho */
+.bracinho { transform-box: fill-box; transform-origin: 0% 100%; animation: acenaCrianca 1.9s ease-in-out infinite; }
+@keyframes acenaCrianca { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-30deg); } }
+
+/* cachorro correndo pelo morro, com galope (bob) */
+/* cachorrinho: entra por baixo, SOBE correndo o morro até o menino, SENTA ao
+   lado dele, depois DESCE correndo e some na borda inferior do banner */
+.cachorro { transform-box: fill-box; animation: cachorroCorre 13s ease-in-out infinite; }
+@keyframes cachorroCorre {
+  0%   { opacity: 0; transform: translate(110px, 44px) scaleX(1); }
+  5%   { opacity: 1; }
+  16%  { transform: translate(220px, 20px) scaleX(1); }   /* subindo */
+  30%  { transform: translate(332px, 0)    scaleX(1); }   /* chega ao menino */
+  34%, 56% { transform: translate(332px, 0) scaleX(1); }  /* SENTADO ao lado do menino */
+  60%  { transform: translate(324px, 4px)  scaleX(-1); }  /* vira para descer */
+  74%  { transform: translate(240px, 40px) scaleX(-1); }  /* descendo */
+  95%  { transform: translate(150px, 120px) scaleX(-1); } /* borda inferior */
+  100% { opacity: 0; transform: translate(140px, 132px) scaleX(-1); }
+}
+/* patas alternam (corrida) e rabo abana */
+.pataA { transform-box: fill-box; transform-origin: top center; animation: pataSwing .3s ease-in-out infinite; }
+.pataB { transform-box: fill-box; transform-origin: top center; animation: pataSwing .3s ease-in-out infinite; animation-delay: .15s; }
+@keyframes pataSwing { 0%, 100% { transform: rotate(22deg); } 50% { transform: rotate(-22deg); } }
+.rabo { transform-box: fill-box; transform-origin: 100% 100%; animation: raboAbana .4s ease-in-out infinite; }
+@keyframes raboAbana { 0%, 100% { transform: rotate(-14deg); } 50% { transform: rotate(14deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .arcoIris, .aviao, .passaros, .copa, .borboleta, .asas,
+  .bracinho, .cachorro, .pataA, .pataB, .rabo { animation: none; }
+  .aviao { opacity: 0; }
+}
+
+/* estrelas cintilam */
+.estrela { animation: estrelaPisca 3.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes estrelaPisca {
+  0%, 100% { opacity: .35; transform: scale(.8); }
+  50%      { opacity: 1;   transform: scale(1.25); }
+}
+
+/* lua: halo pulsa de leve */
+.luaHalo { transform-box: fill-box; transform-origin: center; animation: luaPulsa 5s ease-in-out infinite; }
+@keyframes luaPulsa { 0%,100% { opacity: .75; transform: scale(1); } 50% { opacity: 1; transform: scale(1.06); } }
+
+/* estrela cadente: desce rumo ao disco (x~380) e some — passa por trás dele */
+.cadente { transform-box: fill-box; animation: cadente 8s ease-in infinite; animation-delay: 1s; }
+@keyframes cadente {
+  0%, 58%   { opacity: 0; transform: translate(500px, 4px); }
+  61%       { opacity: 1; transform: translate(500px, 4px); }
+  72%       { opacity: 1; transform: translate(384px, 60px); }
+  76%, 100% { opacity: 0; transform: translate(362px, 74px); }
+}
+
+/* cometa: cruza o céu e some no horizonte à direita */
+.cometa { transform-box: fill-box; animation: cometa 13s linear infinite; animation-delay: 4s; }
+@keyframes cometa {
+  0%, 8%    { opacity: 0; transform: translate(70px, 16px); }
+  13%       { opacity: .95; transform: translate(70px, 16px); }
+  72%       { opacity: .95; transform: translate(470px, 58px); }
+  82%, 100% { opacity: 0; transform: translate(520px, 72px); }
+}
+
+/* 🛸 disco: sobe do horizonte → paira e abduz → dispara pro horizonte num flash */
+.ovni { transform-box: fill-box; animation: ovniVoo 9s ease-in-out infinite; }
+@keyframes ovniVoo {
+  0%       { opacity: 0; transform: translate(0, 54px) scale(.65); }
+  9%       { opacity: 1; transform: translate(0, 0)    scale(1); }
+  48%      { opacity: 1; transform: translate(6px, -3px) scale(1); }
+  57%      { opacity: 1; transform: translate(0, 0)    scale(1.04); }  /* recua p/ disparar */
+  66%      { opacity: 0; transform: translate(340px, 50px) scale(.14); } /* flash → horizonte */
+  100%     { opacity: 0; transform: translate(340px, 50px) scale(.14); }
+}
+/* feixe de abdução: abre durante o hover */
+.feixe { transform-box: fill-box; transform-origin: top center; animation: feixeAbre 9s ease-in-out infinite; }
+@keyframes feixeAbre {
+  0%, 12%   { opacity: 0; }
+  18%       { opacity: .55; }
+  32%       { opacity: 1; }
+  50%       { opacity: .6; }
+  56%, 100% { opacity: 0; }
+}
+/* vaquinha: espera no chão, sobe pelo feixe e é abduzida */
+.vaca { transform-box: fill-box; animation: vacaAbduz 9s ease-in-out infinite; }
+@keyframes vacaAbduz {
+  0%, 15%   { opacity: 0; transform: translateY(0); }
+  19%       { opacity: 1; transform: translateY(0); }
+  50%       { opacity: 1; transform: translateY(-40px); }
+  54%, 100% { opacity: 0; transform: translateY(-42px); }
+}
+/* flash no instante da partida */
+.flashOvni { transform-box: fill-box; transform-origin: center; opacity: 0; animation: flashSaida 9s ease-in-out infinite; }
+@keyframes flashSaida {
+  0%, 56%   { opacity: 0; transform: scale(.3); }
+  60%       { opacity: 1; transform: scale(4.5); }
+  66%, 100% { opacity: 0; transform: scale(7); }
+}
+.luzOvni { transform-box: fill-box; transform-origin: center; animation: luzPisca 1.5s ease-in-out infinite; }
+@keyframes luzPisca { 0%,100% { opacity: .4; } 50% { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .astro, .nuvem, .estrela, .luaHalo, .cadente, .cometa,
+  .ovni, .feixe, .vaca, .luzOvni, .flashOvni { animation: none; }
+  .cadente, .cometa, .flashOvni { opacity: 0; }
+}

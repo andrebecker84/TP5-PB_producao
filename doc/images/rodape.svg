@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="150" viewBox="0 0 1200 150" role="img" aria-label="Infnet Hub — Projeto de Bloco, Instituto Infnet">
+  <defs>
+    <linearGradient id="onda" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#1e3a8a"/>
+      <stop offset="50%" stop-color="#3b8ef5"/>
+      <stop offset="100%" stop-color="#22d3ee"/>
+    </linearGradient>
+    <linearGradient id="fundo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#050f22"/>
+      <stop offset="100%" stop-color="#030a16"/>
+    </linearGradient>
+    <style>
+      .o1 { animation: flui 12s linear infinite; }
+      .o2 { animation: flui2 18s linear infinite reverse; }
+      @keyframes flui2 { from { transform: translateX(0); } to { transform: translateX(-900px); } }
+      @keyframes flui { from { transform: translateX(0); } to { transform: translateX(-1200px); } }
+      .msg { animation: respira 5s ease-in-out infinite; }
+      @keyframes respira { 0%, 100% { opacity: .75; } 50% { opacity: 1; } }
+      text { font-family: "Segoe UI", Inter, "Helvetica Neue", Arial, sans-serif; }
+    </style>
+  </defs>
+  <rect width="1200" height="150" fill="url(#fundo)"/>
+  <!-- duas ondas que correm em sentidos opostos; cada uma anda exatamente um período, e o laço não tem emenda -->
+  <g class="o2" opacity="0.35">
+    <path d="M0 40 C150 10 300 70 450 40 S750 10 900 40 S1200 70 1350 40 S1650 10 1800 40 S2100 70 2250 40 L2400 40 L2400 0 L0 0 Z" fill="url(#onda)"/>
+  </g>
+  <g class="o1" opacity="0.6">
+    <path d="M0 26 C200 56 400 0 600 26 S1000 56 1200 26 S1600 0 1800 26 S2200 56 2400 26 L2400 0 L0 0 Z" fill="url(#onda)"/>
+  </g>
+  <text class="msg" x="600" y="98" text-anchor="middle" font-size="18" fill="#cbd5e1">
+    <tspan font-weight="300">Infnet</tspan><tspan font-weight="700" fill="#eef2ff">Hub</tspan><tspan fill="#64748b"> · Projeto de Bloco: Engenharia de Softwares Escaláveis</tspan>
+  </text>
+  <text x="600" y="126" text-anchor="middle" font-size="13" fill="#64748b" letter-spacing="1.5">
+    ANDRÉ LUIS BECKER · INSTITUTO INFNET · 2026
+  </text>
+</svg>

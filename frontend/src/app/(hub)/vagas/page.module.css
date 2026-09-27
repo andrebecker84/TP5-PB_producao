@@ -1,0 +1,101 @@
+.body {
+  display: flex;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: calc(var(--header-h) + 3rem) 1.25rem 2rem;
+}
+
+.main {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; gap: 1.25rem;
+}
+
+/* ── Page header — mesmo padrão do Boletim e do Meu Desempenho:
+   selo com ícone + título sólido + subtítulo ── */
+.pageHeader { display: flex; align-items: center; gap: .8rem; }
+.headIco {
+  width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; background: linear-gradient(150deg, var(--primary), var(--accent));
+  box-shadow: 0 6px 16px -6px rgba(59,142,245,.6);
+}
+.headInfo { flex: 1; min-width: 0; }
+.pageTitle {
+  font-size: 1.35rem; font-weight: 800;
+  color: var(--text); letter-spacing: -.02em;
+}
+.pageSubtitle {
+  font-size: .85rem; color: var(--text-dim); margin-top: 2px;
+}
+.btnNova {
+  display: flex; align-items: center; gap: .4rem; flex-shrink: 0;
+  padding: .6rem 1.25rem; border-radius: var(--pill);
+  font-size: .9rem; font-weight: 600;
+  background: var(--gradient); color: #fff;
+  box-shadow: 0 2px 12px var(--primary-glow);
+}
+.btnNova:hover { opacity: .88; }
+
+/* ── Search banner ── */
+.searchBanner {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .625rem .875rem;
+  background: var(--primary-dim); border: 1px solid var(--border-2);
+  border-radius: var(--radius); font-size: .875rem; color: var(--text-dim);
+}
+.clearSearch {
+  display: inline-flex; align-items: center; gap: .3rem;
+  font-size: .8rem; font-weight: 600; color: var(--primary); background: none;
+}
+.clearSearch:hover { text-decoration: underline; }
+
+/* ── Error ── */
+.error {
+  background: rgba(248,113,113,.1);
+  border: 1px solid rgba(248,113,113,.25);
+  color: var(--danger);
+  border-radius: var(--radius);
+  padding: .875rem 1rem; font-size: .9rem;
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+}
+.error button {
+  font-size: .8125rem; font-weight: 600;
+  padding: .3rem .75rem; border-radius: var(--pill);
+  background: var(--danger); color: #fff;
+}
+
+/* ── Grid — 3 colunas, responsivo ── */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+@media (max-width: 1080px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+
+/* ── Skeleton ── */
+.skeleton {
+  height: 200px; border-radius: var(--radius-lg);
+  background: linear-gradient(90deg, var(--surface) 25%, var(--surface-2) 50%, var(--surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+/* ── Empty ── (mesmo padrão do feed: ícone de traço, não emoji) */
+.empty {
+  text-align: center; padding: 3rem 1rem; color: var(--text-muted);
+  display: flex; flex-direction: column; align-items: center; gap: .75rem;
+}
+.emptyIcon { color: var(--border-2); }
+.empty p { font-size: .9375rem; }
+
+@media (max-width: 860px) {
+  .body { flex-direction: column; }
+  .grid { grid-template-columns: 1fr; }
+}
+
+/* ── Impressão: sem a margem reservada ao header (igual às demais páginas) ── */
+@media print {
+  .body { padding: 0 !important; max-width: none; }
+  .btnNova { display: none !important; }
+}

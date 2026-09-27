@@ -1,0 +1,1841 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   404 — a curva da Terra vista da órbita.
+
+   Regra que organiza este arquivo: a fotografia manda na luz. Ela já tem
+   limbo aceso, nascer do sol e atmosfera; o CSS só faz o que a foto não faz —
+   céu, tipografia, ações — e o brilho do limbo, que segue a curva medida.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.page {
+  position: relative;
+  height: 100vh; height: 100dvh;
+  overflow: hidden;
+  background: #01040b;
+  /* `paint` recorta o que sai da página e dispensa o navegador de considerar
+     esses pixels; `layout` isola o cálculo de posicionamento dos filhos do
+     resto do documento. Com ~280 elementos animados aqui dentro, é o que
+     impede uma mudança qualquer de disparar recálculo na árvore inteira. */
+  contain: layout paint;
+
+  /* ── Geometria do horizonte ───────────────────────────────────────────────
+     Medidos no canal alpha da origem (7680×1440):
+       proporção .............. 5,3333 : 1
+       topo do arco ........... 21,875% da altura da imagem
+     Daí a linha do horizonte é dedutível em qualquer janela. */
+  /* Largura da curva. Teto em 90vw garante RESPIRO nas laterais — a curva não
+     encosta nos cantos, como no céu aberto da referência. Com asset 5,33:1,
+     margem lateral implica arco raso: é o mesmo partido da referência, planeta
+     baixo no quadro com muito céu acima. */
+  --terra-larg: max(66vw, min(90vw, 150vh));
+  --terra-recuo: 1dvh;
+  --terra-alt: calc(var(--terra-larg) / 5.3333);
+  --horizonte: calc(100dvh + var(--terra-recuo) - 0.78125 * var(--terra-alt));
+  /* raio e centro do limbo em coordenadas de VIEWPORT — o centro do círculo
+     fica um raio abaixo da linha do horizonte. Serve para posicionar o sol e
+     para recortá-lo pela curva do planeta sem depender da caixa da Terra. */
+  --limbo-r: calc(0.6424 * var(--terra-larg));
+  --limbo-cy: calc(var(--horizonte) + 0.6424 * var(--terra-larg));
+  /* corpo do 404 — mesmo valor usado em .numero; exposto aqui só para o par
+     NOT FOUND + ERROR se ancorar logo acima do topo do 404 */
+  --n-size: clamp(5rem, min(30vmin, 26vw), 20rem);
+
+  /* ── O enlace: antena ↔ satélite ─────────────────────────────────────────
+     Os dois pontos ficam declarados AQUI, uma vez só, porque três coisas
+     dependem deles ao mesmo tempo — a posição de cada objeto, o alcance de
+     cada emissão e o lugar exato onde os arcos se cruzam. Espalhar essas
+     contas pelos blocos faria qualquer reposicionamento desalinhar o encontro.
+
+     A antena fica a 90,6% do raio do limbo, 23,9° à esquerda do topo. O ponto
+     não foi escolhido no olho: varri a face do planeta no canvas da própria
+     foto procurando o pixel mais próximo com vermelho acima do azul, e a massa
+     de continente mais perto caiu exatamente aí.
+       0.906 · sen 23,9° = .3670     0.906 · cos 23,9° = .8290                */
+  --sat-larg: clamp(54px, 6.5vw, 116px);
+  --ant-x: calc(50% - 0.3670 * var(--limbo-r));
+  --ant-y: calc(var(--limbo-cy) - 0.8290 * var(--limbo-r));
+  /* o satélite se ancora à banda dos botões: `.bloco` acaba em
+     `--horizonte - --n-size - 4rem`, e a fileira de ações encosta nesse fim */
+  --sat-topo: calc(var(--horizonte) - var(--n-size) - 4rem - 11rem);
+  --sat-esq: 57%;
+  --sat-x: calc(var(--sat-esq) + 0.5 * var(--sat-larg));
+  --sat-y: calc(var(--sat-topo) + 0.5 * var(--sat-larg));
+  /* Metade da distância entre os dois. É o raio que cada emissão precisa ter
+     para os arcos se encontrarem no meio do caminho — sem isso, cada um morre
+     antes e nunca há cruzamento. Medida entre 1280×720 e 1920×1080 a
+     semi-distância medida dá 26,4vw a 1280×720 e 24,1vw a 1920×1080 — nenhum
+     valor único acerta os dois, porque `--n-size` e os recuos em rem não
+     escalam junto com a largura. Fica 27vw, com FOLGA de propósito: errar para
+     mais faz os arcos se atravessarem, que é o efeito pedido; errar para menos
+     os faria morrer antes de se tocar, que é justamente o que não pode. */
+  --enlace-meio: 27vw;
+  /* Onde os dois se encontram, como fração do caminho antena→satélite. No meio
+     exato (0,5) o cruzamento caía em cima do 404. Não é um empurrão arbitrário
+     do X: o alcance de cada lado é derivado DAQUI logo abaixo, então o encontro
+     continua acontecendo onde os arcos de fato se tocam.
+     0,65 era o mínimo para a caixa do X passar do topo dos algarismos, mas
+     "passar raspando" ainda lia como encostado no zero. Em 0,70 sobra folga
+     de verdade (topo do 404 medido a 689px numa janela de 1660×1123). */
+  --enlace-ponto: 0.70;
+  /* Os arcos NÃO se tocam no fim da expansão: quando chegam ao raio máximo já
+     estão apagados. O estouro acontece a ~54% do ciclo, e nesse instante o
+     `scale` de `sinalSai` está por volta de 0,8. Cada campo é então 1,25× maior
+     que o trecho que lhe cabe — assim o raio bate no ponto de encontro
+     exatamente quando o X é riscado, e não depois. */
+  --enlace-folga: 1.25;
+  /* Encurta os dois campos sem mexer em onde eles se encontram: o ponto do X
+     continua sendo o mesmo, os arcos é que passam a varrer menos céu antes de
+     chegar lá. Em 1 eles cruzavam a tela quase inteira. */
+  --enlace-raio: 0.72;
+}
+
+/* ── Céu profundo ──────────────────────────────────────────────────────────
+   Um clarão quente muito fraco à direita, alinhado ao nascer do sol da foto.
+   Todos os centros ficam dentro da caixa e chegam a transparent antes da
+   borda: é o que impede a caixa retangular de aparecer. */
+.espaco {
+  position: absolute; inset: 0; z-index: 0;
+  background:
+    radial-gradient(ellipse 44% 34% at 50% 6%, rgba(190,220,255,.09), transparent 62%),
+    radial-gradient(ellipse 120% 60% at 50% 100%, rgba(38,104,190,.20), transparent 66%),
+    linear-gradient(180deg, #01030a 0%, #020714 46%, #040e1c 100%);
+}
+
+/* ── Luz do topo ────────────────────────────────────────────────────────────
+   O sol está fora do quadro, acima do centro: entra só o clarão e o leque de
+   raios. Tudo em `screen` — soma luz e nunca cinzenta o preto do espaço. O
+   centro do gradiente fica dentro da caixa e morre em transparent antes da
+   borda, para não deixar aresta reta. */
+.luzTopo {
+  position: absolute; left: 50%; top: -26vmax; z-index: 2;
+  width: 96vmax; height: 72vmax;
+  pointer-events: none; mix-blend-mode: screen;
+  /* núcleo estourado e queda rápida: intensa e concentrada, dissipando no
+     preto — não um véu cinza espalhado pelo quadro */
+  /* o miolo continua estourado, mas as faixas médias caem bem mais rápido:
+     eram elas que espalhavam a névoa leitosa por metade do quadro */
+  background: radial-gradient(ellipse 46% 48% at 50% 34%,
+    rgba(255,255,255,1) 0%,
+    rgba(246,252,255,.88) 4%,
+    rgba(214,236,255,.45) 10%,
+    rgba(160,204,255,.16) 19%,
+    rgba(104,162,240,.055) 31%,
+    rgba(60,116,205,.018) 44%,
+    transparent 60%);
+  filter: blur(18px);
+  transition: transform .8s cubic-bezier(.22,1,.36,1);
+  animation: respiraLuz 9s ease-in-out infinite;
+}
+/* leque de raios saindo do ponto de luz. O vértice da cônica fica em 50% 0%,
+   então as faixas divergem para baixo; a máscara radial apaga as pontas, que é
+   o que impede o efeito de virar um ventilador de bordas duras. */
+.raios {
+  position: absolute; left: 50%; top: -14vmax; z-index: 2;
+  width: 130vmax; height: 105vmax;
+  pointer-events: none; mix-blend-mode: screen;
+  background: conic-gradient(from 152deg at 50% 0%,
+    transparent 0deg,   rgba(255,255,255,.3) 4deg,   transparent 8deg,
+    transparent 11deg,  rgba(224,242,255,.2) 14deg,  transparent 18deg,
+    transparent 24deg,  rgba(255,255,255,.34) 28deg, transparent 33deg,
+    transparent 38deg,  rgba(224,242,255,.17) 41deg, transparent 45deg,
+    transparent 50deg,  rgba(255,255,255,.27) 54deg, transparent 59deg,
+    transparent 64deg,  rgba(224,242,255,.14) 67deg, transparent 71deg,
+    transparent 360deg);
+  /* máscara mais curta e blur menor: os raios ficam definidos em vez de
+     virarem um borrão que soma névoa ao fundo */
+  -webkit-mask-image: radial-gradient(ellipse 50% 56% at 50% 0%,
+    #000 5%, rgba(0,0,0,.5) 26%, rgba(0,0,0,.14) 46%, transparent 66%);
+  mask-image: radial-gradient(ellipse 50% 56% at 50% 0%,
+    #000 5%, rgba(0,0,0,.5) 26%, rgba(0,0,0,.14) 46%, transparent 66%);
+  filter: blur(9px);
+  transition: transform .8s cubic-bezier(.22,1,.36,1);
+  animation: respiraLuz 13s ease-in-out infinite;
+}
+@keyframes respiraLuz { 0%, 100% { opacity: .85; } 50% { opacity: 1; } }
+
+/* ── Nebulosa: faixa de poeira estelar ao fundo ─────────────────────────────
+   Elipses desfocadas e sobrepostas, todas indo a transparent muito antes da
+   borda — é o que a mantém como névoa difusa e não como um bloco. */
+.nebula {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: .9;
+  background:
+    radial-gradient(ellipse 34% 26% at 78% 30%, rgba(120,150,240,.16), transparent 62%),
+    radial-gradient(ellipse 26% 20% at 70% 22%, rgba(180,140,235,.13), transparent 60%),
+    radial-gradient(ellipse 40% 14% at 60% 40%, rgba(90,130,220,.1), transparent 66%),
+    radial-gradient(ellipse 22% 30% at 20% 26%, rgba(70,110,200,.08), transparent 64%);
+  filter: blur(6px);
+}
+
+/* ── Poeira cósmica de fundo ────────────────────────────────────────────────
+   Grão fino espalhado pelo universo inteiro, atrás de tudo. Duas camadas de
+   ruído fractal em escalas diferentes, bem fracas: dão densidade ao vácuo sem
+   virar chuvisco. */
+.poeiraFundo {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  opacity: .55;
+  background-image:
+    radial-gradient(circle .7px at 12% 18%, rgba(206,228,255,.55), transparent 100%),
+    radial-gradient(circle .5px at 47% 8%,  rgba(190,216,255,.4), transparent 100%),
+    radial-gradient(circle .8px at 78% 26%, rgba(214,236,255,.5), transparent 100%),
+    radial-gradient(circle .5px at 28% 44%, rgba(180,208,250,.36), transparent 100%),
+    radial-gradient(circle .7px at 63% 57%, rgba(200,226,255,.44), transparent 100%),
+    radial-gradient(circle .5px at 88% 72%, rgba(186,212,252,.3), transparent 100%),
+    radial-gradient(circle .6px at 8% 66%,  rgba(198,224,255,.38), transparent 100%),
+    radial-gradient(circle .5px at 38% 82%, rgba(178,206,248,.28), transparent 100%);
+  background-size: 340px 300px, 260px 240px, 420px 380px, 300px 280px,
+                   380px 340px, 280px 260px, 360px 320px, 320px 290px;
+  animation: poeiraFlui 120s linear infinite;
+}
+@keyframes poeiraFlui {
+  to { background-position: 340px -300px, -260px 240px, 420px 380px, -300px -280px,
+                            380px -340px, -280px 260px, 360px 320px, -320px -290px; }
+}
+
+/* ── Estrelas ── */
+.estrelas {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  transition: transform .8s cubic-bezier(.22,1,.36,1);
+}
+.estrela {
+  position: absolute; border-radius: 50%;
+  background: radial-gradient(circle, #fff 0%, #dbeaff 42%, rgba(190,220,255,0) 100%);
+  box-shadow: 0 0 4px 1px rgba(214,232,255,.45), 0 0 11px 3px rgba(140,190,255,.16);
+  animation: cintila var(--dur, 3.4s) ease-in-out var(--atraso, 0s) infinite;
+}
+.estrelaQuente {
+  background: radial-gradient(circle, #fffaf0 0%, #ffd9a8 45%, rgba(255,190,120,0) 100%);
+  box-shadow: 0 0 4px 1px rgba(255,214,160,.4), 0 0 12px 3px rgba(255,170,90,.15);
+}
+@keyframes cintila {
+  0%, 100% { opacity: var(--min, .2); }
+  50%      { opacity: var(--max, .95); }
+}
+
+/* ── Logotipo, canto inferior direito ── */
+.marca {
+  position: absolute; bottom: 1.8rem; right: 2.4rem; z-index: 7;
+  display: flex; align-items: center; gap: .6rem; white-space: nowrap;
+  animation: entra .8s cubic-bezier(.22,1,.36,1) both;
+}
+.marcaTxt {
+  font-size: 1.3rem; font-weight: 300; letter-spacing: .12em;
+  color: rgba(220,234,252,.92);
+  text-shadow: 0 0 22px rgba(120,180,255,.4);
+}
+.marcaTxt b { font-weight: 600; color: #fff; }
+
+/* ── O planeta ── */
+.terra {
+  position: absolute; left: 50%; z-index: 3;
+  width: var(--terra-larg); max-width: none;
+  bottom: calc(-1 * var(--terra-recuo));
+  transition: transform .8s cubic-bezier(.22,1,.36,1);
+  pointer-events: none;
+}
+/* sem filtro sobre a imagem: filtro rasteriza o alpha e devolve o serrilhado */
+.terraImg { display: block; width: 100%; height: auto; position: relative; z-index: 1; }
+
+/* ── Atmosfera ──────────────────────────────────────────────────────────────
+   O limbo da foto é um círculo (centro 49,97% da largura, raio 64,24%). O
+   brilho pode então ser um CÍRCULO com box-shadow, e círculo não tem borda
+   reta para escapar. Os anéis ficam ATRÁS da imagem (z 0 contra z 1), então
+   só aparecem onde o PNG é transparente — acima do horizonte, nunca sobre a
+   superfície. */
+.limbo {
+  position: absolute; left: 49.97%; top: 21.875%;
+  width: 128.48%; aspect-ratio: 1;
+  transform: translateX(-50%); border-radius: 50%; z-index: 0;
+}
+/* Sem anel de blur zero: um box-shadow sólido cria uma aresta dura que, contra
+   o limbo da foto, aparecia como um risco escuro cortando o brilho. Só camadas
+   desfocadas — a luz cresce da borda para fora sem nenhuma quina. */
+.limboFino {
+  box-shadow:
+    0 0 7px 1px rgba(214,246,255,1),
+    0 0 26px 5px rgba(130,212,255,1),
+    0 0 68px 14px rgba(74,166,255,.82);
+}
+/* mesma circunferência, mas ACIMA da foto e em `screen`: só clareia, nunca
+   escurece — é o que apaga o risco escuro da borda do recorte */
+.limboLuz {
+  z-index: 2;
+  mix-blend-mode: screen;
+  box-shadow:
+    0 0 5px 1px rgba(220,248,255,.9),
+    0 0 18px 3px rgba(140,216,255,.75),
+    0 0 44px 9px rgba(84,172,255,.45);
+}
+/* halo azul, rente à borda: a atmosfera acompanha o limbo sem invadir o céu,
+   no mesmo azul vivo da borda iluminada */
+.limboLargo {
+  box-shadow:
+    0 0 42px 6px rgba(74,166,255,.55),
+    0 0 104px 24px rgba(48,130,240,.28);
+}
+.limboQuente {
+  box-shadow:
+    0 0 0 2px rgba(255,236,196,.75),
+    0 0 26px 5px rgba(255,198,120,.55),
+    0 0 90px 22px rgba(255,166,80,.3),
+    0 0 220px 60px rgba(255,140,60,.14);
+  mask-image: conic-gradient(from 34deg at 50% 50%,
+    #000 0deg, rgba(0,0,0,.85) 26deg, rgba(0,0,0,.3) 54deg, transparent 78deg,
+    transparent 282deg, rgba(0,0,0,.3) 306deg, rgba(0,0,0,.85) 334deg, #000 360deg);
+  animation: pulsaAtm 9s ease-in-out infinite;
+}
+@keyframes pulsaAtm { 0%, 100% { opacity: .9; } 50% { opacity: 1; } }
+
+/* ── Disco voador ───────────────────────────────────────────────────────────
+   Sobe pela esquerda, encolhe e some no espaço. O render entra em `screen`:
+   o céu da imagem foi esmagado para preto no processamento, e em `screen`
+   preto é neutro — some sozinho, sem recorte por chroma rasgando o metal.
+   É o que preserva o volume 3D original. */
+/* A camada é recortada pelo disco do planeta: enquanto a nave está abaixo da
+   linha do limbo ela fica escondida, e vai APARECENDO conforme sobe — surge
+   de trás da Terra em vez de brotar do nada. Mesma máscara circular usada
+   antes, em coordenadas de viewport. */
+.ufoCamada {
+  position: absolute; inset: 0; z-index: 6; pointer-events: none;
+  /* rampa larga na borda: com corte seco a nave aparecia de uma vez, com a
+     linha do recorte visível atravessando o casco */
+  /* sem máscara: a nave não vem mais de trás do planeta, e sim de baixo da
+     tela pelo canto esquerdo — o recorte pelo limbo a esconderia ao passar
+     sobre a superfície */
+}
+/* left 20%: mais à esquerda a curva do limbo cai abaixo da tela e a nave não
+   teria de onde emergir. Aqui o horizonte está por volta de 92% da altura, e
+   ela nasce abaixo disso — oculta pelo planeta. */
+.ufo {
+  /* entra por BAIXO, pelo canto direito: começa fora do quadro (bottom
+     negativo) e sobe para dentro da cena */
+  position: absolute; right: 6%; bottom: -14%;
+  width: clamp(120px, 15.5vw, 250px);
+  opacity: 0;
+  /* linear de propósito: a curva de easing é aplicada POR INTERVALO de
+     keyframe, então animações com percentuais diferentes (nave, feixe,
+     airburn) desandavam entre si. Com linear, percentual = tempo, e o easing
+     de cada trecho vai declarado dentro dos keyframes. */
+  animation: ufoSobe 26s linear 3s infinite;
+  will-change: transform, opacity;
+}
+/* balanço próprio: inclina e desliza de leve, como quem flutua */
+.ufoBalanco {
+  position: relative; display: block;
+  animation: ufoBalanca 5.5s ease-in-out infinite;
+}
+/* sem mix-blend-mode: a transparência agora está no próprio arquivo. Blend
+   dependia de blendar com a página, e os ancestrais animados (transform e
+   opacity) criam isolamento — o screen passava a valer só dentro do grupo e
+   o céu escuro da imagem reaparecia como um retângulo. */
+.ufoImg {
+  display: block; width: 100%; height: auto;
+  filter: drop-shadow(0 5px 16px rgba(6,16,34,.5));
+}
+
+/* ── Propulsão ──────────────────────────────────────────────────────────────
+   Sem clip-path: aresta reta é o que fazia o feixe parecer desenho. O cone
+   vem de um radial com vértice no casco, que abre e apaga sozinho; por cima,
+   uma névoa que escorre e a poeira iluminada descendo em ritmos diferentes. */
+/* aura da nave: luz própria do casco, larga e suave, além da propulsão */
+.ufoAura {
+  position: absolute; left: 50%; top: 46%;
+  width: 190%; aspect-ratio: 1.9;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  mix-blend-mode: screen;
+  background: radial-gradient(ellipse 50% 50% at 50% 50%,
+    rgba(196,236,255,.3) 0%, rgba(140,200,252,.16) 22%,
+    rgba(94,160,238,.07) 44%, rgba(60,118,205,.025) 64%, transparent 82%);
+  filter: blur(16px);
+  animation: ufoPulso 3.8s ease-in-out infinite;
+}
+.ufoFeixe {
+  position: absolute; left: 50%; top: 74%;
+  width: 120%; height: 340%;
+  transform: translateX(-50%);
+  transform-origin: top center;
+  mix-blend-mode: screen;
+  background: radial-gradient(ellipse 26% 92% at 50% 2%,
+    rgba(216,246,255,.55) 0%, rgba(160,218,255,.3) 16%,
+    rgba(110,184,248,.15) 34%, rgba(74,146,220,.06) 56%, transparent 78%);
+  filter: blur(9px);
+  animation: ufoEstica 26s linear 3s infinite;
+}
+/* núcleo azul do feixe: a coluna acesa no meio, o "airborne" */
+.ufoNucleo {
+  position: absolute; left: 50%; top: 75%;
+  width: 30%; height: 300%;
+  transform: translateX(-50%);
+  transform-origin: top center;
+  mix-blend-mode: screen;
+  /* azul de queima de combustível: miolo branco-azulado estourado, corpo em
+     azul saturado — é o contraste entre os dois que lê como chama, não como
+     um degradê claro qualquer */
+  background:
+    radial-gradient(ellipse 30% 52% at 50% 0%,
+      rgba(248,254,255,1) 0%, rgba(186,238,255,.8) 18%, rgba(96,196,255,.5) 42%, transparent 70%),
+    linear-gradient(180deg,
+      rgba(80,196,255,.95) 0%, rgba(40,150,252,.7) 22%,
+      rgba(22,110,244,.42) 46%, rgba(14,74,214,.18) 70%, rgba(10,48,170,.05) 86%, transparent 96%);
+  -webkit-mask-image: radial-gradient(ellipse 46% 96% at 50% 0%, #000 6%, rgba(0,0,0,.6) 40%, transparent 84%);
+  mask-image: radial-gradient(ellipse 46% 96% at 50% 0%, #000 6%, rgba(0,0,0,.6) 40%, transparent 84%);
+  filter: blur(6px);
+  opacity: 0;
+  /* airburn: só acende na hora do disparo. Fora disso a propulsão fica como
+     estava — cone, névoa e poeira juntos o tempo todo. */
+  animation: ufoAirburn 26s linear 3s infinite;
+}
+/* névoa em movimento: faixas suaves escorrendo pelo feixe */
+.ufoNevoa {
+  position: absolute; left: 50%; top: 76%;
+  width: 132%; height: 400%;
+  transform: translateX(-50%);
+  mix-blend-mode: screen;
+  background: repeating-linear-gradient(178deg,
+    rgba(190,232,255,.13) 0px, rgba(190,232,255,.13) 3px,
+    transparent 3px, transparent 13px,
+    rgba(150,210,250,.09) 13px, rgba(150,210,250,.09) 15px,
+    transparent 15px, transparent 29px);
+  background-size: 100% 190px;
+  -webkit-mask-image: radial-gradient(ellipse 30% 92% at 50% 0%, #000 5%, rgba(0,0,0,.55) 42%, transparent 80%);
+  mask-image: radial-gradient(ellipse 30% 92% at 50% 0%, #000 5%, rgba(0,0,0,.55) 42%, transparent 80%);
+  filter: blur(5px);
+  transform-origin: top center;
+  animation: ufoEscorre 3.4s linear infinite,
+             ufoEsticaFundo 26s linear 3s infinite;
+}
+/* poeira iluminada: pontos descendo mais devagar que a névoa */
+.ufoPoeira {
+  position: absolute; left: 50%; top: 78%;
+  width: 80%; height: 300%;
+  transform: translateX(-50%);
+  mix-blend-mode: screen;
+  background:
+    radial-gradient(circle 1.4px at 22% 8%,  rgba(226,248,255,.85), transparent 100%),
+    radial-gradient(circle 1px   at 62% 17%, rgba(196,236,255,.7), transparent 100%),
+    radial-gradient(circle 1.6px at 41% 29%, rgba(226,248,255,.8), transparent 100%),
+    radial-gradient(circle 1px   at 75% 38%, rgba(180,226,255,.6), transparent 100%),
+    radial-gradient(circle 1.3px at 31% 47%, rgba(214,244,255,.7), transparent 100%),
+    radial-gradient(circle 1px   at 55% 58%, rgba(190,232,255,.55), transparent 100%),
+    radial-gradient(circle 1.5px at 68% 69%, rgba(214,244,255,.6), transparent 100%),
+    radial-gradient(circle 1px   at 36% 81%, rgba(180,226,255,.45), transparent 100%),
+    radial-gradient(circle 1.2px at 58% 92%, rgba(200,238,255,.4), transparent 100%);
+  background-size: 100% 165px;
+  -webkit-mask-image: radial-gradient(ellipse 22% 90% at 50% 0%, #000 6%, rgba(0,0,0,.55) 42%, transparent 78%);
+  mask-image: radial-gradient(ellipse 22% 90% at 50% 0%, #000 6%, rgba(0,0,0,.55) 42%, transparent 78%);
+  transform-origin: top center;
+  animation: ufoEscorre 5.2s linear infinite,
+             ufoEsticaFundo 26s linear 3s infinite;
+}
+/* halo do casco */
+.ufoBrilho {
+  position: absolute; left: 50%; top: 64%;
+  width: 74%; aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  mix-blend-mode: screen;
+  background: radial-gradient(circle,
+    rgba(180,232,255,.38) 0%, rgba(116,186,248,.15) 32%, transparent 66%);
+  filter: blur(11px);
+  animation: ufoPulso 2.6s ease-in-out infinite;
+}
+@keyframes ufoPulso  { 0%, 100% { opacity: .78; } 50% { opacity: 1; } }
+@keyframes ufoEscorre { to { background-position: 0 165px; } }
+
+/* No disparo o rastro ESTICA: a propulsão vira um risco de luz alongado, que
+   é o que a leitura de velocidade extrema pede. `transform-origin: top` mantém
+   o alongamento preso ao casco. Duas versões porque a névoa e a poeira já
+   animam `background-position` e o transform precisa vir em outra keyframe. */
+@keyframes ufoEstica {
+  0%, 58%  { transform: translateX(-50%) scaleY(1);   opacity: .9; }
+  61.5%    { transform: translateX(-50%) scaleY(1.6); opacity: 1; }
+  62.5%    { transform: translateX(-50%) scaleY(2.2); opacity: 1; }
+  64.5%    { transform: translateX(-50%) scaleY(6);   opacity: .7; }
+  65.8%    { transform: translateX(-50%) scaleY(11);  opacity: 0; }
+  100%     { transform: translateX(-50%) scaleY(11);  opacity: 0; }
+}
+/* Airburn: pulsos curtos e CRESCENTES a cada impulso da subida (mesmos
+   percentuais dos keyframes de movimento), culminando na queima do disparo. */
+/* Os impulsos acontecem ENTRE keyframes (4→8, 12→17, 21→26, 60→63.4), então a
+   queima acende no começo do trecho e atinge o pico no MEIO dele. Antes o pico
+   caía no keyframe inicial e a chama parecia disparar antes do movimento. */
+@keyframes ufoAirburn {
+  0%    { opacity: 0;   transform: translateX(-50%) scaleY(.7); }
+  3.4%  { opacity: .1;  transform: translateX(-50%) scaleY(.8); }
+  6%    { opacity: .42; transform: translateX(-50%) scaleY(1.15); }   /* meio do impulso 1 */
+  9.5%  { opacity: .12; transform: translateX(-50%) scaleY(.85); }
+  11.5% { opacity: .06; transform: translateX(-50%) scaleY(.75); }
+  14.5% { opacity: .56; transform: translateX(-50%) scaleY(1.35); }   /* meio do impulso 2 */
+  18.5% { opacity: .14; transform: translateX(-50%) scaleY(.9); }
+  20.5% { opacity: .07; transform: translateX(-50%) scaleY(.78); }
+  23.5% { opacity: .7;  transform: translateX(-50%) scaleY(1.55); }   /* meio do impulso 3 */
+  27.5% { opacity: .16; transform: translateX(-50%) scaleY(.92); }
+  /* pairando: brasa fraca, só respirando */
+  34%   { opacity: .2;  transform: translateX(-50%) scaleY(1); }
+  41%   { opacity: .1;  transform: translateX(-50%) scaleY(.85); }
+  48%   { opacity: .22; transform: translateX(-50%) scaleY(1.05); }
+  55%   { opacity: .12; transform: translateX(-50%) scaleY(.88); }
+  /* CARGA visível (58→62,5 ≈ 1,2s): a chama cresce com a nave quase parada.
+     Só depois vem o disparo, e aí ela se alonga em risco de luz. */
+  58%   { opacity: .35; transform: translateX(-50%) scaleY(1.2); }
+  60%   { opacity: .8;  transform: translateX(-50%) scaleY(2.2); }
+  61.5% { opacity: 1;   transform: translateX(-50%) scaleY(3.2); }
+  62.5% { opacity: 1;   transform: translateX(-50%) scaleY(4.2); }
+  64.5% { opacity: .85; transform: translateX(-50%) scaleY(9); }
+  65.8% { opacity: 0;   transform: translateX(-50%) scaleY(14); }
+  100%  { opacity: 0;   transform: translateX(-50%) scaleY(14); }
+}
+@keyframes ufoEsticaFundo {
+  0%, 58%  { transform: translateX(-50%) scaleY(1);   opacity: 1; }
+  62.5%    { transform: translateX(-50%) scaleY(2);   opacity: 1; }
+  64.5%    { transform: translateX(-50%) scaleY(5.5); opacity: .55; }
+  65.8%    { transform: translateX(-50%) scaleY(10);  opacity: 0; }
+  100%     { transform: translateX(-50%) scaleY(10);  opacity: 0; }
+}
+@keyframes ufoBalanca {
+  0%, 100% { transform: translateX(0)     rotate(1.6deg); }
+  50%      { transform: translateX(-4%)   rotate(-1.6deg); }
+}
+
+/* Trajetória: emerge de trás da Terra, sobe devagar oscilando e, no fim,
+   dispara — a saída é um tiro de luz, não um desvanecer. */
+/* A subida é por IMPULSOS: cada trecho de ganho de altura tem um empurrão
+   rápido seguido de acomodação, e o airburn pulsa junto (keyframes abaixo, nos
+   mesmos percentuais). O easing vai por keyframe porque a animação é linear. */
+/* A deriva horizontal é NEGATIVA porque a nave passou a entrar pela direita:
+   a coreografia é a mesma, espelhada, para ela sempre derivar em direção ao
+   centro do quadro em vez de sair pela borda. */
+@keyframes ufoSobe {
+  /* fora do quadro, abaixo do rodapé */
+  0%   { transform: translate(0, 8vh) scale(1.06);        opacity: 1;
+         animation-timing-function: ease-in; }
+  4%   { transform: translate(-.3vw, 6vh) scale(1.06);    opacity: 1;
+         animation-timing-function: cubic-bezier(.2,.8,.3,1); }
+  /* impulso 1 — entra pela base da tela */
+  8%   { transform: translate(-1.2vw, -4vh) scale(1.02);  opacity: 1;
+         animation-timing-function: ease-out; }
+  12%  { transform: translate(-1.6vw, -6vh) scale(1);     opacity: 1;
+         animation-timing-function: cubic-bezier(.2,.8,.3,1); }
+  /* impulso 2 */
+  17%  { transform: translate(-2.6vw, -17vh) scale(.96);   opacity: 1;
+         animation-timing-function: ease-out; }
+  21%  { transform: translate(-3vw, -19vh) scale(.95);     opacity: 1;
+         animation-timing-function: cubic-bezier(.2,.8,.3,1); }
+  /* impulso 3 */
+  26%  { transform: translate(-4.4vw, -28vh) scale(.9);    opacity: 1;
+         animation-timing-function: ease-out; }
+  31%  { transform: translate(-4.8vw, -30vh) scale(.89);   opacity: 1;
+         animation-timing-function: ease-in-out; }
+  /* PAIRA: quase sem ganhar altura, indo e voltando na horizontal */
+  38%  { transform: translate(-2.8vw, -31.5vh) scale(.88); opacity: 1;
+         animation-timing-function: ease-in-out; }
+  45%  { transform: translate(-6.4vw, -33vh) scale(.87);   opacity: 1;
+         animation-timing-function: ease-in-out; }
+  52%  { transform: translate(-3.4vw, -35vh) scale(.86);   opacity: 1;
+         animation-timing-function: ease-in-out; }
+  58%  { transform: translate(-6.6vw, -37vh) scale(.85);   opacity: 1;
+         animation-timing-function: ease-out; }
+  /* CARGA: quase parada, só descendo um fio enquanto a propulsão acende —
+     sem essa pausa o disparo comia a queima e a propulsão não era vista */
+  60%  { transform: translate(-6.2vw, -34vh) scale(.88);  opacity: 1;
+         animation-timing-function: ease-in-out; }
+  62.5%{ transform: translate(-6vw, -33vh) scale(.9);     opacity: 1;
+         animation-timing-function: cubic-bezier(.75,0,.95,.35); }
+  /* disparo */
+  64.5%{ transform: translate(-4vw, -76vh) scale(.4);     opacity: .85;
+         animation-timing-function: cubic-bezier(.8,0,1,.3); }
+  65.8%{ transform: translate(-2vw, -150vh) scale(.04);   opacity: 0; }
+  100% { transform: translate(-2vw, -150vh) scale(.04);   opacity: 0; }
+}
+
+/* ── Astronauta à deriva ────────────────────────────────────────────────────
+   Fica no lado esquerdo, longe da nave (que ocupa a direita) e acima do
+   horizonte. A luz é a mesma da cena: halo frio nascendo em cima e sombra
+   caindo para baixo — é o que o encaixa no cenário em vez de parecer colado. */
+.astro {
+  /* 46% e não mais alto: mais acima ele ficava solto no vazio, longe demais do
+     planeta. 5% da borda dá a folga que o afasta da antena logo abaixo. */
+  position: absolute; left: 5%; top: 46%;
+  width: clamp(120px, 14vw, 230px);
+  /* z 7 e não 6: `.bloco` é um retângulo invisível que cobre toda a faixa
+     superior da página e, empatado em 6, vencia por vir depois no DOM —
+     engolia o mouse antes de ele chegar nos estilhaços. A camada segue com
+     `pointer-events: none`, então subir de nível não rouba clique de nada;
+     só os fragmentos, que pedem o mouse explicitamente, passam a recebê-lo. */
+  z-index: 7; pointer-events: none;
+  /* Eixo no CORPO do astronauta. Sem declarar, o navegador usa o centro da
+     caixa — que aqui é muito maior que a figura, porque a camada também abriga
+     a nuvem de detritos —, e o giro saía em torno de um ponto lá no canto, como
+     se ele estivesse pendurado. Em 50%/52% ele roda sobre si mesmo. */
+  transform-origin: 50% 52%;
+  transition: transform .8s cubic-bezier(.22,1,.36,1);
+}
+/* Órbita: a deriva descreve um laço fechado em vez de vaivém, e o giro é
+   contínuo e lento — a leitura é de um corpo em queda livre, não de algo
+   balançando pendurado. Períodos primos entre si (23s e 41s) para o
+   movimento nunca repetir o mesmo desenho. */
+.astroDeriva {
+  display: block;
+  transform-origin: 50% 55%;
+  /* Três animações em propriedades SEPARADAS — `transform`, `rotate` e
+     `scale`/`translate` são independentes no CSS moderno, então elas se
+     compõem em vez de uma sobrescrever a outra:
+       transform → o laço da órbita
+       rotate    → o giro, agora bem mais lento
+       scale     → o afastamento: encolhe e some ao longe, e recomeça */
+  animation: astroOrbita 23s linear infinite,
+             astroGira 420s linear infinite,
+             astroAfasta 96s ease-in-out infinite;
+}
+.astroImg {
+  display: block; width: 100%; height: auto;
+  /* arrastável: é o único elemento da cena que responde ao ponteiro além dos
+     estilhaços. `touch-action: none` impede o navegador de sequestrar o gesto
+     para rolar a página no toque, o que abortaria o arrasto no primeiro pixel. */
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+  -webkit-user-drag: none;
+  /* halos curtos e discretos: raios largos criavam um véu azulado em volta
+     dele, que lia como adesivo brilhando em vez de luz batendo */
+  filter:
+    drop-shadow(0 -4px 9px rgba(200,232,255,.26))
+    drop-shadow(0 -9px 20px rgba(140,196,255,.1))
+    drop-shadow(0 10px 20px rgba(4,10,24,.55));
+}
+/* Clarão frio ATRÁS do corpo inteiro. Antes estava centrado a 10% da altura —
+   em cima do capacete —, e um halo só sobre a cabeça lê como auréola, não como
+   luz. Centrado na figura, ele vira o contraluz que descola o astronauta do
+   fundo, que é o que se espera de um corpo iluminado no vácuo. */
+.astroLuz {
+  position: absolute; left: 50%; top: 50%;
+  width: 124%; aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  mix-blend-mode: screen;
+  background: radial-gradient(circle,
+    rgba(212,240,255,.34) 0%, rgba(168,212,255,.2) 26%,
+    rgba(124,180,248,.095) 48%, transparent 72%);
+  filter: blur(26px);
+  animation: respiraLuz 8s ease-in-out infinite;
+}
+/* Séquito: estilhaços e poeira acompanham o astronauta. Repete as MESMAS
+   animações dele — órbita, afastamento E giro —, com os mesmos períodos e
+   curvas, então a nuvem viaja junto em vez de derivar por conta própria.
+   O giro é sincronizado pelo PERÍODO, não copiado: 420s, o mesmo do astronauta,
+   mas como balanço de ±9° em vez de volta completa — assim a nuvem respira
+   junto com ele sem se enrolar em volta do corpo. */
+.astroSequito {
+  position: absolute; inset: 0;
+  transform-origin: 50% 55%;
+  animation: astroOrbita 23s linear infinite,
+             sequitoBalanca 420s ease-in-out infinite,
+             astroAfasta 96s ease-in-out infinite;
+}
+@keyframes sequitoBalanca {
+  0%, 100% { rotate: -9deg; }
+  50%      { rotate: 9deg; }
+}
+
+/* laço fechado: sobe, vai para a direita, desce, volta — uma elipse suave */
+/* ── Estilhaços de meteoro ──────────────────────────────────────────────────
+   Fragmentos irregulares (clip-path, três silhuetas diferentes) com degradê
+   de cima para baixo — a mesma direção de luz da cena, o que os integra em
+   vez de deixá-los como manchas soltas. Cada um deriva e gira no seu ritmo. */
+/* DUAS camadas, e a divisão é obrigatória, não estética. As propriedades de
+   transformação compõem numa ordem fixa — translate, rotate, scale, transform —
+   e `transform` é aplicada por DENTRO da rotação. Como o fragmento gira sem
+   parar (`estilhacoGira`), um deslocamento escrito no `transform` dele saía
+   girado junto: pedir +400px de arremesso movia −242px, e a direção mudava a
+   cada quadro. Medido.
+   Aqui o invólucro cuida só de ONDE o fragmento está — sem rotação nenhuma,
+   então o arremesso vale em pixels de tela — e o filho cuida de COMO ele se
+   mexe, girando e derivando à vontade. */
+.estilhacoOrbe {
+  position: absolute;
+  pointer-events: auto;
+  cursor: default;
+  /* 2,2s com saída longa: arremessado, o fragmento sai rápido e vai
+     desacelerando até parar, que é o que acontece com um corpo empurrado no
+     vácuo. Quem decide o destino é o JS; aqui se define só a viagem. */
+  transition: transform 2.2s cubic-bezier(.1,.72,.22,1);
+}
+.estilhaco {
+  position: absolute; inset: 0;
+  background: linear-gradient(168deg,
+    #d3dbe6 0%, #a8b4c6 26%, #75849b 52%, #4a5670 76%, #2c3550 100%);
+  /* `drop-shadow` sobre `clip-path` é caro: obriga o navegador a rasterizar a
+     silhueta recortada a cada quadro do giro. Um `box-shadow` não serviria
+     (ignoraria o recorte), então o custo se controla pelo raio — 3px em vez de
+     4 e sem deslocamento vertical, que é o que reduz a área a rasterizar. */
+  filter: drop-shadow(0 1px 3px rgba(2,8,20,.6));
+  /* animam transform-like o tempo todo: avisar o compositor evita repromoção
+     a cada início de ciclo */
+  will-change: translate, rotate;
+  animation: estilhacoDeriva var(--dur, 24s) ease-in-out var(--atraso, 0s) infinite,
+             estilhacoGira var(--dur, 24s) linear var(--atraso, 0s) infinite;
+  pointer-events: none;   /* quem recebe o mouse é o invólucro */
+  transition: filter .4s ease;
+}
+.estilhacoOrbe:hover .estilhaco { filter: drop-shadow(0 3px 7px rgba(2,8,20,.75)) brightness(1.2); }
+/* enquanto arrastado, o cursor vira punho fechado e o corpo ganha um realce
+   frio — o retorno visual de que ele está preso ao ponteiro */
+.astroPegado {
+  cursor: grabbing;
+  filter:
+    drop-shadow(0 -4px 12px rgba(210,238,255,.4))
+    drop-shadow(0 -10px 26px rgba(150,200,255,.18))
+    drop-shadow(0 12px 24px rgba(4,10,24,.6));
+}
+.forma1 { clip-path: polygon(50% 0%, 88% 22%, 100% 62%, 68% 100%, 22% 92%, 0% 48%, 14% 14%); }
+.forma2 { clip-path: polygon(38% 0%, 92% 14%, 100% 54%, 74% 92%, 26% 100%, 0% 60%, 8% 20%); }
+.forma3 { clip-path: polygon(56% 2%, 100% 34%, 86% 78%, 44% 100%, 6% 76%, 0% 30%, 24% 6%); }
+@keyframes estilhacoDeriva {
+  0%, 100% { translate: 0 0; }
+  50%      { translate: var(--dx, 8%) var(--dy, -8%); }
+}
+@keyframes estilhacoGira {
+  from { rotate: 0deg; }
+  to   { rotate: var(--giro, 360deg); }
+}
+
+/* Poeira cósmica junto do astronauta: grãos finos, muito mais lentos. O halo é
+   bem maior que o próprio grão — é o borrão em volta, e não o ponto, que lê
+   como névoa. Com o halo curto de antes, cada grão virava um pixel isolado e o
+   conjunto sumia contra o preto. */
+.poeiraCosmica {
+  position: absolute; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, #f4faff 0%, rgba(206,232,255,.72) 42%, transparent 100%);
+  /* `--glow` vem sorteado por grão: cada um acende com uma força diferente, e
+     é essa variação que faz a nuvem ler como poeira de verdade em vez de um
+     punhado de pontinhos idênticos */
+  box-shadow:
+    0 0 3px 1px rgba(196,226,255, calc(.30 * var(--glow, 1))),
+    0 0 8px 2.5px rgba(150,196,255, calc(.14 * var(--glow, 1)));
+  animation: poeiraDeriva var(--dur, 30s) ease-in-out var(--atraso, 0s) infinite;
+  /* são 58 grãos animando ao mesmo tempo: `contain: strict` fecha cada um em si
+     — tamanho, layout e pintura — para que nenhum obrigue o navegador a olhar
+     para os vizinhos */
+  contain: strict;
+}
+@keyframes poeiraDeriva {
+  0%, 100% { translate: 0 0; }
+  50%      { translate: var(--dx, 10%) var(--dy, -10%); }
+}
+
+@keyframes astroOrbita {
+  0%, 100% { transform: translate(0, 0); }
+  25%      { transform: translate(4.5%, -3.2%); }
+  50%      { transform: translate(0, -5.4%); }
+  75%      { transform: translate(-4.5%, -3.2%); }
+}
+/* giro completo e contínuo — em órbita nada trava no meio do caminho.
+   420s por volta: imperceptível quadro a quadro. Só quem olhar por um bom
+   tempo nota que ele não está na mesma atitude de antes, que é exatamente
+   como um corpo à deriva gira de verdade. */
+@keyframes astroGira {
+  from { rotate: 0deg; }
+  to   { rotate: 360deg; }
+}
+/* Afastamento sutil: ele recua e VOLTA pelo mesmo caminho, num ciclo contínuo
+   de 96s. A versão anterior encolhia até 0,18 e sumia por completo, e o retorno
+   ao tamanho de perto precisava de um corte seco entre 92% e 93% — era esse
+   pulo que denunciava a animação. Sem sumiço não há corte a esconder: a curva
+   vai e volta sozinha, e o mais longe que ele chega é 0,72 do tamanho, o
+   bastante para ler como deriva e pouco para virar truque.
+   Recua para a ESQUERDA, o lado que ele ocupa, em vez de cruzar o 404. */
+/* Sem `opacity` nenhuma: baixá-la para 0,82 deixava o astronauta TRANSLÚCIDO
+   metade do tempo, e o que passasse atrás aparecia através do traje — ele lia
+   como fantasma. Um corpo se afastando no vácuo não fica transparente; ele
+   fica menor. A escala sozinha já conta o afastamento. */
+@keyframes astroAfasta {
+  0%, 100% { scale: 1;    translate: 0 0; }
+  50%      { scale: .72;  translate: -5% -8%; }
+}
+
+/* ── Antena parabólica, plantada na curva do planeta ────────────────────────
+   O ponto de apoio é calculado na MESMA circunferência do limbo usada pela
+   atmosfera e pelo reflexo. O ponto NÃO está na borda do limbo: está a 99,5%
+   do raio, a 28° do topo para a esquerda. Puxada um fio para dentro da borda,
+   ela encosta na massa de continente sem sair do canto esquerdo do quadro.
+
+     0.995 · sen 28° = .4671     0.995 · cos 28° = .8785
+
+   O pé fica bem abaixo da linha do horizonte e só o prato recorta o céu — que
+   é o que se espera de algo pousado na face da esfera, e não na silhueta. A
+   caixa toda passa à esquerda do primeiro algarismo. A escala é pequena de
+   propósito: vista da órbita, uma antena grande denunciaria a colagem; quem
+   lhe dá presença é o sinal, não o tamanho.                                   */
+.antenaCamada { position: absolute; inset: 0; z-index: 5; pointer-events: none; }
+.antena {
+  position: absolute;
+  left: var(--ant-x);
+  top:  var(--ant-y);
+  width: clamp(46px, 6vw, 104px);
+  /* espelhada: do lado esquerdo a normal inclina para a esquerda, e o prato do
+     render aponta para a esquerda no seu próprio eixo — somados, o feixe
+     sairia quase deitado. Invertida, os dois ângulos se cancelam e o sinal sai
+     na vertical. Com o espelho, o pé da base migra de 65% para 35%. */
+  translate: -35% -97%;
+  /* −23°: é a inclinação da normal da esfera no ponto onde ela está (23,9°),
+     arredondada para o lado de dentro. Antes eram −28°, deitada demais. */
+  rotate: -23deg;
+  transform-origin: 35% 97%;
+}
+.antenaImg {
+  display: block; width: 100%; height: auto;
+  scale: -1 1;
+  /* mesma direção de luz do resto: realce frio por cima, sombra caindo */
+  filter:
+    drop-shadow(0 -3px 8px rgba(190,226,255,.22))
+    drop-shadow(0 6px 14px rgba(3,9,22,.6));
+}
+/* assentamento: o clarão fraco no chão que impede a antena de ler como
+   recorte solto sobre a superfície */
+.antenaBase {
+  position: absolute; left: 35%; top: 97%;
+  width: 165%; height: 26%;
+  translate: -50% -55%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse,
+    rgba(150,200,255,.2) 0%, rgba(90,150,220,.09) 42%, transparent 72%);
+  filter: blur(7px);
+}
+
+/* Campo de sinal: arcos saindo da boca da parabólica. O eixo do prato aponta
+   ~40° à esquerda da vertical local (medido na elipse da borda), daí o setor
+   começar deslocado. Os arcos EXPANDEM E MORREM antes de chegar longe — o
+   sinal se dissipa no vazio, que é a leitura de conexão perdida. */
+.sinalCampo {
+  position: absolute; left: 64%; top: 33%;
+  /* raio = a fração do caminho que cabe à antena. Ela alcança mais que o
+     satélite, e é por isso que o encontro acontece lá em cima, perto dele. */
+  width: calc(4 * var(--enlace-meio) * var(--enlace-ponto) * var(--enlace-folga) * var(--enlace-raio));
+  aspect-ratio: 1;
+  translate: -50% -50%;
+}
+.onda {
+  position: absolute; inset: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(132,206,250,.85);
+  /* Setor de ~54° centrado no eixo do prato: +40° em relação à vertical LOCAL
+     (medido na elipse da borda, já com a imagem espelhada). Com os -30° de
+     inclinação da antena, o feixe sai quase na vertical da tela, 10° para a
+     direita. As pontas esmaecem em vez de cortarem reto. */
+  mask-image: conic-gradient(from 39deg,
+    transparent 0deg, #000 14deg, #000 54deg, transparent 70deg);
+  -webkit-mask-image: conic-gradient(from 39deg,
+    transparent 0deg, #000 14deg, #000 54deg, transparent 70deg);
+  opacity: 0;
+  animation: sinalSai 6s cubic-bezier(.2,.55,.4,1) infinite;
+}
+/* Sem escalonamento no arco principal: ele precisa sair no MESMO instante que
+   o do satélite para os dois se encontrarem no meio do caminho. O segundo é o
+   eco, meio ciclo atrás. */
+.onda:nth-child(2) { animation-delay: 3s; }
+/* A tentativa inteira, num ciclo:
+     0–10%   emissão, azul forte
+     10–46%  expansão, azul esmaecendo
+     46–56%  os dois arcos chegam ao meio e a cor vira âmbar e depois vermelha
+     56–100% o que sobrou recua em vermelho e apaga desfocado
+   A cor vai nos keyframes de propósito: é a mesma animação dos dois lados, e
+   é ela que sincroniza a virada para o vermelho com o corte no meio. */
+@keyframes sinalSai {
+  0%   { scale: .08; opacity: 0;   filter: blur(0px);
+         border-color: rgba(132,206,250,.9); }
+  10%  { opacity: .85;              border-color: rgba(132,206,250,.9); }
+  40%  { opacity: .5;               border-color: rgba(124,198,246,.8); }
+  48%  { opacity: .58;              border-color: rgba(255,186,120,.85); }
+  54%  { opacity: .62; filter: blur(.4px);
+         border-color: rgba(255,96,82,.95); }
+  70%  { opacity: .26; filter: blur(1.2px);
+         border-color: rgba(255,88,74,.75); }
+  88%  { opacity: .07; filter: blur(2.2px);
+         border-color: rgba(226,76,64,.5); }
+  100% { scale: 1;    opacity: 0;  filter: blur(3px);
+         border-color: rgba(226,76,64,.4); }
+}
+
+/* ── Corte do enlace ────────────────────────────────────────────────────────
+   Fica no ponto médio exato entre a antena e o satélite — a média das duas
+   coordenadas declaradas em `.page`, e não um percentual chutado, para o corte
+   cair sempre onde os dois arcos realmente se cruzam.
+   Aparece só no instante do encontro: um estouro vermelho e as duas metades do
+   enlace se separando ao longo do eixo que liga os dois. */
+.falhaEnlace {
+  position: absolute;
+  left: calc(var(--ant-x) + var(--enlace-ponto) * (var(--sat-x) - var(--ant-x)));
+  top:  calc(var(--ant-y) + var(--enlace-ponto) * (var(--sat-y) - var(--ant-y)));
+  width: clamp(36px, 4.4vw, 76px); aspect-ratio: 1;
+  translate: -50% -50%;
+  z-index: 6; pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(circle,
+    rgba(255,120,104,.55) 0%, rgba(255,80,66,.22) 30%,
+    rgba(200,50,42,.07) 55%, transparent 74%);
+  animation: falhaEstoura 6s linear infinite;
+}
+/* O X do corte. Antes as duas barras estavam a 143° e −37°, que é a MESMA
+   reta: 143 − 180 = −37. Davam dois riscos paralelos, nunca um X.
+   Depois erraram de novo, a ±45° do eixo do enlace: dava −82° e +8°, ou seja
+   8° fora da vertical e da horizontal — um `+`, não um X. O que decide a
+   leitura são os eixos da TELA, não os do enlace.
+   Ficam então em −37° e +53°: 90° entre si, as duas francamente diagonais. E
+   como o eixo antena↔satélite é justamente −37°, uma das riscas corre POR CIMA
+   do enlace e a outra o atravessa — o X é o próprio corte da linha.
+   Ambas centradas no meio do elemento (`transform-origin` no centro, e não na
+   ponta), senão cruzam fora do ponto de encontro. */
+.falhaEnlace::before,
+.falhaEnlace::after {
+  content: ""; position: absolute;
+  left: 50%; top: 50%;
+  width: 92%; height: 1.5px;
+  margin: -.75px 0 0 -46%;
+  border-radius: 2px;
+  /* Traço de LUZ, não de laser. O núcleo branco incandescente puxava a leitura
+     para arma de ficção; aqui é o coral do resto da falha, com glow largo em
+     volta e as pontas dissolvendo. */
+  background: linear-gradient(90deg,
+    rgba(255,140,124,0), #ff6a5c 26%, #ffb0a4 50%, #ff6a5c 74%, rgba(255,140,124,0));
+  box-shadow: 0 0 8px 1px rgba(255,90,74,.7), 0 0 20px 4px rgba(255,80,66,.28);
+  transform-origin: 50% 50%;
+}
+/* ±45° exatos. Antes eram −37°/+53°: continuavam perpendiculares, mas o par
+   inteiro estava 8° fora da diagonal, e é isso que se lê como X torto. */
+/* .45s entre um golpe e outro: o primeiro traço já está riscado e começando a
+   esfriar quando o segundo abre. Com 0,09s os dois nasciam praticamente
+   juntos e o X aparecia pronto, em vez de ser CORTADO no espaço. */
+.falhaEnlace::before { rotate: -45deg; animation: falhaRisca 6s linear infinite; }
+.falhaEnlace::after  { rotate: 45deg;  animation: falhaRisca 6s linear infinite .45s; }
+/* o clarão acompanha o primeiro golpe, em 52% — antes ele acendia em 49%,
+   e a luz chegava adiantada em relação ao corte */
+@keyframes falhaEstoura {
+  0%, 51%   { opacity: 0; scale: .35; }
+  55%       { opacity: 1; scale: 1.15; }
+  62%       { opacity: .8; scale: 1; }
+  78%       { opacity: .18; scale: 1.1; }
+  90%, 100% { opacity: 0; scale: 1.2; }
+}
+/* Corte a laser, não um X que aparece pronto. `clip-path` revela a barra de uma
+   ponta à outra: o traço é CORTADO, ponta a ponta, em pouco mais de 200ms.
+   Depois a brasa esfria e some. O atraso de .16s entre as duas riscas é o que
+   faz o X ser feito em dois golpes, um depois do outro.
+   `clip-path` e não `scale`, porque escalar abre a barra pelo meio para os dois
+   lados ao mesmo tempo — parece elástico, não corte. */
+@keyframes falhaRisca {
+  0%, 51%   { clip-path: inset(0 100% 0 0); opacity: 0; }
+  52%       { clip-path: inset(0 100% 0 0); opacity: 1; }
+  55.5%     { clip-path: inset(0 0 0 0);    opacity: 1; }
+  /* some pela MESMA ponta por onde entrou: o corte fecha atrás de si, como um
+     rasgo no espaço se refazendo, em vez de a linha inteira apagar de uma vez */
+  70%       { clip-path: inset(0 0 0 0);    opacity: .85; }
+  84%       { clip-path: inset(0 0 0 62%);  opacity: .5; }
+  94%, 100% { clip-path: inset(0 0 0 100%); opacity: 0; }
+}
+/* brilho de varredura na própria boca do prato, no ritmo dos arcos */
+.sinalFoco {
+  position: absolute; left: 64%; top: 33%;
+  width: 62%; aspect-ratio: 1;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    rgba(150,214,255,.22) 0%, rgba(96,168,238,.08) 44%, transparent 70%);
+  filter: blur(9px);
+  animation: sinalPulsa 6s ease-in-out infinite;
+}
+@keyframes sinalPulsa { 0%, 100% { opacity: .35; } 8% { opacity: 1; } 55% { opacity: .5; } }
+/* Luz de estado na base: pisca em vermelho, sem enlace.
+   Uma emissão real não termina na borda do ponto — o brilho DERRAMA no ar em
+   volta. Daí a construção em três partes: o miolo quase branco (é o que dá a
+   sensação de fonte, e não de adesivo colorido), o halo em `::before`, muito
+   maior que o próprio ponto e desfocado, e o `box-shadow` em camadas fazendo a
+   ponte entre os dois. Um `box-shadow` sozinho para no raio dele e a luz lê
+   como chapada. */
+.antenaLed {
+  position: absolute; left: 39%; top: 90%;
+  width: 4.6%; aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff6f4 0%, #ff7063 42%, #ff3b2f 100%);
+  box-shadow:
+    0 0 4px 1px rgba(255,110,96,.95),
+    0 0 10px 3px rgba(255,80,66,.6),
+    0 0 22px 7px rgba(255,64,50,.3);
+  animation: ledSemEnlace 2.4s steps(1, end) infinite;
+}
+.antenaLed::before {
+  content: ""; position: absolute;
+  left: 50%; top: 50%;
+  width: 620%; aspect-ratio: 1;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    rgba(255,120,104,.5) 0%, rgba(255,80,66,.22) 30%,
+    rgba(255,60,46,.07) 56%, transparent 74%);
+  filter: blur(5px);
+}
+@keyframes ledSemEnlace {
+  0%, 16%  { opacity: 1; }
+  17%, 42% { opacity: .12; }
+  43%, 55% { opacity: 1; }
+  56%      { opacity: .12; }
+}
+
+/* ── Satélite fora de alcance ───────────────────────────────────────────────
+   Fica alto e à esquerda, na direção geral para onde a antena aponta — mas
+   longe demais. Os dois emitem, nenhum dos dois alcança: os arcos da antena
+   sobem e morrem, os do satélite descem e morrem, e nada nunca se encontra.
+   É esse desencontro, e não um X vermelho, que conta a falta de conexão.
+
+   O parallax dele é o menor da cena (-4 contra -12 da Terra): o que está mais
+   longe se desloca menos. */
+.satelite {
+  position: absolute; left: var(--sat-esq); top: var(--sat-topo);
+  width: var(--sat-larg);
+  z-index: 5; pointer-events: none;
+}
+.sateliteDeriva {
+  display: block; transform-origin: 50% 50%;
+  /* O ângulo base vive nos keyframes de `satBalanca`, e ele mira o prato do
+     satélite na antena do solo. É essa mira que fecha a leitura: os dois estão
+     apontados um para o outro e mesmo assim nenhum alcança o outro.
+     E ele não roda: satélite em órbita fica estabilizado, só oscilando de leve.
+     `transform` faz a deriva, `rotate` o balanço, sem um anular o outro. */
+  animation: satOrbita 54s ease-in-out infinite,
+             satBalanca 17s ease-in-out infinite;
+}
+.sateliteImg {
+  display: block; width: 100%; height: auto;
+  filter:
+    drop-shadow(0 -3px 8px rgba(190,226,255,.2))
+    drop-shadow(0 8px 18px rgba(3,9,22,.55));
+}
+@keyframes satOrbita {
+  0%, 100% { transform: translate(0, 0); }
+  25%      { transform: translate(3.5%, 2.6%); }
+  50%      { transform: translate(7%, -1.2%); }
+  75%      { transform: translate(3.5%, -3.4%); }
+}
+/* Balanço, não giro, e sem ângulo base: o render do coletor já vem na atitude
+   certa para a cena. Só a oscilação de ±3°, que é o quanto um corpo
+   estabilizado se mexe — perceptível, sem nunca perder a pose. */
+@keyframes satBalanca {
+  0%, 100% { rotate: -3deg; }
+  50%      { rotate: 3deg; }
+}
+
+/* farol de posição: um pisco curto e espaçado, como o de um corpo em órbita */
+/* sobre o corpo cilíndrico do coletor, na aresta superior — no render antigo
+   ela ficava em 74%/22%, que neste asset cai no vazio ao lado do prato */
+.sateliteFarol {
+  position: absolute; left: 47%; top: 29%;
+  width: 5.2%; aspect-ratio: 1; border-radius: 50%;
+  /* mesma construção do LED da antena: miolo quase branco, sombra em camadas e
+     halo derramando bem além do ponto */
+  background: radial-gradient(circle, #fff6f4 0%, #ff7063 42%, #ff3b2f 100%);
+  box-shadow:
+    0 0 5px 1px rgba(255,110,96,.95),
+    0 0 12px 4px rgba(255,80,66,.55),
+    0 0 26px 9px rgba(255,64,50,.28);
+  animation: farolPisca 3.2s steps(1, end) infinite;
+}
+.sateliteFarol::before {
+  content: ""; position: absolute;
+  left: 50%; top: 50%;
+  width: 560%; aspect-ratio: 1;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    rgba(255,120,104,.45) 0%, rgba(255,80,66,.2) 30%,
+    rgba(255,60,46,.06) 56%, transparent 74%);
+  filter: blur(6px);
+}
+@keyframes farolPisca { 0%, 7% { opacity: 1; } 8%, 100% { opacity: .1; } }
+
+/* a chamada dele, descendo em direção à antena — mais fraca, porque está
+   muito mais longe, e igualmente sem resposta.
+   Setor centrado em 171°, ou seja praticamente para baixo. */
+.satSinal {
+  position: absolute; left: 44%; top: 62%;
+  /* o resto do caminho: 1 − a fração da antena. Os dois somados dão a distância
+     inteira, então os arcos se tocam exatamente no ponto do X. */
+  width: calc(4 * var(--enlace-meio) * (1 - var(--enlace-ponto)) * var(--enlace-folga) * var(--enlace-raio));
+  aspect-ratio: 1;
+  translate: -50% -50%;
+}
+.satOnda {
+  position: absolute; inset: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(132,206,250,.6);
+  mask-image: conic-gradient(from 191deg,
+    transparent 0deg, #000 14deg, #000 54deg, transparent 70deg);
+  -webkit-mask-image: conic-gradient(from 191deg,
+    transparent 0deg, #000 14deg, #000 54deg, transparent 70deg);
+  opacity: 0;
+  /* mesma animação, mesmo relógio, atraso zero: é o que faz o arco dele partir
+     junto com o da antena e os dois se cruzarem no meio */
+  animation: sinalSai 6s cubic-bezier(.2,.55,.4,1) infinite;
+}
+.satOnda:nth-child(2) { animation-delay: 3s; }
+
+/* ── Reflexo da luz do topo na superfície ───────────────────────────────────
+   A luz vem de cima, então a faixa iluminada é a que acompanha o limbo e
+   desce perdendo força. Recortada pela mesma circunferência do planeta, para
+   ficar só sobre a superfície, e somada em `screen`: nunca escurece nada.
+   Fica ACIMA da vinheta (z 5 contra 4) — dentro dela a vinheta apagaria. */
+.reflexoTerra {
+  position: absolute; left: 50%;
+  top: calc(var(--limbo-cy) - var(--limbo-r));
+  width: calc(2 * var(--limbo-r)); aspect-ratio: 1;
+  z-index: 5; pointer-events: none;
+  border-radius: 50%;
+  mix-blend-mode: screen;
+  background: radial-gradient(circle at 50% 50%,
+    transparent 62%,
+    rgba(150,200,255,.05) 78%,
+    rgba(180,220,255,.13) 90%,
+    rgba(214,240,255,.3) 97%,
+    rgba(236,250,255,.42) 100%);
+  transition: transform .8s cubic-bezier(.22,1,.36,1);
+  animation: respiraLuz 11s ease-in-out infinite;
+}
+
+/* ── Vinheta: só escurece, não desfoca ── */
+.vinheta {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 34%;
+  z-index: 4; pointer-events: none;
+  background: linear-gradient(180deg,
+    transparent 0%, rgba(2,6,14,.2) 40%, rgba(2,5,12,.58) 72%, rgba(1,3,9,.86) 100%);
+}
+
+
+/* ── Título ─────────────────────────────────────────────────────────────────
+   Coluna centrada: NOT FOUND (sobretítulo) · 404 (herói) · ERROR (badge).
+   Ancorada acima do horizonte calculado, para o conjunto pousar sobre a curva
+   sem que o planeta engula o bloco. */
+.titulo {
+  /* NOT FOUND deitado sobre a Terra, logo ABAIXO do 404 (que some atrás do
+     limbo). Fica à frente do planeta (z 5) e recebe perspectiva para o efeito
+     3D visto de cima. */
+  position: absolute; left: 0; right: 0; z-index: 5;
+  top: calc(var(--horizonte) + 4dvh);
+  perspective: 820px; pointer-events: none;   /* mais distante = tombo mais suave */
+  display: flex; justify-content: center;
+  transition: transform .8s cubic-bezier(.22,1,.36,1);
+}
+
+/* ── NOT FOUND ───────────────────────────────────────────────────────────────
+   Deitado sobre a Terra: o rotateX inclina as letras para trás, e a
+   perspectiva do pai (.titulo) as faz recuar — o topo delas fica mais longe,
+   como se olhássemos de cima. O arco por caractere segue a curva do limbo. */
+.sobre {
+  display: flex; justify-content: center; align-items: flex-start;
+  white-space: nowrap; gap: .01em;
+  font-family: var(--font-display), "Helvetica Neue", Arial, sans-serif;
+  /* maior porque o rotateX encurta a altura aparente */
+  font-size: clamp(1.7rem, 7vmin, 4.4rem);
+  font-weight: 800; letter-spacing: .01em; line-height: 1;
+  /* menos deitado: 25° é quase de frente, com só uma insinuação de vista de cima */
+  transform: rotateX(25deg);
+  /* `scale` é propriedade separada de `transform` e se compõe com o rotateX em
+     vez de substituí-lo — reduz sem desfazer a perspectiva. Em torno do mesmo
+     `transform-origin`, o texto encolhe onde está. */
+  scale: .93;
+  transform-origin: center 42%;
+  filter:
+    drop-shadow(0 -4px 9px rgba(214,238,255,.36))
+    drop-shadow(0 -9px 20px rgba(150,200,255,.14))
+    drop-shadow(0 10px 12px rgba(2,8,20,.7))
+    drop-shadow(0 20px 30px rgba(2,8,20,.45))
+    drop-shadow(0 0 16px rgba(120,180,255,.12));
+  animation: entra .9s cubic-bezier(.22,1,.36,1) .05s both;
+}
+/* Extrusão: pilha de sombras sólidas descendo em azul cada vez mais escuro
+   simula a espessura das letras; a última, difusa, é a sombra projetada. Como
+   os offsets estão em em, a altura do volume acompanha o tamanho da fonte, e
+   como tudo é transformado junto pelo rotateX, a espessura recua na direção
+   certa em vez de ficar chapada. */
+/* mesmas três camadas do 404 — pelo mesmo motivo: text-shadow sobre
+   background-clip:text tinge a face frontal */
+.sobreCh {
+  position: relative; display: inline-block; transform-origin: center bottom;
+  color: transparent; -webkit-text-fill-color: transparent;
+}
+/* aresta escura, mais alta que a do 404: as letras são menores, então precisam
+   de espessura proporcionalmente maior para o volume aparecer */
+.sobreCh::before {
+  content: attr(data-c); position: absolute; inset: 0;
+  color: #556d95; -webkit-text-fill-color: #556d95;
+  /* mesma escada do 404 — inclusive a parte ACESA, que aqui não existia: a
+     aresta ia toda para o escuro e o texto ficava sem a luz do anel. Um degrau
+     mais contido que o 404, porque está mais perto e recebe menos. */
+  text-shadow:
+    0 .0045em 0 #556d95, 0 .0090em 0 #506892, 0 .0135em 0 #4c648f,
+    0 .0180em 0 #4a638f, 0 .0225em 0 #4a6593, 0 .0270em 0 #4c6999,
+    0 .0315em 0 #4e6ea0, 0 .0360em 0 #5174a7, 0 .0405em 0 #547bae,
+    0 .0450em 0 #5882b6, 0 .0495em 0 #5c8abe, 0 .0540em 0 #6192c6,
+    0 .0585em 0 #669ace, 0 .0630em 0 #6ba2d6, 0 .0675em 0 #74b0e2,
+    0 .0720em 0 #7ebbec,
+    /* mesmo aperto do 404 nos raios: glow presente, contorno de volta */
+    0 .086em .032em rgba(114,190,238,.45),
+    0 .108em .072em rgba(84,162,224,.26),
+    0 .14em .13em rgba(56,130,200,.14),
+    0 .17em .10em rgba(0,0,0,.36);
+}
+/* face: mesma família do 404, porém um degrau mais funda e um pouco menos
+   brilhante no topo. É o que separa os dois planos: o 404 está longe, contra o
+   céu; o NOT FOUND está perto, deitado na superfície, e por isso recebe menos
+   luz direta — a diferença de valor é o que dá a leitura de profundidade. */
+.sobreCh::after {
+  content: attr(data-c); position: absolute; inset: 0;
+  background: linear-gradient(180deg,
+    #f2f8ff 0%, #e6f0fd 14%, #d7e6f9 28%, #c3d6ef 42%,
+    #a9bfe0 56%, #8ba3ca 70%, #6d87b0 84%, #536b93 100%);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+}
+
+/* ── O 404 ──────────────────────────────────────────────────────────────────
+   Pesado, letras juntas. O gradiente vai do branco no topo ao azul profundo
+   na base — é ao mesmo tempo o degradê pedido e a SOMBRA DA TERRA subindo
+   pela letra, como no letreiro da NASA sobre o horizonte. O brilho externo
+   fica no drop-shadow; o interno, num pseudo-elemento que varre devagar. */
+/* bloom do 404: luz difusa que ele emana sobre o limbo e o espaço à volta,
+   centrada na linha do horizonte, atrás das letras. Radial → sem borda reta. */
+.numeroBloom {
+  position: absolute; left: 50%; top: var(--horizonte); z-index: 2;
+  width: min(110vmin, 82%); height: 42vmin;
+  pointer-events: none;
+  background: radial-gradient(ellipse 44% 48% at 50% 50%,
+    rgba(168,205,255,.12) 0%, rgba(96,155,240,.042) 34%, rgba(60,120,225,.012) 55%, transparent 72%);
+  filter: blur(18px);
+  mix-blend-mode: screen;
+  animation: respira 7s ease-in-out infinite;
+}
+
+.numero {
+  /* atrás do planeta (z 2 < terra z 3): a curva corta a base das letras.
+     Ancorado à linha do horizonte medida, submerge cerca de um terço.
+     Fila de algarismos, para cada um poder arquear individualmente. */
+  position: absolute; left: 0; right: 0; z-index: 2;
+  top: calc(var(--horizonte) - 0.77em);
+  display: flex; justify-content: center; align-items: flex-start;
+  gap: .035em;                        /* espaçamento entre os algarismos */
+  pointer-events: none;
+  font-family: var(--font-display), "Helvetica Neue", Arial, sans-serif;
+  font-size: clamp(5rem, min(30vmin, 26vw), 20rem);
+  font-weight: 900; line-height: .9; white-space: nowrap;
+  /* Reduzido por `scale`, e não mexendo no `font-size`. Dois motivos: o `top`
+     é medido em `em`, então uma fonte menor deslocaria o bloco para baixo; e
+     `--n-size` — que espelha este valor — ancora a altura de `.bloco` e a do
+     satélite, que arrastariam junto. Com `scale` a partir da BASE, o pé das
+     letras não sai de onde está e só o topo desce um pouco. */
+  scale: .93;
+  transform-origin: 50% 100%;
+  /* a luz vem de CIMA: o halo frio nasce acima dos algarismos e a sombra cai
+     para baixo — é o reflexo da fonte do topo sobre a tipografia */
+  /* halos curtos: os raios largos (56px/60px) envolviam os algarismos numa
+     névoa azulada que comia o contraste da tipografia */
+  filter:
+    drop-shadow(0 -6px 12px rgba(214,238,255,.4))
+    drop-shadow(0 -13px 26px rgba(150,200,255,.16))
+    drop-shadow(0 2px 1px rgba(0,0,0,.35))
+    drop-shadow(0 14px 34px rgba(4,12,26,.6))
+    drop-shadow(0 0 26px rgba(120,180,255,.1));
+  animation: entra 1s cubic-bezier(.22,1,.36,1) both;
+}
+/* ── Volume em três camadas ─────────────────────────────────────────────────
+   Por que não `text-shadow` direto no elemento: com `background-clip: text` a
+   ordem de pintura é fundo (gradiente recortado) → text-shadow → glifo. Como o
+   glifo é transparente, a sombra é pintada POR CIMA do gradiente e tinge a
+   face inteira — foi o que escureceu os números. A solução é separar:
+     ::before  aresta extrudada, cor sólida escura   ← atrás
+     ::after   face com o gradiente + varredura      ← na frente
+   O elemento em si só ocupa o espaço do layout. */
+.digito {
+  position: relative; display: inline-block;
+  color: transparent; -webkit-text-fill-color: transparent;
+  transform-origin: center bottom;
+}
+/* Aresta: cópias sólidas empilhadas para baixo (em em, escala com a fonte).
+   O conjunto delas É a face lateral extrudada — a superfície voltada para o
+   anel da atmosfera. Por isso a pilha não é toda escura: ela GRADUA, escura
+   junto ao rosto da letra e acendendo em ciano conforme desce, que é como a
+   luz vinda de baixo lamberia essa face. Um halo borrado por fora não serve:
+   ele contorna a silhueta inteira em vez de iluminar a face. */
+.digito::before {
+  content: attr(data-c); position: absolute; inset: 0;
+  color: #6b83a8; -webkit-text-fill-color: #6b83a8;
+  /* A face lateral não começa escura: ela sai de um tom PRÓXIMO ao pé do
+     degradê da frente (#7189ae), escurece de leve no primeiro terço — a
+     sombra de contato logo abaixo do rosto — e sobe daí até o azul aceso do
+     anel. Antes ela caía direto do branco para um azul quase preto, e o salto
+     lia como duas peças coladas. 20 cópias de .0026em: passo submilimétrico.
+     No fim, três camadas desfocadas fazem o glow derramar no fundo. */
+  text-shadow:
+    0 .0026em 0 #6b83a8, 0 .0052em 0 #647ea4, 0 .0078em 0 #5d78a0,
+    0 .0104em 0 #58749d, 0 .0130em 0 #55729c, 0 .0156em 0 #54739f,
+    0 .0182em 0 #5576a4, 0 .0208em 0 #577baa, 0 .0234em 0 #5a81b1,
+    0 .0260em 0 #5e88b9, 0 .0286em 0 #6390c1, 0 .0312em 0 #6899c9,
+    0 .0338em 0 #6ea2d1, 0 .0364em 0 #74abd9, 0 .0390em 0 #7bb4e1,
+    0 .0416em 0 #82bde8, 0 .0442em 0 #89c5ee, 0 .0468em 0 #95d2f7,
+    0 .0494em 0 #a1dcfc, 0 .0520em 0 #ade5ff,
+    /* Raios menores que antes: o glow continua derramando no fundo, mas a
+       aresta volta a ter contorno. Com as camadas largas, a névoa cobria a
+       própria extrusão e o algarismo lia como fora de foco. */
+    0 .062em .028em rgba(126,204,247,.55),
+    0 .080em .065em rgba(92,176,236,.32),
+    0 .105em .115em rgba(60,140,212,.17),
+    0 .13em .10em rgba(4,12,26,.34);
+}
+/* arco leve acompanhando a curvatura da Terra: os extremos descem e giram
+   para fora, como texto pousado sobre o topo de um círculo */
+.digito:nth-child(1) { transform: translateY(.085em) rotate(-7deg); }
+.digito:nth-child(2) { transform: translateY(0)       rotate(0deg); }
+.digito:nth-child(3) { transform: translateY(.085em) rotate(7deg); }
+/* face: claro no topo, azul profundo na base — a sombra da Terra subindo pela
+   letra, como no letreiro da NASA. A varredura é a 1ª camada de fundo e só ela
+   se move; a 2ª (o degradê) fica fixa em `0 0` nos keyframes. */
+.digito::after {
+  content: attr(data-c); position: absolute; inset: 0;
+  background:
+    linear-gradient(105deg, transparent 38%, rgba(255,255,255,.85) 50%, transparent 62%),
+    /* mais paradas, intervalos iguais e queda menos brusca no fim: o degradê
+       fica contínuo em vez de mostrar o ponto onde escurece */
+    linear-gradient(180deg,
+      #ffffff 0%, #fbfdff 14%, #f2f7fe 28%, #e4eefb 42%,
+      #cfdff4 56%, #b3c8e6 70%, #93a9cd 84%, #7189ae 100%);
+  background-size: 260% 100%, 100% 100%;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+  animation: varre404 6.5s ease-in-out infinite;
+}
+.digito:nth-child(1)::after { animation-delay: 1.4s; }
+.digito:nth-child(2)::after { animation-delay: 1.6s; }
+.digito:nth-child(3)::after { animation-delay: 1.8s; }
+@keyframes varre404 {
+  0%        { background-position: 150% 0, 0 0; }
+  45%, 100% { background-position: -60% 0, 0 0; }
+}
+
+/* ── Badge ERROR ────────────────────────────────────────────────────────────
+   Pastilha de vidro com acento âmbar — a cor de alerta que conversa com o
+   nascer do sol, não o vermelho que brigaria com o azul da cena. */
+.badge {
+  display: inline-flex; align-items: center; gap: .5rem;
+  margin-top: .35rem; padding: .34rem .85rem .34rem .7rem;
+  border-radius: 999px;
+  font-family: var(--font-mono), monospace;
+  font-size: clamp(.6rem, 1.4vmin, .76rem);
+  font-weight: 600; letter-spacing: .18em; text-indent: .18em;
+  color: #ffe0b0;
+  background: rgba(255,176,80,.09);
+  border: 1px solid rgba(255,190,110,.34);
+  box-shadow: 0 0 0 1px rgba(0,0,0,.2) inset, 0 6px 22px -10px rgba(255,170,80,.5);
+  backdrop-filter: blur(8px);
+  animation: entra 1s cubic-bezier(.22,1,.36,1) .12s both;
+}
+.badgePonto {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #ffb14d; box-shadow: 0 0 8px 1px rgba(255,177,77,.9);
+  animation: pisca 1.8s ease-in-out infinite;
+}
+@keyframes pisca { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+
+@keyframes entra { from { opacity: 0; transform: translateY(20px); } }
+
+/* ── Texto e ações ──────────────────────────────────────────────────────────
+   Ocupam a faixa livre no ALTO, do topo da página até logo acima da badge
+   ERROR, centralizados nela. A altura é o mesmo cálculo que ancora o par
+   ERROR/NOT FOUND, menos a altura desse par — assim o bloco para pouco antes
+   dele em qualquer tela. */
+.bloco {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 6;
+  height: calc(var(--horizonte) - 1.00 * var(--n-size) - 4rem);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1.15rem; padding: 1.5rem 1.25rem 0; text-align: center;
+  animation: entra .9s cubic-bezier(.22,1,.36,1) .18s both;
+}
+.tituloTxt {
+  font-size: clamp(1.15rem, 2.4vw, 1.5rem); font-weight: 700;
+  letter-spacing: -.01em; color: #eef4ff;
+  text-shadow: 0 2px 18px rgba(0,0,0,.85);
+}
+.sub {
+  font-size: .875rem; line-height: 1.75; max-width: 44ch;
+  color: rgba(200,218,244,.82);
+  text-shadow: 0 1px 14px rgba(0,0,0,.9);
+}
+
+.acoes { display: flex; gap: .8rem; flex-wrap: wrap; justify-content: center; margin-top: .5rem; }
+.btn, .btnGhost {
+  position: relative; overflow: hidden;
+  display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
+  padding: .72rem 1.3rem; border-radius: 11px;
+  font-size: .9rem; font-weight: 600;
+  transition: background .16s, border-color .16s, color .16s, transform .16s, box-shadow .2s;
+}
+.btn {
+  color: #06121f;
+  background: linear-gradient(180deg, #ffffff 0%, #dce9fb 100%);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.6) inset,
+    0 10px 30px -10px rgba(150,200,255,.8),
+    0 0 42px -12px rgba(120,180,255,.9);
+}
+.btnBrilho {
+  position: absolute; inset: -40% -10%;
+  background: linear-gradient(100deg, transparent 30%, rgba(255,255,255,.85) 48%, transparent 66%);
+  transform: translateX(-120%);
+  animation: varre 4.5s cubic-bezier(.5,0,.3,1) 1.2s infinite;
+  pointer-events: none;
+}
+@keyframes varre {
+  0% { transform: translateX(-120%); }
+  38% { transform: translateX(120%); }
+  100% { transform: translateX(120%); }
+}
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.7) inset,
+    0 14px 36px -10px rgba(160,210,255,.95),
+    0 0 60px -10px rgba(140,195,255,1);
+}
+.btnGhost {
+  color: rgba(226,236,252,.9);
+  background: rgba(10,18,34,.42);
+  border: 1px solid rgba(160,190,235,.24);
+  backdrop-filter: blur(10px);
+}
+.btnGhost:hover { color: #fff; border-color: rgba(180,210,255,.55); background: rgba(20,34,58,.6); }
+.btn:focus-visible, .btnGhost:focus-visible { outline: 2px solid #7fc4ff; outline-offset: 3px; }
+
+/* ── Adaptações ─────────────────────────────────────────────────────────────
+   Cortes por PROPORÇÃO e ALTURA, não por largura: o que quebra o layout é a
+   relação entre altura e largura. */
+
+/* Retrato: a altura manda no tamanho da curva */
+@media (max-aspect-ratio: 1/1) {
+  .page { --terra-larg: max(180vw, min(440vw, 314vh)); }
+}
+
+/* Janelas baixas: o bloco do topo aperta, então encolhe e reduz o recuo */
+@media (max-height: 640px) {
+  .marca { bottom: 1.2rem; right: 1.4rem; }
+  .marcaTxt { font-size: 1.1rem; }
+  .bloco { padding-top: 3.5rem; gap: .7rem; }
+  .tituloTxt { font-size: 1rem; }
+  .sub { font-size: .78rem; line-height: 1.45; }
+}
+
+/* Muito baixas: sai o texto de apoio; o espaço é das ações */
+@media (max-height: 460px) {
+  .sub { display: none; }
+  .titulo { gap: .3rem; }
+  .badge { margin-top: .1rem; }
+  .acoes { margin-top: .3rem; }
+  .btn, .btnGhost { padding: .55rem 1rem; font-size: .82rem; }
+}
+
+/* Retrato estreito */
+@media (max-width: 620px) {
+  .page { --terra-larg: max(300vw, min(640vw, 290vh)); --terra-recuo: 10dvh; }
+  .marca { bottom: 1.2rem; right: 1.2rem; }
+  .marcaTxt { font-size: 1.05rem; }
+  .sub { font-size: .82rem; max-width: 34ch; }
+  .acoes { width: 100%; max-width: 20rem; }
+  .btn, .btnGhost { flex: 1 1 auto; }
+}
+
+@media (max-width: 380px) {
+  .sub { font-size: .76rem; line-height: 1.45; max-width: 26ch; }
+  .tituloTxt { font-size: 1rem; }
+  .bloco { gap: .8rem; }
+}
+@media (max-width: 340px) {
+  .sub { display: none; }
+  .acoes { flex-direction: column; width: 100%; }
+}
+
+/* ── Legenda dos controles ──────────────────────────────────────────────────
+   Canto inferior esquerdo, quase apagada. Acende ao aproximar o mouse: quem
+   não precisa dela não a vê, e quem procurar acha. */
+.ajuda {
+  position: absolute; left: 1.5rem; bottom: 1.4rem; z-index: 8;
+  font-size: .68rem; line-height: 1;
+  color: rgba(190,214,246,.5);
+  opacity: .32;
+  /* Transição ASSIMÉTRICA: acende na hora, apaga com calma. O atraso mora no
+     estado de repouso, que é o de CHEGADA quando a ação termina — por isso ele
+     só se faz sentir na saída. Sem essa espera, soltar a tecla apagava o painel
+     no mesmo quadro e o retorno visual mal era percebido. */
+  transition: opacity .6s ease 1s;
+}
+.ajuda:hover, .ajudaViva { transition: opacity .16s ease 0s; }
+.ajuda:hover { opacity: 1; }
+/* Em ação: o painel acende inteiro, mas as linhas paradas RECUAM — só a que
+   está acontecendo fica legível. Precisa ser assim, em dois passos: `opacity`
+   num pai é um teto para os filhos, então uma linha nunca poderia ficar mais
+   viva que o painel. Levantando o painel primeiro e apagando as vizinhas
+   depois, o destaque sobra para a linha certa. */
+/* Seletores COMPOSTOS de propósito. Com uma classe só, estas regras empatam em
+   especificidade com `.ajuda` e `.ajudaLinha` e dependem da ORDEM no arquivo —
+   e o minificador reordena. Duas vezes nesta página o mesmo empate fez uma
+   regra inteira sumir sem erro nenhum. */
+.ajuda.ajudaViva { opacity: 1; }
+.ajuda.ajudaViva .ajudaLinha { opacity: .3; transition: opacity .16s ease 0s, color .16s ease 0s; }
+.ajuda.ajudaViva .ajudaLinha.linhaAtiva {
+  opacity: 1;
+  color: rgba(255,226,186,.95);
+  text-shadow: 0 0 10px rgba(255,158,60,.35);
+}
+.ajudaLinhas { display: flex; flex-direction: column; gap: .55rem; }
+.ajudaLinha {
+  position: relative; display: flex; align-items: center; gap: .34rem;
+  white-space: nowrap;
+  /* mesma assimetria do painel: a linha volta ao tom apagado com atraso, para
+     o olho ainda alcançar qual delas estava acesa */
+  transition: opacity .6s ease 1s, color .6s ease 1s;
+}
+/* Teclas com volume: o degradê claro no topo faz a face; a linha clara interna
+   é a quina que pega luz; e a sombra sólida embaixo (sem desfoque) é a ALTURA
+   da tecla — é ela, não o desfoque, que vende o relevo em tamanho pequeno. */
+.tecla {
+  display: inline-flex; align-items: center; justify-content: center;
+  box-sizing: border-box;
+  min-width: 1.42rem; height: 1.42rem; padding: 3px;
+  /* longhand, e não o atalho `border`: o atalho expande para as doze
+     propriedades de borda de uma vez, e o minificador as remonta de um jeito
+     que engolia o `border-color` do estado aceso. Declarando separado, o
+     override é longhand contra longhand e não há remontagem possível. */
+  border-width: 1px; border-style: solid; border-color: rgba(150,186,232,.34);
+  border-radius: 5px;
+  /* DUAS camadas de fundo com recortes diferentes, que é o que constrói a
+     tecla vista de cima da referência:
+       · a primeira, presa ao `content-box`, é a TAMPA — fica recuada os 3px do
+         padding e é a face clara onde o glifo se apoia;
+       · a segunda, no `border-box`, aparece só no anel que sobra em volta, e
+         esse anel É a saia inclinada da tecla.
+     Feito com pseudo-elemento, o glifo ficaria por baixo da tampa; com camadas
+     de fundo ele continua por cima sem труque nenhum. */
+  background:
+    linear-gradient(180deg, #4a648c 0%, #3a5178 55%, #32456a 100%) content-box,
+    linear-gradient(180deg, #2a3b57 0%, #1d2a3f 60%, #16202f 100%) border-box;
+  /* A ESPESSURA é uma pilha de sombras sólidas descendo, sem desfoque: cada
+     camada é uma fatia da face frontal, e é o conjunto delas que forma o corpo
+     da tecla. Rotacionar um plano não bastava — um plano não tem lateral, e a
+     tecla continuava chapada por mais que tombasse. Mesmo partido da extrusão
+     do 404. A última camada, essa sim desfocada, é a sombra na mesa. */
+  /* A pilha cai MUITO mais rápido que antes. Em tons próximos ao da face, a
+     espessura ficava lavada e a tecla voltava a parecer chapada: é o contraste
+     entre a tampa clara e a lateral escura que constrói o volume, não a
+     quantidade de camadas. Aqui a primeira fatia já é bem mais escura que a
+     base do degradê e o resto desce até quase o preto. */
+  box-shadow:
+    inset 0 1px 0 rgba(214,236,255,.34),
+    inset 0 -2px 3px rgba(0,0,0,.34),
+    0 1px 0 #141d2b,
+    0 2px 0 #0f1621,
+    0 3px 0 #0a1019,
+    0 4px 0 #060a11,
+    0 6px 8px rgba(0,0,0,.6);
+  font-size: .66rem; font-weight: 600;
+  color: rgba(214,232,255,.9);
+  transition: border-color .09s, background .09s, color .09s, box-shadow .09s, transform .09s;
+}
+.teclaLarga { min-width: 2.1rem; font-size: .58rem; letter-spacing: .02em; }
+
+/* T invertido das setas. Grade explícita em vez de duas fileiras: é a posição
+   FÍSICA que faz reconhecer o controle sem precisar ler.
+   O espaçamento vertical é maior que o horizontal de propósito — cada tecla
+   projeta 4px de espessura para baixo, e com folga igual nos dois eixos a
+   fileira de cima pisava na de baixo. */
+.linhaSetas { align-items: center; gap: .55rem; }
+.setas {
+  display: grid;
+  grid-template-columns: repeat(3, 1.42rem);
+  grid-template-rows: repeat(2, 1.42rem);
+  column-gap: .16rem; row-gap: .34rem;
+}
+.setaCima  { grid-area: 1 / 2; }
+.setaEsq   { grid-area: 2 / 1; }
+.setaBaixo { grid-area: 2 / 2; }
+.setaDir   { grid-area: 2 / 3; }
+/* legenda em duas linhas, alinhada ao bloco de teclas */
+.ajudaDupla { display: flex; flex-direction: column; gap: .3rem; line-height: 1.1; }
+/* Pressionada: DESCE os mesmos 2px que a sombra de altura media, e essa sombra
+   some junto — o corpo da tecla encosta na base. É o afundamento que faz o
+   toque parecer físico, e não uma troca de cor. */
+/* Seletor COMPOSTO (.tecla.teclaAcesa) de propósito: com uma classe só, a
+   borda e o afundamento perdiam para as declarações de `.tecla` e nada
+   acontecia além da cor de fundo. E o afundamento vai em `transform`, não em
+   `translate` — medido: `translate` aqui computava 0px e a tecla não descia. */
+.ajuda .tecla.teclaAcesa {
+  /* mesmo âmbar do mouse: "em uso" tem uma cor só no painel inteiro, senão o
+     mesmo estado passaria a ser contado em duas linguagens diferentes */
+  border-color: rgba(255,168,84,.9);
+  background: linear-gradient(180deg, rgba(196,116,42,.92), rgba(146,78,26,.88));
+  color: #fff6ea;
+  /* a tampa acende e a saia acompanha, mais escura — o mesmo par de camadas */
+  background:
+    linear-gradient(180deg, #d8842e 0%, #c06f22 55%, #a85e1a 100%) content-box,
+    linear-gradient(180deg, #8a4a12 0%, #63340b 60%, #4a2607 100%) border-box;
+  /* Afunda 3px e a PILHA ENCOLHE junto, de 4 camadas para 1: o corpo da tecla
+     desaparece dentro da base. É a mesma física de uma tecla real — ela não
+     muda de cor, ela some para dentro —, e é isso que faz o toque parecer
+     físico em vez de um piscar. */
+  transform: translateY(3px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,226,182,.42),
+    inset 0 -2px 4px rgba(90,36,0,.5),
+    0 1px 0 #7a3f12,
+    0 2px 5px rgba(2,8,20,.45),
+    0 0 8px 1px rgba(255,196,120,.6),
+    0 0 18px 5px rgba(255,158,60,.42);
+}
+/* Silhueta de mouse desenhada em CSS — nada de ícone externo. O corpo é a
+   cápsula, e o que muda entre um item e outro é QUAL parte está destacada:
+   no arrastar, o botão esquerdo; no aproximar, a roda central. Sem essa
+   distinção os dois ficavam idênticos e a legenda não dizia nada. */
+.teclaMouse, .teclaRoda {
+  position: relative;
+  width: 1.15rem; min-width: 1.15rem; height: 1.66rem;
+  /* topo bem mais arredondado que a base: é essa assimetria que dá a silhueta
+     de mouse. Uma cápsula simétrica lê como pílula. */
+  border-radius: .58rem .58rem .46rem .46rem;
+  padding: 0;
+  /* Atitude 3/4, como um objeto pousado na mesa e visto de cima pela diagonal:
+     `rotateX` deita a carcaça para a frente e `rotateZ` a vira um pouco, que é
+     o que revela a lateral. Junto com a pilha de sombras abaixo, o ícone deixa
+     de ser um contorno e passa a ter corpo. O eixo fica na base para ele girar
+     assentado, e não flutuando. */
+  transform: perspective(240px) rotateX(26deg) rotateZ(-11deg);
+  transform-origin: 50% 82%;
+  /* Corpo com volume: claro em cima, escuro na base, e a mesma pilha de
+     sombras sólidas das teclas para dar espessura à carcaça. Um contorno
+     inclinado sozinho não vira 3D — falta o corpo. */
+  background: linear-gradient(165deg, #3a5074 0%, #2a3c58 52%, #1d2a3e 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(206,230,255,.28),
+    inset -2px 0 4px rgba(0,0,0,.28),
+    0 1px 0 #1a2537,
+    0 2px 0 #151e2d,
+    0 3px 0 #111926,
+    0 5px 7px rgba(2,8,20,.5);
+}
+/* Fileira de botões com uma CANALETA no meio. Antes os dois quadrantes se
+   encostavam e tomavam o topo inteiro; a roda, espremida entre eles, sumia.
+   Deixando um vão de .34rem no centro, a roda passa a ter onde existir — e é o
+   próprio vão que separa os botões, sem precisar de linha divisória. */
+.mBotao {
+  position: absolute; top: 1px;
+  width: calc(50% - .19rem); height: .58rem;
+  background: rgba(158,188,226,.2);
+  transition: background .12s, box-shadow .12s;
+}
+.mEsq { left: 1px;  border-radius: .5rem 0 .1rem 0; }
+.mDir { right: 1px; border-radius: 0 .5rem 0 .1rem; }
+/* roda: ocupa a canaleta inteira, com corpo claro e contorno próprio */
+.mRoda {
+  position: absolute; left: 50%; top: .1rem;
+  translate: -50% 0;
+  width: .26rem; height: .46rem;
+  border-radius: .13rem;
+  background: rgba(206,222,244,.5);
+  box-shadow: inset 0 0 0 1px rgba(20,34,58,.55);
+  transition: background .12s, box-shadow .12s;
+  z-index: 1;
+}
+/* Destaques por linha: cada item da legenda acende só a peça que ele usa.
+   Cinza no botão esquerdo, ciano na roda — é a cor que diz qual é o gesto. */
+/* O botão esquerdo marcado, mas SEM virar uma lasca branca. Em .72 ele saltava
+   como um bloco claro e destoava de tudo à volta — o painel inteiro é azul
+   apagado. Aqui ele fica só o suficiente acima dos vizinhos para se distinguir,
+   e no mesmo tom frio do resto. */
+.destacaBotao .mEsq { background: rgba(174,202,236,.42); }
+.destacaRoda .mRoda {
+  background: #7fc4ff;
+  box-shadow: inset 0 0 0 1px rgba(20,34,58,.4), 0 0 8px rgba(126,204,247,.85);
+}
+/* Aceso: a peça em uso vira ciano e o brilho vaza por baixo do mouse, como se
+   a luz escapasse por baixo dele */
+/* ── Em uso: ÂMBAR ─────────────────────────────────────────────────────────
+   A cena inteira é azul — o céu, o limbo, os sinais, os próprios destaques em
+   repouso. Acender também em azul se perdia no meio de tudo. O âmbar é a única
+   cor quente do quadro, então "agora" salta sem competir com nada.
+   E as duas cores passam a dizer coisas diferentes: o cinza e o ciano em
+   repouso dizem QUAL peça é o controle; o âmbar diz que ela está sendo usada
+   neste instante. */
+.teclaAtiva { border-color: rgba(255,168,84,.9); background: rgba(72,44,22,.6); }
+/* Acende só a peça QUE AQUELA LINHA usa. Sem o escopo, `.teclaAtiva` acendia
+   botão e roda ao mesmo tempo, e a legenda passava a dizer que os dois gestos
+   estavam em uso. Na linha dos meteoros não há modificador nenhum: acende só o
+   corpo e o glow, porque ali não se aperta nada. */
+.destacaBotao.teclaAtiva .mEsq,
+.destacaRoda.teclaAtiva .mRoda {
+  /* EMISSÃO, não só cor: miolo quase branco, halo em camadas para fora e um
+     derrame para dentro do corpo do mouse. É a mesma construção das luzes de
+     estado da antena e do satélite — a peça vira fonte de luz em vez de mudar
+     de cor. */
+  background: radial-gradient(circle at 50% 38%, #fffaf2 0%, #ffd49a 38%, #ff9a34 100%);
+  box-shadow:
+    0 0 4px 1px rgba(255,214,160,.95),
+    0 0 10px 3px rgba(255,158,60,.8),
+    0 0 22px 7px rgba(230,126,36,.45),
+    inset 0 0 4px rgba(255,248,236,.85);
+}
+/* O derrame de luz por baixo. Bem maior e mais fundo que antes: é o halo no
+   FUNDO, e não a peça acesa, que faz a legenda parecer iluminada de verdade —
+   luz sem nada em volta para iluminar não lê como luz. */
+.teclaAtiva::before {
+  content: ""; position: absolute;
+  left: 50%; bottom: -.85rem;
+  width: 320%; height: 1.5rem;
+  translate: -50% 0;
+  border-radius: 50%;
+  background: radial-gradient(ellipse,
+    rgba(255,176,90,.6) 0%, rgba(246,146,52,.3) 32%,
+    rgba(214,112,28,.12) 58%, transparent 76%);
+  filter: blur(6px);
+  z-index: -1;
+}
+/* o mesmo halo atrás da LINHA em ação, alargado: o brilho passa por baixo do
+   texto e é o que tira a legenda do tom apagado */
+.ajuda.ajudaViva .ajudaLinha.linhaAtiva::before {
+  content: ""; position: absolute;
+  left: -.6rem; right: -.6rem; top: -.3rem; bottom: -.3rem;
+  border-radius: .7rem;
+  background: radial-gradient(ellipse at 12% 50%,
+    rgba(255,166,74,.2) 0%, rgba(232,132,44,.08) 40%, transparent 72%);
+  filter: blur(4px);
+  pointer-events: none;
+  z-index: -1;
+}
+/* Cápsula limpa com um traço central — nada de divisórias nem quadrantes
+   preenchidos: a forma mais simples é a que lê melhor nesse tamanho. Quem
+   carrega a informação é a COR do traço, não o desenho:
+     cinza  = o botão que se pressiona para arrastar
+     ciano  = a roda, para aproximar e afastar                                */
+/* linha que fecha a fileira de botões; a separação vertical é a canaleta */
+.teclaMouse::after, .teclaRoda::after {
+  content: ""; position: absolute; inset: 1px 1px auto 1px;
+  height: .6rem;
+  border-bottom: 1px solid rgba(168,196,232,.32);
+  pointer-events: none;
+}
+/* Pressionado: o botão acende em ciano e o brilho VAZA para baixo do mouse,
+   como se a luz escapasse por baixo dele. É o glow que confirma o clique
+   mesmo quando o cursor já saiu de cima do painel. */
+.botaoAtivo {
+  background: #7fc4ff !important;
+  box-shadow: 0 0 10px rgba(126,204,247,.95);
+}
+.teclaMouse:has(.botaoAtivo) {
+  border-color: rgba(126,204,247,.95);
+  background: rgba(30,62,104,.6);
+}
+.teclaMouse:has(.botaoAtivo)::before {
+  content: ""; position: absolute;
+  left: 50%; bottom: -.42rem;
+  width: 175%; height: .55rem;
+  translate: -50% 0;
+  border-radius: 50%;
+  background: radial-gradient(ellipse,
+    rgba(126,204,247,.75) 0%, rgba(96,176,236,.3) 45%, transparent 72%);
+  filter: blur(3px);
+}
+
+/* O mouse que se DESLOCA. Fica em perspectiva — inclinado no eixo X, como se
+   visto de cima —, e o `rotateZ` acompanha o lado para onde ele vai: ao deslizar
+   para a direita a carcaça pende para lá, que é o que dá peso ao movimento.
+   Pausa longa entre um deslize e outro, para não virar um piscar constante no
+   canto da tela. `transform` aqui, `translate` nos keyframes: propriedades
+   separadas, então a perspectiva não é desfeita pela animação. */
+.teclaMovendo { animation: mouseVaiVem 3.6s ease-in-out infinite; }
+/* O `rotateY` é o que mostra a LATERAL: ao deslizar para a direita o mouse
+   vira um pouco e o flanco esquerdo aparece; indo para a esquerda, o direito.
+   O `rotateX` fixo mantém a vista de cima o tempo todo, e o `rotateZ` faz a
+   carcaça pender para o lado do movimento. Tudo dentro do `transform`, porque
+   ele guarda a perspectiva inteira — separar em `rotate` perderia o eixo Y. */
+/* DESLIZA, não balança. Antes eu girava a carcaça em `rotateY`/`rotateZ` a cada
+   ida e volta — e girar em torno do próprio eixo é o que uma FOLHA faz ao
+   esvoaçar, não um mouse sobre a mesa. Um mouse mantém a atitude e translada.
+   Por isso a base 3/4 fica congelada e só o `translateX` muda; a única
+   concessão é 1° de inércia, o tranco de quem para de repente. */
+@keyframes mouseVaiVem {
+  0%, 50%, 100% { transform: perspective(240px) rotateX(26deg) rotateZ(-11deg) translateX(0); }
+  62%           { transform: perspective(240px) rotateX(26deg) rotateZ(-10deg) translateX(.34rem); }
+  76%           { transform: perspective(240px) rotateX(26deg) rotateZ(-12deg) translateX(-.28rem); }
+  88%           { transform: perspective(240px) rotateX(26deg) rotateZ(-11deg) translateX(.1rem); }
+}
+
+/* ── Rastro de movimento ────────────────────────────────────────────────────
+   Os arcos de velocidade das ilustrações — ((( de um lado, ))) do outro. São o
+   que faz o ícone ler como DESLOCAMENTO: sem eles, um objeto que muda de lugar
+   sem inércia nenhuma parece teletransportado.
+   Cada lado é um elemento com três arcos: o próprio, mais `::before` e
+   `::after`. Arco = círculo com uma borda só, o que curva o traço sem SVG. */
+.mArco {
+  position: absolute; top: 34%;
+  width: .3rem; height: .74rem;
+  border-radius: 50%;
+  border-right: 1.5px solid rgba(150,196,244,.85);
+  opacity: 0;
+  pointer-events: none;
+}
+.mArco::before, .mArco::after {
+  content: ""; position: absolute; top: 50%; left: 0;
+  translate: 0 -50%;
+  border-radius: 50%;
+  border-right: 1.5px solid rgba(150,196,244,.55);
+}
+.mArco::before { width: .46rem; height: 1.02rem; margin-left: .16rem; }
+.mArco::after  { width: .62rem; height: 1.3rem;  margin-left: .34rem;
+                 border-right-color: rgba(150,196,244,.3); }
+/* o rastro fica ATRÁS do movimento: indo para a direita aparece o da esquerda */
+.mArcoE { right: calc(100% + .14rem); scale: -1 1; animation: rastroE 3.6s ease-out infinite; }
+.mArcoD { left: calc(100% + .14rem);  animation: rastroD 3.6s ease-out infinite; }
+@keyframes rastroE {
+  0%, 54%, 100% { opacity: 0; translate: .2rem 0; }
+  60%           { opacity: .9; translate: 0 0; }
+  70%           { opacity: 0; translate: -.2rem 0; }
+}
+@keyframes rastroD {
+  0%, 68%, 100% { opacity: 0; translate: -.2rem 0; }
+  74%           { opacity: .9; translate: 0 0; }
+  84%           { opacity: 0; translate: .2rem 0; }
+}
+
+/* ── Indicador de zoom ──────────────────────────────────────────────────────
+   Um "+" ou "−" que aparece ao lado do mouse no instante em que a roda gira.
+   Diz a DIREÇÃO, que é a única coisa que o ícone sozinho não consegue contar:
+   a roda acesa mostra que ela está em uso, não para onde. */
+.sinalZoom {
+  position: absolute; left: -.92rem; top: 50%;
+  translate: 0 -50%;
+  font-size: .82rem; font-weight: 700; line-height: 1;
+  color: #ffd49a;
+  text-shadow: 0 0 6px rgba(255,158,60,.9), 0 0 14px rgba(255,140,40,.5);
+  opacity: 0;
+  animation: zoomPisca .42s ease-out;
+}
+@keyframes zoomPisca {
+  0%   { opacity: 0; translate: 0 -50%; scale: .6; }
+  22%  { opacity: 1; scale: 1.12; }
+  60%  { opacity: 1; scale: 1; }
+  100% { opacity: 0; scale: 1; }
+}
+
+@media (max-width: 860px) { .ajuda { display: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .estrelas, .terra, .titulo, .sol { transition: none; }
+  .astroDeriva, .astroSequito, .astroLuz, .estilhaco, .poeiraCosmica, .poeiraFundo,
+  .onda, .satOnda, .sinalFoco, .antenaLed, .estilhacoOrbe, .teclaMovendo,
+  .sateliteDeriva, .sateliteFarol, .falhaEnlace,
+  .falhaEnlace::before, .falhaEnlace::after,
+  .ufo, .ufoBalanco, .ufoFeixe, .ufoNevoa, .ufoPoeira, .ufoBrilho,
+  .estrela, .numero, .marca, .sobre, .badge, .badgePonto,
+  .bloco, .btnBrilho, .limboQuente, .digito::after,
+  .solRaios, .solBloom, .solEstria { animation: none; }
+}

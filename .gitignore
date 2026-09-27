@@ -1,0 +1,175 @@
+# =========================================================================
+# TP5-PB_producao — arquivos fora do controle de versão
+#
+# Princípio: versiona-se o código e a configuração pública. Nunca credenciais,
+# artefatos de build, dependências baixadas, preferências de IDE ou dados locais.
+# =========================================================================
+
+# ── Contexto de desenvolvimento local ────────────────────────────────────
+CLAUDE.md
+.claude/
+
+# ── Documento de entrega ─────────────────────────────────────────────────
+# O .docx vai para a plataforma da Infnet, não para o repositório.
+entrega/
+
+# ── Credenciais e segredos ───────────────────────────────────────────────
+# .env.example é a exceção deliberada: documenta as variáveis sem trazer valor
+# nenhum. Está liberado no final deste arquivo.
+.env
+.env.*
+*.env
+secrets*
+credentials*
+
+# Configuração de perfil local do Spring — o lugar natural para alguém colar
+# uma senha de banco sem pensar.
+application-local.properties
+application-local.yml
+application-secrets.properties
+
+# Chaves e certificados
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa*
+id_ed25519*
+*.ppk
+
+# ── Maven / Java ─────────────────────────────────────────────────────────
+target/
+!**/src/main/**/target/
+!**/src/test/**/target/
+.mvn/wrapper/maven-wrapper.jar
+*.class
+hs_err_pid*
+replay_pid*
+
+# ── Dados locais ─────────────────────────────────────────────────────────
+# Banco H2 em arquivo gerado pelo perfil "h2" (application-h2.properties).
+# São dados de execução: não pertencem ao repositório.
+data/
+# ...mas a pasta de dados do front-end é código-fonte (as mensagens da caixa de
+# entrada), importada como @/data/inbox: sem esta exceção, um clone novo não
+# compila o front-end.
+!frontend/src/data/
+*.mv.db
+*.trace.db
+*.lock.db
+
+# Volume do PostgreSQL, caso alguém troque o volume nomeado por bind mount.
+postgres-data/
+pgdata/
+
+# ── Front-end (Next.js) ──────────────────────────────────────────────────
+node_modules/
+frontend/node_modules/
+frontend/.next*
+frontend/out/
+frontend/build/
+frontend/.vercel/
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts
+
+# ── Originais de arte, fora do repositório ───────────────────────────────
+# Os PNGs de origem da página 404 somam cerca de 59 MB e NENHUM é carregado em
+# execução: o que a aplicação serve são os .webp derivados deles, que juntos
+# não chegam a 1,2 MB. Versionar os originais colocaria 59 MB de binário no
+# histórico — e binário, uma vez comitado, fica para sempre: apagá-lo depois
+# cria um commit de remoção sem recuperar um byte do que já foi clonado.
+#
+# Conferido antes de escrever esta regra: não existe uma única referência a
+# .png no código. Todo raster servido pela aplicação é .webp (páginas) ou .svg
+# (imagens dos posts), e os únicos PNGs de todo o public/ estão em images/404/.
+# O caso que mais parecia risco — ufo.PNG — é resíduo: o que a página carrega é
+# ufo-v3.webp; o nome "ufo" aparece no código apenas em classes CSS.
+#
+# Os arquivos continuam no disco, disponíveis para reedição; só não sobem.
+#
+# Se algum dia um .png passar a ser servido pela aplicação, abra exceção para
+# ele logo abaixo — senão a imagem não existirá no deploy. Exemplo:
+#     !frontend/public/images/algum-caminho/imagem-usada.png
+frontend/public/images/**/*.png
+frontend/public/images/**/*.PNG
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# ── Originais de imagem ──────────────────────────────────────────────────
+# Os PNG baixados dos bancos de imagem são a MATÉRIA-PRIMA das ilustrações,
+# não o que a aplicação serve: cada um pesa entre 8 MB e 13 MB, e juntos
+# passam de 60 MB. O que vai para o navegador são os .webp derivados deles,
+# somando pouco mais de 1 MB no total.
+#
+# Ficam de fora porque o Git guarda binário para sempre: uma vez commitado,
+# o arquivo pesa em todo clone do repositório mesmo depois de removido. Os
+# originais seguem na pasta local de quem edita as imagens.
+frontend/public/images/**/vecteezy_*
+frontend/public/images/**/horizonte2.png
+
+# ── IDEs ─────────────────────────────────────────────────────────────────
+### IntelliJ IDEA ###
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+### Eclipse / STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+!.vscode/extensions.json
+
+# ── Sistema operacional ──────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ── Logs e temporários ───────────────────────────────────────────────────
+*.log
+logs/
+*.tmp
+*.bak
+*.swp
+*~
+
+# ── Docker ───────────────────────────────────────────────────────────────
+.docker/
+docker-compose.override.yml
+
+# ── Exceções ─────────────────────────────────────────────────────────────
+# Modelo das variáveis de ambiente, sem segredo algum: precisa ser versionado
+# para que outra pessoa consiga subir o projeto.
+!.env.example
+
+# ── Kubernetes (TP5) ─────────────────────────────────────────────────────
+# Os segredos do overlay de produção. O modelo, sem valor nenhum, é o
+# segredos.env.exemplo, versionado.
+k8s/overlays/producao/segredos.env

@@ -1,0 +1,9 @@
+apiVersion: 1
+providers:
+  - name: infnethub
+    folder: Infnet Hub
+    type: file
+    disableDeletion: true
+    editable: false
+    options:
+      path: /var/lib/grafana/paineis

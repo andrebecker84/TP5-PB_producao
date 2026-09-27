@@ -1,0 +1,431 @@
+# Desempenho Acadêmico — boletim-service
+#
+# Selecione o ambiente antes de executar (canto superior direito do editor):
+#   local       boletim-service direto, na porta 21082 ({{boletimUrl}})
+#   gateway     tudo através do API Gateway (21080)
+#
+# Ao contrário dos arquivos 01 a 06, as requisições daqui usam {{boletimUrl}}, e
+# não {{baseUrl}}: no ambiente "local" os dois serviços respondem em portas
+# diferentes. No "gateway" as duas variáveis apontam para o mesmo endereço — e é
+# esse o ponto do gateway.
+#
+# O roteiro é encadeado: a primeira requisição guarda o id da matrícula e o da
+# competência, e as seguintes os utilizam.
+#
+# Aluno 1 é o do seed de demonstração (perfil dev).
+
+### Boletim completo do aluno
+GET {{boletimUrl}}/api/v1/boletim/1
+Authorization: Bearer {{tokenAluno}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+    });
+    client.test("traz blocos e resumo", () => {
+        client.assert(Array.isArray(response.body.blocos), "blocos não é lista");
+        client.assert(response.body.blocos.length > 0, "nenhum bloco no boletim");
+        client.assert(response.body.resumo != null, "resumo ausente");
+    });
+    client.test("o resumo é coerente: avaliadas = DML + DL + D + ND", () => {
+        const r = response.body.resumo;
+        const soma = r.dml + r.dl + r.d + r.nd;
+        client.assert(soma === r.competenciasAvaliadas,
+            "soma dos conceitos (" + soma + ") difere de competenciasAvaliadas (" + r.competenciasAvaliadas + ")");
+    });
+    client.test("as regras vêm apuradas do servidor, não do cliente", () => {
+        const d = response.body.blocos[0].disciplinas[0];
+        client.assert(["APROVADO", "CURSANDO", "REPROVADO"].includes(d.situacao),
+            "situação inesperada: " + d.situacao);
+        client.assert(typeof d.motivoSituacao === "string" && d.motivoSituacao.length > 0,
+            "motivo da situação não veio preenchido");
+        client.assert(d.tps.entregues === d.tps.total - d.tps.pendentes,
+            "TPs entregues não batem com total menos pendentes");
+    });
+    client.test("o serviço declara a frequência mínima e a carga exigida", () => {
+        client.assert(response.body.resumo.presencaMinimaExigida === 75,
+            "presença mínima inesperada");
+        client.assert(response.body.resumo.cargaHorariaExigida > 0,
+            "carga horária exigida não veio");
+    });
+
+    // Guarda a primeira competência EM AVALIAÇÃO para o lançamento adiante.
+    // Procurar uma pendente evita sobrescrever um conceito já lançado.
+    let alvo = null;
+    for (const b of response.body.blocos) {
+        for (const d of b.disciplinas) {
+            for (const c of d.competencias) {
+                if (alvo === null && c.conceito === null) {
+                    alvo = { matricula: d.matriculaId, competencia: c.competenciaId };
+                }
+            }
+        }
+    }
+    if (alvo !== null) {
+        client.global.set("matriculaId", alvo.matricula);
+        client.global.set("competenciaId", alvo.competencia);
+    }
+%}
+
+### Dados do aluno vieram do infnethub-core (chamada entre serviços)
+GET {{boletimUrl}}/api/v1/boletim/1
+Authorization: Bearer {{tokenAluno}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200);
+    });
+    client.test("o campo aluno existe mesmo se o core estiver fora", () => {
+        // Com o core no ar, vem preenchido. Com o core fora, o circuit breaker
+        // devolve indisponivel=true e o boletim segue completo — as duas
+        // respostas são válidas, e é isso que esta asserção verifica.
+        const a = response.body.aluno;
+        client.assert(a != null, "campo aluno ausente");
+        client.assert(a.id === 1, "id do aluno divergente");
+        client.assert(a.indisponivel === false || a.nome === null,
+            "aluno marcado como disponível mas sem nome");
+    });
+%}
+
+### Painel de desempenho
+GET {{boletimUrl}}/api/v1/desempenho/1
+Authorization: Bearer {{tokenAluno}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+    });
+    client.test("os indicadores estão em faixas válidas", () => {
+        const d = response.body;
+        [["indiceGeral", d.indiceGeral], ["presencaGeral", d.presencaGeral],
+         ["entregasNoPrazo", d.entregasNoPrazo]].forEach(([nome, v]) => {
+            client.assert(v >= 0 && v <= 100, nome + " fora de 0–100: " + v);
+        });
+    });
+    client.test("o conceito equivalente pertence à escala", () => {
+        client.assert(["DML", "DL", "D", "ND"].includes(response.body.conceitoEquivalente),
+            "conceito equivalente inesperado: " + response.body.conceitoEquivalente);
+    });
+    client.test("blocos sem conceito lançado ficam fora da evolução", () => {
+        response.body.evolucao.forEach(e => {
+            client.assert(e.competenciasAvaliadas > 0,
+                "bloco " + e.numeroBloco + " entrou na evolução sem conceito lançado");
+        });
+    });
+    client.test("a eletiva não aparece na carga horária — integra a das disciplinas", () => {
+        const categorias = response.body.cargaHoraria.map(c => c.categoria);
+        client.assert(!categorias.includes("ELETIVA"),
+            "ELETIVA não deveria ter meta própria");
+    });
+%}
+
+### Catálogo do curso
+GET {{boletimUrl}}/api/v1/catalogo/blocos
+Authorization: Bearer {{tokenAluno}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+    });
+    client.test("as competências vêm carregadas junto (sem MultipleBagFetchException)", () => {
+        // Esta rota já devolveu 500: o Hibernate recusa buscar duas coleções
+        // List num único JOIN FETCH. A asserção é a rede que impede a volta.
+        client.assert(Array.isArray(response.body), "corpo não é lista");
+        const comDisciplina = response.body.find(b => b.disciplinas.length > 0);
+        client.assert(comDisciplina != null, "nenhum bloco com disciplina");
+        client.assert(Array.isArray(comDisciplina.disciplinas[0].competencias),
+            "competências não vieram inicializadas");
+    });
+%}
+
+### Escala de conceitos
+GET {{boletimUrl}}/api/v1/catalogo/conceitos
+Authorization: Bearer {{tokenAluno}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200);
+    });
+    client.test("sai do pior para o melhor, com peso crescente", () => {
+        const codigos = response.body.map(c => c.codigo);
+        client.assert(JSON.stringify(codigos) === JSON.stringify(["ND", "D", "DL", "DML"]),
+            "ordem inesperada: " + codigos);
+        const pesos = response.body.map(c => c.peso);
+        client.assert(JSON.stringify(pesos) === JSON.stringify([0, 60, 80, 100]),
+            "pesos inesperados: " + pesos);
+    });
+%}
+
+### Lançar conceito numa competência em avaliação
+PUT {{boletimUrl}}/api/v1/boletim/matriculas/{{matriculaId}}/competencias/{{competenciaId}}
+Authorization: Bearer {{tokenProfessor}}
+Content-Type: application/json
+
+{
+  "conceito": "DL"
+}
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+    });
+    client.test("o conceito foi gravado com nome e regra", () => {
+        client.assert(response.body.conceito === "DL", "conceito não gravado");
+        client.assert(response.body.conceitoNome === "Demonstrou com Louvor",
+            "nome do conceito inesperado: " + response.body.conceitoNome);
+        client.assert(response.body.conceitoRegra != null, "regra do conceito ausente");
+    });
+%}
+
+### Lançar o MESMO conceito de novo — PUT é idempotente
+PUT {{boletimUrl}}/api/v1/boletim/matriculas/{{matriculaId}}/competencias/{{competenciaId}}
+Authorization: Bearer {{tokenProfessor}}
+Content-Type: application/json
+
+{
+  "conceito": "DL"
+}
+
+> {%
+    client.test("responde 200 e não duplica a avaliação", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+        client.assert(response.body.conceito === "DL");
+    });
+%}
+
+### Desfazer o lançamento — volta a "em avaliação"
+PUT {{boletimUrl}}/api/v1/boletim/matriculas/{{matriculaId}}/competencias/{{competenciaId}}
+Authorization: Bearer {{tokenProfessor}}
+Content-Type: application/json
+
+{
+  "conceito": null
+}
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+    });
+    client.test("o conceito voltou a nulo — é assim que se corrige um lançamento errado", () => {
+        client.assert(response.body.conceito === null,
+            "esperado nulo, veio " + response.body.conceito);
+    });
+%}
+
+### Atividades acadêmicas do aluno
+GET {{boletimUrl}}/api/v1/alunos/1/atividades
+Authorization: Bearer {{tokenAluno}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200);
+    });
+    client.test("a presença só existe nas eletivas", () => {
+        response.body.forEach(a => {
+            if (a.categoria !== "ELETIVA") {
+                client.assert(a.presencaPercentual === null,
+                    a.categoria + " não deveria guardar presença: " + a.nome);
+            }
+        });
+    });
+%}
+
+### Atividades filtradas por categoria
+GET {{boletimUrl}}/api/v1/alunos/1/atividades?categoria=EXTENSAO
+Authorization: Bearer {{tokenAluno}}
+Accept: application/json
+
+> {%
+    client.test("responde 200 e só traz a categoria pedida", () => {
+        client.assert(response.status === 200);
+        response.body.forEach(a =>
+            client.assert(a.categoria === "EXTENSAO", "veio " + a.categoria));
+    });
+%}
+
+### Integralização por categoria
+GET {{boletimUrl}}/api/v1/alunos/1/atividades/carga-horaria
+Authorization: Bearer {{tokenAluno}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200);
+    });
+    client.test("o percentual é coerente com concluída sobre exigida", () => {
+        response.body.forEach(c => {
+            const esperado = Math.min(100, Math.round((c.concluida * 100) / c.exigida));
+            client.assert(c.percentual === esperado,
+                c.categoria + ": percentual " + c.percentual + ", esperado " + esperado);
+        });
+    });
+%}
+
+### Criar atividade complementar
+POST {{boletimUrl}}/api/v1/alunos/1/atividades
+Authorization: Bearer {{tokenProfessor}}
+Content-Type: application/json
+
+{
+  "categoria": "COMPLEMENTAR",
+  "nome": "Workshop de Arquitetura Distribuída",
+  "cargaHoraria": 12,
+  "periodo": "26E2",
+  "status": "CONCLUIDO"
+}
+
+> {%
+    client.test("responde 201", () => {
+        client.assert(response.status === 201, "esperado 201, veio " + response.status);
+    });
+    client.global.set("atividadeId", response.body.id);
+%}
+
+### Atualizar a atividade
+PUT {{boletimUrl}}/api/v1/alunos/1/atividades/{{atividadeId}}
+Authorization: Bearer {{tokenProfessor}}
+Content-Type: application/json
+
+{
+  "categoria": "COMPLEMENTAR",
+  "nome": "Workshop de Arquitetura Distribuída (estendido)",
+  "cargaHoraria": 20,
+  "periodo": "26E2",
+  "status": "CONCLUIDO"
+}
+
+> {%
+    client.test("responde 200 com os novos valores", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+        client.assert(response.body.cargaHoraria === 20, "carga não atualizada");
+    });
+%}
+
+### Atividade de OUTRO aluno não pode ser removida — 404, não 204
+DELETE {{boletimUrl}}/api/v1/alunos/2/atividades/{{atividadeId}}
+Authorization: Bearer {{tokenProfessor}}
+
+> {%
+    client.test("responde 404", () => {
+        // Sem autenticação, esta checagem de posse é a única coisa separando
+        // os dados de um aluno dos de outro.
+        client.assert(response.status === 404, "esperado 404, veio " + response.status);
+    });
+%}
+
+### Remover a atividade — pelo dono
+DELETE {{boletimUrl}}/api/v1/alunos/1/atividades/{{atividadeId}}
+Authorization: Bearer {{tokenProfessor}}
+
+> {%
+    client.test("responde 204", () => {
+        client.assert(response.status === 204, "esperado 204, veio " + response.status);
+    });
+%}
+
+# ── Contrato de erro ───────────────────────────────────────────────────────
+# O mesmo formato do infnethub-core, de propósito: através do gateway os dois
+# serviços aparecem como uma API só, e o cliente não deveria precisar saber de
+# qual deles veio a falha para conseguir ler a resposta.
+
+### Aluno sem registro acadêmico — 404, não lista vazia
+# Com o token do PROFESSOR: um aluno pedindo o boletim de outro id recebe 403
+# antes de qualquer consulta — a autorização vem primeiro, e é assim que deve
+# ser. Para chegar ao 404 é preciso ter permissão de ver o boletim pedido.
+GET {{boletimUrl}}/api/v1/boletim/999999
+Authorization: Bearer {{tokenProfessor}}
+Accept: application/json
+
+> {%
+    client.test("responde 404", () => {
+        client.assert(response.status === 404, "esperado 404, veio " + response.status);
+    });
+    client.test("erro em JSON no formato padrão", () => {
+        ["timestamp", "status", "error", "message"].forEach(campo =>
+            client.assert(response.body[campo] !== undefined, "faltou o campo " + campo));
+        client.assert(response.body.status === 404);
+    });
+%}
+
+### Identificador não numérico — 400
+GET {{boletimUrl}}/api/v1/boletim/abc
+Authorization: Bearer {{tokenAluno}}
+Accept: application/json
+
+> {%
+    client.test("responde 400", () => {
+        client.assert(response.status === 400, "esperado 400, veio " + response.status);
+    });
+    client.test("diz qual parâmetro está errado, sem ecoar o valor recebido", () => {
+        client.assert(response.body.error === "Parâmetro inválido",
+            "erro inesperado: " + response.body.error);
+        client.assert(response.body.message.includes("alunoId"), "não indicou o parâmetro");
+    });
+%}
+
+### Validação de corpo — categoria, nome e carga inválidos
+POST {{boletimUrl}}/api/v1/alunos/1/atividades
+Authorization: Bearer {{tokenProfessor}}
+Content-Type: application/json
+
+{
+  "categoria": "XPTO",
+  "nome": "",
+  "cargaHoraria": -5,
+  "status": "CONCLUIDO"
+}
+
+> {%
+    client.test("responde 400", () => {
+        client.assert(response.status === 400, "esperado 400, veio " + response.status);
+    });
+    client.test("aponta CADA campo inválido, não só o primeiro", () => {
+        const campos = response.body.campos;
+        client.assert(campos != null, "resposta sem o mapa 'campos'");
+        ["categoria", "nome", "cargaHoraria"].forEach(c =>
+            client.assert(campos[c] !== undefined, "faltou apontar o campo " + c));
+    });
+%}
+
+### Rota inexistente — 404 em JSON, nunca HTML
+GET {{boletimUrl}}/api/v1/boletim/nao-existe/em-lugar-nenhum
+Authorization: Bearer {{tokenAluno}}
+Accept: application/json
+
+> {%
+    client.test("responde 404 em JSON", () => {
+        client.assert(response.status === 404, "esperado 404, veio " + response.status);
+        client.assert(response.body.status === 404, "corpo não é o JSON de erro padrão");
+    });
+%}
+
+### Verbo não suportado — 405
+DELETE {{boletimUrl}}/api/v1/desempenho/1
+Authorization: Bearer {{tokenProfessor}}
+
+> {%
+    client.test("responde 405", () => {
+        client.assert(response.status === 405, "esperado 405, veio " + response.status);
+    });
+%}
+
+### Saúde do serviço
+# No ambiente "local" responde o boletim-service; no "gateway", o próprio
+# gateway — ele não roteia /actuator, que é endpoint de cada processo. Para
+# conferir a saúde do boletim atrás do gateway, use o ambiente "local".
+GET {{boletimUrl}}/actuator/health
+Authorization: Bearer {{tokenAluno}}
+Accept: application/json
+
+> {%
+    client.test("responde 200 e está UP", () => {
+        client.assert(response.status === 200);
+        client.assert(response.body.status === "UP", "status: " + response.body.status);
+    });
+%}

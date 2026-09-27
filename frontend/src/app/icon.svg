@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="con" x1="10" y1="8" x2="54" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#5aa8ff"/>
+      <stop offset="100%" stop-color="#22d3ee"/>
+    </linearGradient>
+    <radialGradient id="no" cx="0.4" cy="0.35" r="0.75">
+      <stop offset="0%" stop-color="#eaf6ff"/>
+      <stop offset="55%" stop-color="#5ab4f5"/>
+      <stop offset="100%" stop-color="#2a7fd8"/>
+    </radialGradient>
+    <radialGradient id="nucleo" cx="0.36" cy="0.26" r="0.9">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="42%" stop-color="#b9f2ff"/>
+      <stop offset="100%" stop-color="#2fc6ef"/>
+    </radialGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%" stop-color="#6fe4ff" stop-opacity="0.75"/>
+      <stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <path d="M32 11 L50.19 21.5 L50.19 42.5 L32 53 L13.81 42.5 L13.81 21.5 Z"
+        fill="none" stroke="url(#con)" stroke-width="1.5" stroke-linejoin="round" opacity="0.55"/>
+
+  <g stroke="url(#con)" stroke-width="1.8" stroke-linecap="round" opacity="0.85">
+    <line x1="32" y1="32" x2="32" y2="11"/>
+    <line x1="32" y1="32" x2="50.19" y2="21.5"/>
+    <line x1="32" y1="32" x2="50.19" y2="42.5"/>
+    <line x1="32" y1="32" x2="32" y2="53"/>
+    <line x1="32" y1="32" x2="13.81" y2="42.5"/>
+    <line x1="32" y1="32" x2="13.81" y2="21.5"/>
+  </g>
+
+  <g fill="url(#no)">
+    <circle cx="32" cy="11" r="3"/>
+    <circle cx="50.19" cy="21.5" r="3"/>
+    <circle cx="50.19" cy="42.5" r="3"/>
+    <circle cx="32" cy="53" r="3"/>
+    <circle cx="13.81" cy="42.5" r="3"/>
+    <circle cx="13.81" cy="21.5" r="3"/>
+  </g>
+
+  <circle cx="32" cy="32" r="13" fill="url(#halo)"/>
+  <g fill="url(#nucleo)">
+    <path d="M24.3 41 C24.3 35.4 27.9 32.4 32 32.4 C36.1 32.4 39.7 35.4 39.7 41 Z"/>
+    <circle cx="32" cy="27.4" r="4.9"/>
+  </g>
+  <ellipse cx="30.2" cy="25.8" rx="1.7" ry="1.1" fill="#ffffff" opacity="0.95" transform="rotate(-30 30.2 25.8)"/>
+</svg>

@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500" width="1200" height="500" role="img" aria-label="Hackathon: pódio de equipes sob confetes">
+  <defs>
+    <linearGradient id="hFundo" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1a1038"/><stop offset=".5" stop-color="#0d1030"/><stop offset="1" stop-color="#060a1c"/>
+    </linearGradient>
+    <linearGradient id="hRoxo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a855f7"/><stop offset="1" stop-color="#5b21b6"/>
+    </linearGradient>
+    <linearGradient id="hAzul" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3b8ef5"/><stop offset="1" stop-color="#1e3a8a"/>
+    </linearGradient>
+    <linearGradient id="hCiano" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#0e7490"/>
+    </linearGradient>
+    <radialGradient id="hLuz" cx="50%" cy="10%" r="65%">
+      <stop offset="0" stop-color="#a855f7" stop-opacity=".3"/><stop offset="1" stop-color="#a855f7" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1200" height="500" fill="url(#hFundo)"/>
+  <rect width="1200" height="500" fill="url(#hLuz)"/>
+
+  <!-- confete -->
+  <g opacity=".7">
+    <g fill="#22d3ee"><rect x="150" y="70" width="10" height="16" rx="2" transform="rotate(24 155 78)"/><rect x="980" y="120" width="9" height="15" rx="2" transform="rotate(-32 984 127)"/></g>
+    <g fill="#a855f7"><rect x="300" y="40" width="9" height="15" rx="2" transform="rotate(-18 304 47)"/><rect x="860" y="60" width="11" height="17" rx="2" transform="rotate(38 865 68)"/></g>
+    <g fill="#fbbf24"><rect x="520" y="86" width="9" height="14" rx="2" transform="rotate(46 524 93)"/><rect x="700" y="34" width="10" height="16" rx="2" transform="rotate(-24 705 42)"/></g>
+    <g fill="#34d399"><rect x="410" y="128" width="8" height="14" rx="2" transform="rotate(12 414 135)"/><rect x="1080" y="76" width="9" height="15" rx="2" transform="rotate(-40 1084 83)"/></g>
+  </g>
+
+  <!-- pódio -->
+  <g transform="translate(600 470)">
+    <rect x="-300" y="-150" width="180" height="150" rx="10" fill="url(#hAzul)"/>
+    <rect x="-92" y="-232" width="184" height="232" rx="10" fill="url(#hRoxo)"/>
+    <rect x="120" y="-112" width="180" height="112" rx="10" fill="url(#hCiano)"/>
+    <g fill="#04101f" opacity=".55" font-family="system-ui, sans-serif" font-weight="800" font-size="46" text-anchor="middle">
+      <text x="-210" y="-96">2</text><text x="0" y="-170" font-size="58">1</text><text x="210" y="-62">3</text>
+    </g>
+    <!-- troféu -->
+    <g transform="translate(0 -268)">
+      <path d="M-30 -46h60v22a30 30 0 0 1-60 0z" fill="#fbbf24"/>
+      <path d="M-30 -40h-16a16 16 0 0 0 16 16zM30 -40h16a16 16 0 0 1-16 16z" fill="#fbbf24" opacity=".75"/>
+      <rect x="-6" y="-24" width="12" height="18" fill="#f59e0b"/>
+      <rect x="-22" y="-8" width="44" height="9" rx="4" fill="#f59e0b"/>
+    </g>
+  </g>
+
+  <!-- linhas de código ao fundo -->
+  <g fill="#7aa2d8" opacity=".2">
+    <rect x="60" y="200" width="120" height="7" rx="3"/><rect x="60" y="218" width="180" height="7" rx="3"/><rect x="60" y="236" width="92" height="7" rx="3"/>
+    <rect x="980" y="240" width="150" height="7" rx="3"/><rect x="980" y="258" width="110" height="7" rx="3"/><rect x="980" y="276" width="170" height="7" rx="3"/>
+  </g>
+</svg>

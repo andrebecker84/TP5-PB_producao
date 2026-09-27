@@ -1,0 +1,11 @@
+/mvnw text eol=lf
+*.cmd text eol=crlf
+
+# Script de shell com CRLF não executa: o interpretador lê o \r como parte do
+# caminho na primeira linha e responde "bad interpreter".
+*.sh text eol=lf
+
+# O verificar.ps1 começa com BOM UTF-8, de propósito — sem ele o PowerShell 5.1
+# lê o arquivo como ANSI e um acento dentro de uma string quebra a análise do
+# script. Marcado como binário para que nenhuma normalização o remova.
+verificar.ps1 -text

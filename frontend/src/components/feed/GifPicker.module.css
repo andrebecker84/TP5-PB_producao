@@ -1,0 +1,60 @@
+.picker {
+  position: absolute; bottom: calc(100% + 8px); left: 0; z-index: 50;
+  width: 300px; padding: .55rem;
+  display: flex; flex-direction: column; gap: .5rem;
+  background:
+    linear-gradient(160deg, rgba(255,255,255,.06), rgba(255,255,255,0) 45%),
+    color-mix(in srgb, var(--surface) 96%, transparent);
+  backdrop-filter: blur(26px) saturate(1.4);
+  border: 1px solid var(--border-2); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  animation: gifIn .13s ease;
+}
+@keyframes gifIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+.searchRow { position: relative; display: flex; align-items: center; }
+.searchIco { position: absolute; left: .55rem; color: var(--text-muted); pointer-events: none; }
+.input {
+  width: 100%; padding: .45rem .6rem .45rem 2rem; border-radius: var(--pill);
+  font-size: .82rem; color: var(--text);
+  background: var(--surface-2); border: 1px solid var(--border-2);
+}
+.input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(59,142,245,.2); }
+
+.grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;
+  max-height: 240px; overflow-y: auto; overflow-x: hidden;
+  scrollbar-width: thin; scrollbar-color: var(--border-2) transparent;
+}
+.grid::-webkit-scrollbar { width: 6px; }
+.grid::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 99px; }
+
+.gif {
+  width: 100%; height: 74px; object-fit: cover; display: block;
+  border-radius: 8px; cursor: pointer; background: var(--surface-2);
+  border: 1px solid transparent;
+  transition: transform .12s ease, border-color .12s ease;
+}
+.gif:hover { transform: scale(1.04); border-color: var(--primary); }
+
+.info {
+  grid-column: 1 / -1; padding: 1.4rem .5rem; text-align: center;
+  font-size: .8rem; color: var(--text-muted);
+  display: flex; align-items: center; justify-content: center; gap: .4rem;
+}
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.foot { font-size: .58rem; color: var(--text-muted); text-align: right; letter-spacing: .03em; opacity: .7; }
+
+.aviso {
+  padding: .7rem .75rem; font-size: .78rem; line-height: 1.5;
+  color: var(--text-dim);
+}
+.aviso strong { display: block; color: var(--text); margin-bottom: .25rem; font-size: .82rem; }
+.aviso code {
+  font-family: ui-monospace, monospace; font-size: .72rem;
+  background: var(--surface-2); border: 1px solid var(--border-2);
+  padding: .05rem .3rem; border-radius: 4px; color: var(--primary);
+}
+.link { color: var(--primary); font-weight: 600; }

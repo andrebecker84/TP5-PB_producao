@@ -1,0 +1,389 @@
+.body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: center;   /* centraliza o trio: gaps iguais dos dois lados */
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: calc(var(--header-h) + 3rem) 1.5rem 2rem;
+  gap: 1.5rem;
+}
+
+/* ── Feed central ── */
+/* prefere ~600px: os painéis laterais somem antes de o post encolher e distorcer */
+.feed {
+  flex: 1 1 600px;
+  min-width: 0;
+  max-width: 660px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* ── Compose box ── */
+/* Destaque do feed: contorno neon ciano respirando de leve — é o convite
+   para publicar, o único elemento aceso da coluna. */
+/* pílula em DUAS camadas (como o exemplo):
+   · SHELL — uma BORDA DE LUZ gira ao redor (anel cônico animado)
+   · BOX   — o vidro escuro por cima, deixando ~1.6px do anel aparecer na borda */
+@property --cbang { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+.composeShell {
+  position: relative; border-radius: 999px; padding: 2.4px; /* = espessura da luz */
+  isolation: isolate;
+  /* base sutil da borda: onde o arco aceso não está, sobra este fio discreto */
+  background: rgba(90,140,220,.16);
+  box-shadow: 0 10px 30px -14px rgba(0,0,0,.55), 0 0 30px -10px rgba(59,142,245,.4);
+  transition: transform .2s, box-shadow .3s;
+}
+/* anel de luz como BORDA REAL (máscara border-box): a luz vive só na faixa da
+   borda, seguindo o raio arredondado — nunca por cima do retângulo. Animo o
+   ÂNGULO (--cbang), não o elemento, pra não sobrar canto descoberto. */
+.composeShell::before {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; z-index: 0;
+  padding: 2.4px; pointer-events: none;
+  background: conic-gradient(from var(--cbang),
+    transparent           0deg,
+    rgba(59,142,245,.95)  44deg,
+    rgba(34,211,238,1)    92deg,
+    rgba(124,150,255,.6) 140deg,
+    transparent          212deg,
+    transparent          360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  animation: cbSpin 4.5s linear infinite;
+}
+@keyframes cbSpin { to { --cbang: 360deg; } }
+.composeShell:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 36px -14px rgba(0,0,0,.6), 0 0 42px -8px rgba(59,142,245,.6);
+}
+
+/* vidro escuro por cima do anel */
+.composeBox {
+  position: relative; z-index: 1; overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,0) 60%),
+    color-mix(in srgb, var(--surface) 90%, transparent);
+  backdrop-filter: var(--glass-blur) saturate(1.3);
+  border-radius: 999px;
+  padding: .6rem .7rem .6rem 1.1rem;
+  display: flex; align-items: center; gap: .75rem;
+  cursor: text;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+  transition: box-shadow .3s;
+}
+.composeBox > * { position: relative; z-index: 1; }
+/* SHEEN: uma faixa de luz varre o vidro da esquerda p/ a direita — dá o efeito
+   de "outra barra de luz por trás" do exemplo, sem pesar (overflow:hidden a
+   recorta na pílula) */
+.composeBox::after {
+  content: ''; position: absolute; top: 0; left: -60%; width: 45%; height: 100%;
+  z-index: 0; pointer-events: none; transform: skewX(-18deg);
+  background: linear-gradient(100deg,
+    transparent,
+    rgba(120,180,255,.12) 38%,
+    rgba(200,230,255,.22) 50%,
+    rgba(120,180,255,.12) 62%,
+    transparent);
+  animation: composeSheen 6s ease-in-out infinite;
+}
+@keyframes composeSheen {
+  0%   { left: -60%; }
+  45%  { left: 135%; }
+  100% { left: 135%; }
+}
+@media (prefers-reduced-motion: reduce) { .composeBox::after { animation: none; opacity: 0; } }
+.composeShell:hover .composeBox {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14);
+}
+:global([data-theme="light"]) .composeShell {
+  box-shadow: 0 8px 24px -14px rgba(10,20,60,.3), 0 0 26px -10px rgba(59,142,245,.4);
+}
+:global([data-theme="light"]) .composeBox {
+  background: linear-gradient(180deg, #fff, #f4f7fc);
+  box-shadow: inset 0 0 0 1px rgba(10,20,60,.08);
+}
+@media (prefers-reduced-motion: reduce) {
+  .composeShell::before { animation: none; }
+}
+
+/* clique em publicar: a barra recua um instante e o avião (portal) decola;
+   o anel de luz intensifica no lançamento */
+.composeShell.launching {
+  pointer-events: none;
+  transform: translateY(-1px) scale(.99);
+  box-shadow: 0 0 46px -6px rgba(59,142,245,.65);
+}
+.composeShell.launching .btnPublicar { opacity: 0; }
+
+/* DECOLAGEM em direção ao espectador: o avião vem "pra frente", CRESCE de escala
+   como se voasse por cima da cabeça de quem olha, sobe e some no topo. Limpo e
+   sutil — sem faíscas nem anéis. Ease-in: acelera ao passar por cima. */
+.flyer {
+  position: fixed; z-index: 9999; pointer-events: none; transform: translate(-50%, -50%);
+  /* rota única do voo — avião, fumaça e estrias de vento seguem a MESMA curva */
+  --rota: path("M0 0 C26 -30 54 -50 62 -84 C70 -114 6 -122 -32 -92 C-62 -66 -46 -14 -12 10 C22 44 -20 62 -110 78 C-190 92 -270 112 -352 136");
+  --voo: 1.95s;
+  --ease: cubic-bezier(.42,.05,.3,1);
+}
+.flyer .flyerPlane, .flyer .flyerGhost {
+  position: absolute; left: 0; top: 0;
+  offset-path: var(--rota);
+  offset-rotate: auto 0deg;
+  offset-distance: 0%;
+  animation: flyUp var(--voo) var(--ease) forwards;
+}
+/* ecos: borrões do avião ficando para trás. Bem desfocados de propósito — é o
+   borrão que carrega o movimento, enquanto o avião em si continua nítido.
+   O primeiro do DOM voa mais perto (menor atraso); o segundo fica mais longe,
+   logo é mais borrado e mais fraco. */
+.flyer .flyerGhost { color: rgba(196,226,255,.8); opacity: .3; filter: blur(3.2px); }
+.flyer .flyerGhost + .flyerGhost { opacity: .16; filter: blur(6.5px); }
+.flyerPlane {
+  z-index: 2; color: #eaf3ff;
+  /* volume: sombra projetada + halo suave da plataforma */
+  filter:
+    drop-shadow(2px 8px 5px rgba(0,0,0,.5))
+    drop-shadow(0 0 12px rgba(59,142,245,.45));
+  /* VOO REAL: o avião segue a curva e o NARIZ acompanha a tangente sozinho
+     (offset-rotate: auto) — banca no vento naturalmente, sem girar como ponteiro.
+     A curva: decola subindo à direita, dá a volta por cima e MERGULHA crescendo
+     pra dentro do card de edição que abre logo abaixo. */
+  /* ...dá a volta, nivela e PLANA pra esquerda por cima da caixa de edição,
+     sumindo na borda esquerda (último trecho da rota = a planada lateral).
+     A rota e o tempo vêm de --rota / --voo em .flyer (fonte única, compartilhada
+     com os fantasmas, a fumaça e as estrias de vento). */
+}
+@keyframes flyUp {
+  0%   { offset-distance: 0%;   transform: scale(.55); opacity: 0; }
+  7%   { opacity: 1; }                          /* sai forte do botão... */
+  58%  { transform: scale(2.4); opacity: .92; } /* cresce no mergulho */
+  74%  { transform: scale(1.9); opacity: .72; } /* nivela pra planar */
+  88%  { opacity: .42; }                        /* ...e vai esmaecendo */
+  100% { offset-distance: 100%; transform: scale(1.6); opacity: 0; }
+}
+/* ── Rastro ───────────────────────────────────────────────────────────
+   Dois elementos, papéis diferentes:
+   · .fumaca  — traços parados EM CIMA da rota (offset-distance fixo). Cada um
+     acende quando o avião passa por ali e depois abre e dissipa: sobra a
+     trajetória pontilhada, que vai sumindo conforme o avião se distancia.
+   · .vento   — estrias que viajam junto, logo atrás do avião (transform-origin
+     na ponta direita = a estria fica para trás na direção do voo). */
+.flyer .traco {
+  position: absolute; left: 0; top: 0;
+  width: var(--fw); height: var(--fh); border-radius: 99px;
+  /* fio de luz: núcleo claro que se dissolve nas bordas — discreto, o brilho
+     é só um respiro de cor em volta, sem estourar */
+  background: linear-gradient(180deg,
+    rgba(150,205,255,0)   0%,
+    rgba(176,218,255,.22) 32%,
+    rgba(228,244,255,.62) 48%,
+    rgba(228,244,255,.62) 52%,
+    rgba(176,218,255,.22) 68%,
+    rgba(150,205,255,0)   100%);
+  box-shadow: 0 0 5px rgba(120,190,255,.22);
+  /* as pontas de cada trecho também se dissolvem: sem isso o feixe termina
+     num corte reto em vez de afinar até a ponta */
+  mask-image: linear-gradient(90deg, transparent 0%, #000 20%, #000 80%, transparent 100%);
+  offset-path: var(--rota);
+  offset-rotate: auto;
+  opacity: 0;
+  /* duas animações: a primeira MARCA o ponto quando o avião passa e o deixa
+     ali (forwards); a segunda apaga todas as marcas de uma vez, já no fim do
+     voo — por isso o atraso dela é fixo, e não relativo a cada trecho */
+  animation:
+    marcaSurge .3s cubic-bezier(.2,.7,.3,1) forwards,
+    marcaSome  .7s ease-in forwards;
+}
+@keyframes marcaSurge {
+  0%   { opacity: 0;                       transform: scaleY(.35) scaleX(.5); }
+  55%  { opacity: var(--fop);              transform: scaleY(1.15) scaleX(1); }
+  100% { opacity: calc(var(--fop) * .52);  transform: scaleY(1)   scaleX(1); }
+}
+@keyframes marcaSome {
+  0%   { opacity: calc(var(--fop) * .52); transform: scaleY(1)   scaleX(1); filter: blur(0); }
+  100% { opacity: 0;                      transform: scaleY(1.6) scaleX(1); filter: blur(1.8px); }
+}
+
+/* pássaros: silhueta batendo asa, atravessando o campo em diagonal.
+   Não seguem a rota do avião — cruzam por trás, dando profundidade à cena. */
+.flyer .passaro {
+  position: absolute; left: 0; top: 0; z-index: 1;
+  color: rgba(190,215,255,.5);
+  opacity: 0;
+  animation: passaroCruza 1.6s ease-out forwards, asas .26s ease-in-out infinite;
+}
+@keyframes passaroCruza {
+  0%   { opacity: 0;    transform: translate(0, 0) scale(.7); }
+  18%  { opacity: .55;  }
+  70%  { opacity: .35;  }
+  100% { opacity: 0;    transform: translate(var(--pt)) scale(1.05); }
+}
+@keyframes asas {
+  0%, 100% { scale: 1 1; }
+  50%      { scale: 1 .55; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flyerPlane { animation-duration: .01s; }
+  .flyer .traco, .flyer .flyerGhost, .flyer .passaro { display: none; }
+}
+.composeAv {
+  width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+  background: var(--gradient);
+  display: flex; align-items: center; justify-content: center;
+  font-size: .8125rem; font-weight: 700; color: #fff;
+}
+/* hint do atalho (⌘/Ctrl + ↵) — teclas no mesmo espírito do ⌘K da busca */
+.composeKbd {
+  display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0;
+  margin-right: .15rem;
+}
+.composeKbd kbd {
+  font-family: inherit; font-size: .68rem; font-weight: 700; line-height: 1;
+  min-width: 20px; height: 20px; padding: 0 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--surface-3) 65%, transparent);
+  border: 1px solid var(--border-2);
+  border-radius: 5px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.35);
+}
+.composeKbd .kbdEnter { font-size: .82rem; }
+/* tecla afundando enquanto pressionada — igual ao ⌘K da busca */
+.composeKbd .kbdPress {
+  transform: translateY(1.5px) scale(.92);
+  color: #fff !important;
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 10px var(--primary-glow), inset 0 1px 0 rgba(255,255,255,.3) !important;
+}
+:global([data-theme="light"]) .composeKbd kbd {
+  color: var(--text-dim);
+  background: rgba(255,255,255,.7);
+  box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(10,20,60,.08);
+}
+
+/* placeholder em DESTAQUE: mais claro e com um leve brilho varrendo o texto
+   (como o "Ask me anything" do exemplo) */
+.composePlaceholder {
+  flex: 1; font-size: .9375rem; font-weight: 500; letter-spacing: .005em;
+  background: linear-gradient(90deg, var(--text-dim) 0%, var(--text) 26%, var(--text-dim) 52%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+  animation: composePlace 7s linear infinite;
+}
+@keyframes composePlace { 0% { background-position: 120% 0; } 100% { background-position: -120% 0; } }
+@media (prefers-reduced-motion: reduce) { .composePlaceholder { animation: none; } }
+/* botão do avião: disco AZUL preenchido, com brilho superior, glow e faísca —
+   o avião "arma" (avança e inclina) no hover, pronto para decolar */
+.btnPublicar {
+  position: relative;
+  width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; pointer-events: none;
+  background:
+    radial-gradient(circle at 32% 26%, rgba(255,255,255,.38), transparent 46%),
+    linear-gradient(145deg, #3b8ef5, #1f6fe0 55%, #22d3ee);
+  border: 1px solid rgba(120,180,255,.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.4),
+    0 4px 12px -4px rgba(31,111,224,.7),
+    0 0 14px rgba(59,142,245,.42);
+  transition: transform .22s cubic-bezier(.34,1.56,.64,1), box-shadow .25s;
+}
+.btnPublicar svg {
+  filter: drop-shadow(0 1px 1px rgba(0,20,60,.5));
+  transition: transform .22s cubic-bezier(.34,1.56,.64,1);
+}
+/* hover CONTIDO: sem scale (não deforma) e sem glow largo que a pílula recorta
+   (overflow:hidden) — só uma leve elevação e o brilho interno reforçado */
+.composeBox:hover .btnPublicar {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.55),
+    0 4px 12px -5px rgba(31,111,224,.7);
+}
+.composeBox:hover .btnPublicar svg { transform: translate(1.5px, -1.5px) rotate(8deg); }
+/* a mesma dobradura do voo, pousada no botão — inclinada como quem vai decolar */
+.btnAviao { transform: rotate(-12deg); }
+.btnAviao :global(.faceBaixo) { fill: rgba(255,255,255,.2); }
+.btnAviao :global(.faiscas)   { fill: #a5f3fc; }
+.composeBox:hover .btnPublicar .btnAviao { transform: translate(2px, -2px) rotate(-4deg); }
+:global([data-theme="light"]) .btnPublicar {
+  background:
+    radial-gradient(circle at 32% 26%, rgba(255,255,255,.5), transparent 46%),
+    linear-gradient(145deg, #3b8ef5, #1f6fe0 55%, #22d3ee);
+  border-color: rgba(120,180,255,.6);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.55),
+    0 4px 12px -5px rgba(31,111,224,.5),
+    0 0 12px rgba(59,142,245,.3);
+}
+
+/* ── Error ── */
+.error {
+  background: linear-gradient(180deg, rgba(248,113,113,.12), rgba(248,113,113,.06));
+  border: 1px solid rgba(248,113,113,.28);
+  color: var(--text); border-radius: var(--radius-lg);
+  padding: .9rem 1rem; font-size: .9rem;
+  display: flex; align-items: center; gap: .7rem;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+}
+/* ícone solto, sem selo em volta */
+.errorIco {
+  flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--danger);
+}
+/* a mensagem é do mesmo tom do erro */
+.errorMsg { flex: 1; min-width: 0; line-height: 1.35; color: var(--danger); }
+.error button {
+  flex-shrink: 0;
+  display: inline-flex; align-items: center; gap: .35rem;
+  font-size: .8125rem; font-weight: 600; padding: .4rem .8rem;
+  border-radius: var(--pill); color: var(--danger);
+  background: rgba(248,113,113,.12);
+  border: 1px solid rgba(248,113,113,.35);
+  transition: background .18s, box-shadow .18s, transform .18s;
+}
+.error button:hover {
+  background: rgba(248,113,113,.2);
+  box-shadow: 0 0 14px rgba(248,113,113,.3);
+  transform: translateY(-1px);
+}
+
+/* ── Skeletons ── */
+.skeletons { display: flex; flex-direction: column; gap: .875rem; }
+.skeleton {
+  height: 140px; border-radius: var(--radius-lg);
+  background: linear-gradient(90deg, var(--surface) 25%, var(--surface-2) 50%, var(--surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+/* ── Search banner ── */
+.searchBanner {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .625rem .875rem;
+  background: var(--primary-dim); border: 1px solid var(--border-2);
+  border-radius: var(--radius); font-size: .875rem; color: var(--text-dim);
+}
+.clearSearch {
+  display: inline-flex; align-items: center; gap: .3rem;
+  font-size: .8rem; font-weight: 600; color: var(--primary); background: none;
+}
+.clearSearch:hover { text-decoration: underline; }
+
+/* ── Empty ── */
+.empty { text-align: center; padding: 3rem 1rem; color: var(--text-muted); display: flex; flex-direction: column; align-items: center; gap: .75rem; }
+.emptyIcon { color: var(--border-2); }
+.empty p { font-size: .9375rem; }
+
+/* quando o painel esquerdo empilha acima (grade de 3), o feed ocupa a linha toda */
+@media (max-width: 980px) {
+  .feed { flex-basis: 100%; max-width: 720px; }
+}

@@ -1,0 +1,74 @@
+# Autenticação — precisa rodar primeiro
+#
+# Desde o TP4 nenhuma requisição da API passa sem token. Este arquivo obtém um
+# token para cada papel e os guarda em variáveis globais, que os demais
+# arquivos usam no cabeçalho Authorization.
+#
+# A concessão é por senha (grant_type=password), pelo cliente `infnethub-dev-cli`
+# do realm. É o único jeito de obter token sem navegador — e é EXCLUSIVO DE
+# DESENVOLVIMENTO: o OAuth 2.1 desaconselha essa concessão, e o cliente do
+# navegador (`infnethub-bff`) não a tem habilitada. Em produção, um cliente de
+# máquina usaria client_credentials.
+#
+# Três papéis, porque as regras de autorização são diferentes para cada um:
+#   aluno       vê o próprio boletim, publica no feed
+#   professor   vê o boletim de qualquer aluno, lê o histórico de auditoria
+#   secretaria  publica vagas, administra o cadastro
+
+### Token do ALUNO (Lucas Mendonça — usuario_id 1)
+POST {{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+client_id={{clientCli}}&grant_type=password&username=lucas.mendonca&password={{senha}}
+
+> {%
+    client.test("token emitido", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+        client.assert(response.body.access_token !== undefined, "sem access_token na resposta");
+    });
+    client.global.set("tokenAluno", response.body.access_token);
+%}
+
+### Token do PROFESSOR (Carlos Oliveira — usuario_id 2)
+POST {{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+client_id={{clientCli}}&grant_type=password&username=carlos.oliveira&password={{senha}}
+
+> {%
+    client.test("token emitido", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+    });
+    client.global.set("tokenProfessor", response.body.access_token);
+%}
+
+### Token da SECRETARIA (Atendimento Infnet Hub — usuario_id 3)
+POST {{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+client_id={{clientCli}}&grant_type=password&username=atendimento&password={{senha}}
+
+> {%
+    client.test("token emitido", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+    });
+    client.global.set("tokenSecretaria", response.body.access_token);
+%}
+
+### Senha errada não emite token
+POST {{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+client_id={{clientCli}}&grant_type=password&username=lucas.mendonca&password=senha-errada
+
+> {%
+    // O Keycloak responde 400 com invalid_grant para credencial inválida em
+    // cliente público — e não 401, como se poderia esperar.
+    client.test("recusa a credencial", () => {
+        client.assert(response.status === 400 || response.status === 401,
+            "esperado 400 ou 401, veio " + response.status);
+    });
+    client.test("nenhum token é emitido", () => {
+        client.assert(response.body.access_token === undefined, "veio token com senha errada");
+    });
+%}

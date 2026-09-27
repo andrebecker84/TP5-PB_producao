@@ -1,0 +1,54 @@
+/* Espera: uma luz correndo por um fio fino, jorrando partículas atrás de si.
+   A luz e as partículas são desenhadas em canvas (CarregandoLuz.tsx); aqui
+   ficam só o palco, o fio e o texto. */
+
+.tela {
+  position: fixed; inset: 0; z-index: 50;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 3.2rem;
+  background: radial-gradient(ellipse 70% 55% at 50% 50%, #0b0b1f 0%, #04040a 60%, #000 100%);
+  overflow: hidden;
+  animation: aparece .35s ease-out both;
+}
+@keyframes aparece { from { opacity: 0; } }
+
+.trilho { position: relative; width: min(760px, 92vw); height: 160px; }
+
+/* dentro do cartão: mesma luz, em escala menor e sem cobrir a tela */
+.embutido {
+  position: relative; width: 100%;
+  display: flex; flex-direction: column; align-items: center; gap: .35rem;
+  animation: aparece .4s ease-out both;
+}
+.embutido .trilho { height: 64px; width: 80%; }
+.embutido .texto { font-size: .8125rem; }
+
+/* o fio por onde a luz corre: fino, fraco, sumindo nas pontas */
+.linha {
+  position: absolute; left: 0; right: 0; top: 50%; height: 1px; transform: translateY(-50%);
+  background: linear-gradient(90deg, transparent, rgba(165,180,252,.22) 20%, rgba(165,180,252,.22) 80%, transparent);
+}
+[data-tom="verde"] .linha {
+  background: linear-gradient(90deg, transparent, rgba(110,231,183,.22) 20%, rgba(110,231,183,.22) 80%, transparent);
+}
+
+/* a luz e o rastro de partículas, por cima do fio; passa um pouco da altura
+   do trilho para o brilho não ser cortado */
+.faisca {
+  position: absolute; left: 0; top: -40px; width: 100%; height: calc(100% + 80px);
+  /* esmaece nas pontas: a luz nasce e some dentro da área, sem borda */
+  -webkit-mask: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+          mask: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+
+.texto {
+  display: inline-flex; align-items: center; gap: .45rem;
+  font-size: .9375rem; letter-spacing: .06em;
+  color: rgba(203,213,225,.72);
+  animation: pisca 2.1s ease-in-out infinite;
+}
+@keyframes pisca { 50% { opacity: .45; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .texto, .tela, .embutido { animation: none; }
+}

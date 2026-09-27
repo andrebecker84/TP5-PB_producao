@@ -1,0 +1,36 @@
+# O Tempo como fonte de dados (TP5), por TLS.
+#
+# Três ligações fazem dele mais que um visualizador de traces:
+#   tracesToLogsV2   de um span, os logs daquela requisição no Loki
+#   serviceMap       o mapa de quem chama quem, com as séries que o gerador de
+#                    métricas do Tempo grava no Prometheus
+#   tracesToMetrics  de um span, a taxa e a latência daquela operação
+apiVersion: 1
+datasources:
+  - name: Tempo
+    uid: tempo
+    type: tempo
+    access: proxy
+    url: https://tempo:3200
+    editable: false
+    jsonData:
+      tlsAuthWithCACert: true
+      serverName: tempo
+      tracesToLogsV2:
+        datasourceUid: loki
+        spanStartTimeShift: -2m
+        spanEndTimeShift: 2m
+        customQuery: true
+        query: '{servico=~".+"} | traceId="$${__trace.traceId}"'
+      tracesToMetrics:
+        datasourceUid: prometheus
+      serviceMap:
+        datasourceUid: prometheus
+      nodeGraph:
+        enabled: true
+      search:
+        hide: false
+      streamingEnabled:
+        search: true
+    secureJsonData:
+      tlsCACert: $__file{/certs/ca.crt}

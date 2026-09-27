@@ -1,0 +1,40 @@
+package com.andre.infnethub.notificacao.web;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.method.support.HandlerMethodArgumentResolver;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+import java.util.List;
+
+/**
+ * Registro do {@link UsuarioAtualResolver} e CORS do acesso direto.
+ *
+ * <p>O CORS, como nos outros serviços, só vale para desenvolvimento e
+ * diagnóstico: em operação normal o navegador fala com o gateway.
+ */
+@Configuration
+@RequiredArgsConstructor
+class WebConfig implements WebMvcConfigurer {
+
+    private final UsuarioAtualResolver usuarioAtual;
+
+    @Value("${app.cors.allowed-origins}")
+    private String[] origensPermitidas;
+
+    @Override
+    public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
+        resolvers.add(usuarioAtual);
+    }
+
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        registry.addMapping("/api/**")
+                .allowedOrigins(origensPermitidas)
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                .allowedHeaders("*")
+                .allowCredentials(true);
+    }
+}

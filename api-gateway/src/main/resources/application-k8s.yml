@@ -1,0 +1,55 @@
+# =========================================================================
+# Perfil k8s — o gateway dentro do cluster Kubernetes (TP5).
+#
+# Os endereços — Keycloak, front-end, coletor de traces — vêm do ConfigMap do
+# cluster (k8s/base); aqui fica só o que muda por estar num orquestrador. O
+# desenho de cada item está comentado no application-k8s.properties do
+# infnethub-core.
+# =========================================================================
+
+# Duas portas, como no Compose: a principal (21443) para a rede interna —
+# sondas, Prometheus — e a do navegador (21080), a única publicada, que
+# responde 404 a tudo em /actuator que não seja saúde (ver PortaDoNavegador).
+# Sem TLS dentro do cluster: ver o relatório, seção 7.4.
+server:
+  port: ${SERVER_PORT:21443}
+  shutdown: graceful
+
+app:
+  porta-do-navegador: ${PORTA_DO_NAVEGADOR:21080}
+
+spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+  cloud:
+    # ── Descoberta: o cluster é o registro ────────────────────────────────
+    # As rotas continuam apontando para lb://<serviço>, exatamente como no
+    # Compose — o application.yml não muda. O que muda é quem responde "onde
+    # está esse serviço": no lugar do Eureka, uma lista fixa com o nome DNS do
+    # Service de cada um. O Service entrega a requisição a um pod pronto, e
+    # acompanha sozinho as réplicas que o autoescalonamento cria e remove.
+    discovery:
+      client:
+        simple:
+          instances:
+            infnethub-core:
+              - uri: http://backend:21081
+            boletim-service:
+              - uri: http://boletim:21082
+            notificacao-service:
+              - uri: http://notificacao:21083
+
+eureka:
+  client:
+    enabled: false
+
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+logging:
+  structured:
+    format:
+      console: ecs

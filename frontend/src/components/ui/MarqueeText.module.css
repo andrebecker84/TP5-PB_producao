@@ -1,0 +1,13 @@
+.wrap { display: block; max-width: 100%; overflow: hidden; }
+.text { display: inline-block; white-space: nowrap; }
+
+/* desliza no hover do próprio texto ou do item que o hospeda */
+.wrap:hover .scroll,
+:global([data-marquee-host]:hover) .scroll {
+  animation: marquee 3.6s ease-in-out infinite alternate;
+}
+@keyframes marquee {
+  0%, 14%   { transform: translateX(0); }
+  86%, 100% { transform: translateX(var(--dist, 0)); }
+}
+@media (prefers-reduced-motion: reduce) { .scroll { animation: none !important; } }

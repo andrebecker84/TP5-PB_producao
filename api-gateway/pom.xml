@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>com.andre</groupId>
+		<artifactId>infnethub</artifactId>
+		<version>1.0.0</version>
+	</parent>
+
+	<artifactId>api-gateway</artifactId>
+	<name>api-gateway</name>
+	<description>Ponto único de entrada - roteia o front-end para a aplicação central e para o boletim-service</description>
+
+	<dependencies>
+		<!-- Spring Cloud Gateway, variante reativa.
+		     ATENÇÃO ao nome do artefato: o antigo spring-cloud-starter-gateway
+		     NÃO existe mais nesta linha. O projeto foi dividido em duas variantes
+		     e o starter genérico saiu junto; hoje é preciso escolher entre
+		     -server-webflux (reativo, o gateway clássico) e -server-webmvc
+		     (servlet). Declarar o nome antigo falha na resolução, e a mensagem do
+		     Maven não sugere o substituto. -->
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-gateway-server-webflux</artifactId>
+		</dependency>
+
+		<!-- Cliente do registro: é o que permite rotear por nome lógico
+		     (lb://infnethub-core) em vez de por host e porta fixos. -->
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+		<!-- Métricas no formato do Prometheus, em /actuator/prometheus. A versão
+		     vem do BOM do Spring Boot. -->
+		<dependency>
+			<groupId>io.micrometer</groupId>
+			<artifactId>micrometer-registry-prometheus</artifactId>
+		</dependency>
+		<!-- Rastreamento distribuído (TP5). Micrometer Tracing com a ponte para
+		     o OpenTelemetry e o exportador OTLP: cada requisição ganha um
+		     traceId que atravessa gateway, serviços e RabbitMQ, e os spans
+		     seguem para o coletor (Grafana Alloy → Tempo). As métricas
+		     continuam saindo pelo Prometheus: o envio de métricas por OTLP que
+		     este starter traz fica desligado no application.properties. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-opentelemetry</artifactId>
+		</dependency>
+
+		<!-- ── O gateway como BFF (Backend for Frontend) ─────────────────────
+		     É aqui que a autenticação acontece. O gateway faz o login OIDC no
+		     Keycloak (Authorization Code + PKCE), guarda os tokens na sessão
+		     do servidor e entrega ao navegador apenas um cookie HttpOnly. O
+		     token de acesso nunca chega ao JavaScript — é o que a prática
+		     atual recomenda para aplicações de página única, no lugar de
+		     guardar JWT em localStorage.
+
+		     O filtro TokenRelay, ligado nas rotas, pega o token da sessão e o
+		     repassa aos serviços de trás no cabeçalho Authorization. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-oauth2-client</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+
+		<!-- O gateway também valida token: é assim que scripts e a coleção
+		     http/ entram pela mesma porta que o navegador, sem cookie. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+		</plugins>
+	</build>
+
+</project>

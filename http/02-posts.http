@@ -1,0 +1,108 @@
+# Posts — Feed
+#
+# A ordem importa numa execução de arquivo inteiro: "Criar post" guarda o id
+# gerado em {{postId}}, e as requisições seguintes o utilizam. Assim o roteiro
+# roda numa base recém-carregada sem depender de ids fixos.
+
+### Listar todos os posts
+GET {{baseUrl}}/api/v1/posts
+Authorization: Bearer {{tokenAluno}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200);
+    });
+%}
+
+### Criar post
+# O autor é quem está no token. Um "autorId" no corpo é ignorado: o cliente não
+# escolhe em nome de quem publica.
+POST {{baseUrl}}/api/v1/posts
+Authorization: Bearer {{tokenAluno}}
+Content-Type: application/json
+
+{
+  "titulo": "Novo post de teste",
+  "conteudo": "Conteúdo criado pelo roteiro de requisições.",
+  "autorId": 2
+}
+
+> {%
+    client.test("responde 201", () => {
+        client.assert(response.status === 201, "esperado 201, veio " + response.status);
+    });
+    client.test("o autor vem do token, não do corpo", () => {
+        client.assert(response.body.autorId !== 2, "o post saiu em nome do autorId do corpo");
+    });
+    client.global.set("postId", response.body.id);
+%}
+
+### Buscar post por ID
+GET {{baseUrl}}/api/v1/posts/{{postId}}
+Authorization: Bearer {{tokenAluno}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200);
+    });
+%}
+
+### Curtir / descurtir post
+# Alterna a curtida de quem está no token: se ainda não curtiu, curte; se já
+# curtiu, descurte. Responde { curtido, total }.
+#
+# O total vem de um COUNT real sobre `curtidas` e é regravado em posts.curtidas
+# na mesma transação — o contador desnormalizado do feed nunca diverge das
+# linhas. Execute duas vezes seguidas e observe o total subir e descer.
+#
+# A constraint uk_curtidas_post_usuario impede curtida duplicada no banco, e não
+# apenas na aplicação: é ela que mantém o contador honesto sob concorrência.
+POST {{baseUrl}}/api/v1/posts/{{postId}}/curtidas
+Authorization: Bearer {{tokenAluno}}
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200);
+    });
+    client.test("devolve curtido e total", () => {
+        client.assert(response.body.curtido !== undefined, "sem campo curtido");
+        client.assert(response.body.total !== undefined, "sem campo total");
+    });
+%}
+
+### Alterar post identificando o autor da mudança
+# Quem age é quem está no token: desde o TP4 o ContextoAuditoriaFilter lê nome e
+# e-mail do JWT validado (o antigo cabeçalho X-Usuario-Id, que qualquer cliente
+# podia forjar, saiu), e o Envers grava esse autor na revisão.
+#
+# Sem requisição HTTP — a carga inicial, por exemplo — o autor é "sistema".
+#
+# Depois de executar, rode "Histórico de um post" em 05-historico.http.
+PUT {{baseUrl}}/api/v1/posts/{{postId}}
+Authorization: Bearer {{tokenAluno}}
+Content-Type: application/json
+
+{
+  "titulo": "Título corrigido pelo professor",
+  "conteudo": "Conteúdo revisado. Esta alteração gera uma nova revisão no histórico."
+}
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200);
+    });
+%}
+
+### Deletar post
+# Execute depois "Última revisão de um post" em 05-historico.http: o post some
+# da tabela `posts`, mas a auditoria ainda responde o que ele dizia.
+DELETE {{baseUrl}}/api/v1/posts/{{postId}}
+Authorization: Bearer {{tokenAluno}}
+
+> {%
+    client.test("responde 204", () => {
+        client.assert(response.status === 204, "esperado 204, veio " + response.status);
+    });
+%}

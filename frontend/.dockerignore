@@ -1,0 +1,26 @@
+# Fora do contexto de build da imagem do front-end.
+#
+# O ponto crítico é o node_modules: o Dockerfile roda `npm ci` DENTRO da imagem
+# (Linux); sem esta exclusão, o `COPY . .` colocaria o node_modules do host
+# (Windows, com binários nativos win32 — @next/swc, lightningcss) por cima do
+# recém-instalado, quebrando o build. Os demais só inflam o contexto.
+
+node_modules
+.next
+.next_stale*
+out
+build
+
+# Segredos e ambiente local — nunca dentro da imagem
+.env
+.env.*
+
+# Artefatos locais
+*.log
+*.tsbuildinfo
+.DS_Store
+Thumbs.db
+
+# Docker (evita recursão do contexto)
+Dockerfile
+.dockerignore

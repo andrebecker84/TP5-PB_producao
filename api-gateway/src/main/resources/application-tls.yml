@@ -1,0 +1,33 @@
+# =========================================================================
+# Perfil tls — o gateway dentro do docker-compose.yml.
+#
+# A porta principal passa a ser só HTTPS (a rede interna: front-end do lado do
+# servidor, Prometheus, healthcheck). O navegador entra pela porta do
+# navegador, em HTTP, publicada só no 127.0.0.1 — ver PortaDoNavegador.
+#
+# As chamadas que o gateway FAZ — aos serviços, ao Eureka, ao Keycloak — saem
+# por HTTPS e conferem o certificado contra a autoridade de desenvolvimento,
+# confiada pela JVM inteira (JAVA_TOOL_OPTIONS no Compose).
+# =========================================================================
+spring:
+  ssl:
+    bundle:
+      pem:
+        servidor:
+          keystore:
+            certificate: ${TLS_CERTIFICADO:/certs/servidor.crt}
+            private-key: ${TLS_CHAVE:/certs/servidor.key}
+
+server:
+  ssl:
+    bundle: servidor
+
+app:
+  porta-do-navegador: ${PORTA_DO_NAVEGADOR:21080}
+
+eureka:
+  instance:
+    prefer-ip-address: true
+    non-secure-port-enabled: false
+    secure-port-enabled: true
+    secure-port: ${server.port}

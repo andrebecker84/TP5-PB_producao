@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>com.andre</groupId>
+		<artifactId>infnethub</artifactId>
+		<version>1.0.0</version>
+	</parent>
+
+	<artifactId>infnethub-core</artifactId>
+	<name>infnethub-core</name>
+	<description>Aplicação central do Infnet Hub - identidade, feed e vagas, com histórico por auditoria</description>
+
+	<dependencies>
+		<!-- Web -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-web</artifactId>
+		</dependency>
+
+		<!-- JPA -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-jpa</artifactId>
+		</dependency>
+
+		<!-- Spring Data Envers - repositórios de histórico (RevisionRepository).
+		     Traz transitivamente o hibernate-envers, que materializa o snapshot
+		     de cada revisão nas tabelas *_AUD. -->
+		<dependency>
+			<groupId>org.springframework.data</groupId>
+			<artifactId>spring-data-envers</artifactId>
+		</dependency>
+
+		<!-- Validação -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-validation</artifactId>
+		</dependency>
+
+		<!-- Flyway - migrations versionadas do schema.
+		     No Spring Boot 4 as autoconfigurações foram divididas por módulo:
+		     o flyway-core traz a ferramenta, mas é o spring-boot-flyway que a
+		     executa no start e a ordena antes do EntityManagerFactory. Sem ele
+		     as migrations simplesmente não rodam. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-flyway</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-core</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-database-postgresql</artifactId>
+		</dependency>
+
+		<!-- PostgreSQL - banco persistente (dev/prod) -->
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+
+		<!-- H2 - exclusivo dos testes. O escopo "test" é o que garante que ele
+		     não vá parar em um artefato de produção: a persistência da aplicação
+		     é PostgreSQL em todos os perfis executáveis. -->
+		<dependency>
+			<groupId>com.h2database</groupId>
+			<artifactId>h2</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- ── Comunicação distribuída ───────────────────────────────────────
+		     A aplicação central passa a se anunciar no registro de serviços. Ela
+		     não descobre ninguém — não chama outro serviço —, mas precisa ser
+		     descoberta: é assim que o gateway a alcança por nome lógico, sem
+		     carregar host e porta em configuração. (No TP3 o boletim-service
+		     também a procurava aqui; no TP4 ele recebe os dados por evento.) -->
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+		</dependency>
+
+		<!-- ── Mensageria ─────────────────────────────────────────────────────
+		     O core passa a anunciar o que acontece com os usuários, em vez de
+		     esperar que perguntem. O starter traz o RabbitTemplate, a
+		     declaração da topologia na subida e as confirmações do broker —
+		     tudo configurado por propriedade. -->
+		<dependency>
+			<groupId>com.andre</groupId>
+			<artifactId>contratos</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-amqp</artifactId>
+		</dependency>
+
+		<!-- /actuator/health — usado pelo Compose e pelo painel do Eureka. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+		<!-- Métricas no formato do Prometheus, em /actuator/prometheus. A versão
+		     vem do BOM do Spring Boot. -->
+		<dependency>
+			<groupId>io.micrometer</groupId>
+			<artifactId>micrometer-registry-prometheus</artifactId>
+		</dependency>
+		<!-- Rastreamento distribuído (TP5). Micrometer Tracing com a ponte para
+		     o OpenTelemetry e o exportador OTLP: cada requisição ganha um
+		     traceId que atravessa gateway, serviços e RabbitMQ, e os spans
+		     seguem para o coletor (Grafana Alloy → Tempo). As métricas
+		     continuam saindo pelo Prometheus: o envio de métricas por OTLP que
+		     este starter traz fica desligado no application.properties. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-opentelemetry</artifactId>
+		</dependency>
+
+		<!-- DevTools -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-devtools</artifactId>
+			<scope>runtime</scope>
+			<optional>true</optional>
+		</dependency>
+
+		<!-- Slice @DataJpaTest. No Spring Boot 4 as fatias de teste foram
+		     separadas em módulos próprios e deixaram de vir no starter-test. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-jpa-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- RabbitMQ de verdade nos testes de integração do outbox. Um
+		     simulador de broker não confirmaria nem devolveria mensagens como o
+		     RabbitMQ faz — e é exatamente isso que o relay precisa provar. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-testcontainers</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>testcontainers-junit-jupiter</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>testcontainers-rabbitmq</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.awaitility</groupId>
+			<artifactId>awaitility</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- ── Resource server ────────────────────────────────────────────────
+		     O serviço só aceita requisição com token válido do Keycloak. A
+		     assinatura é conferida com a chave pública do realm, buscada uma
+		     vez e mantida em cache — não há chamada ao Keycloak por
+		     requisição. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+
+		<!-- Autenticação simulada nos testes (jwt()), sem Keycloak no ar. -->
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+		</plugins>
+	</build>
+
+</project>

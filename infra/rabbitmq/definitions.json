@@ -1,0 +1,1125 @@
+{
+  "rabbit_version": "4.3",
+  "users": [
+    {
+      "name": "infnethub",
+      "password_hash": "2b84Rsb3Y/KwTKorfvadl68d8yPniLT73erh9u/JCKYE2UVe",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": [
+        "administrator"
+      ]
+    }
+  ],
+  "vhosts": [
+    {
+      "name": "/"
+    }
+  ],
+  "permissions": [
+    {
+      "user": "infnethub",
+      "vhost": "/",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    }
+  ],
+  "policies": [
+    {
+      "vhost": "/",
+      "name": "retencao-das-mensagens-mortas",
+      "pattern": "\\.dlq$",
+      "apply-to": "queues",
+      "priority": 0,
+      "definition": {
+        "message-ttl": 604800000
+      }
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "infnethub.eventos",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "infnethub.dlx",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "infnethub.notificacoes.aovivo",
+      "vhost": "/",
+      "type": "fanout",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "infnethub.comandos",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "infnethub.consultas",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "infnethub.espera.entrega",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "infnethub.espera.nivel.00",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "infnethub.espera.nivel.01",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "infnethub.espera.nivel.02",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "infnethub.espera.nivel.03",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "infnethub.espera.nivel.04",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "infnethub.espera.nivel.05",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "infnethub.espera.nivel.06",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "infnethub.espera.nivel.07",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "infnethub.espera.nivel.08",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "infnethub.espera.nivel.09",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "infnethub.espera.nivel.10",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "infnethub.espera.nivel.11",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "infnethub.espera.nivel.12",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "infnethub.espera.nivel.13",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "infnethub.espera.nivel.14",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "infnethub.espera.nivel.15",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "infnethub.espera.nivel.16",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "infnethub.espera.nivel.17",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "infnethub.espera.nivel.18",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "infnethub.espera.nivel.19",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "infnethub.espera.nivel.20",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "infnethub.espera.nivel.21",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }
+  ],
+  "queues": [
+    {
+      "name": "boletim.usuarios",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-delivery-limit": 5,
+        "x-dead-letter-exchange": "infnethub.dlx",
+        "x-dead-letter-routing-key": "boletim.usuarios.dlq"
+      }
+    },
+    {
+      "name": "boletim.usuarios.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum"
+      }
+    },
+    {
+      "name": "notificacao.eventos",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-delivery-limit": 5,
+        "x-dead-letter-exchange": "infnethub.dlx",
+        "x-dead-letter-routing-key": "notificacao.eventos.dlq"
+      }
+    },
+    {
+      "name": "notificacao.eventos.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum"
+      }
+    },
+    {
+      "name": "notificacao.comandos",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-delivery-limit": 5,
+        "x-dead-letter-exchange": "infnethub.dlx",
+        "x-dead-letter-routing-key": "notificacao.comandos.dlq"
+      }
+    },
+    {
+      "name": "notificacao.comandos.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum"
+      }
+    },
+    {
+      "name": "boletim.consultas",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-message-ttl": 10000
+      }
+    },
+    {
+      "name": "core.expurgo",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-delivery-limit": 5,
+        "x-dead-letter-exchange": "infnethub.dlx",
+        "x-dead-letter-routing-key": "core.expurgo.dlq"
+      }
+    },
+    {
+      "name": "core.expurgo.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum"
+      }
+    },
+    {
+      "name": "espera.nivel.00",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-message-ttl": 1000,
+        "x-dead-letter-exchange": "infnethub.espera.entrega",
+        "x-dead-letter-strategy": "at-least-once",
+        "x-overflow": "reject-publish"
+      }
+    },
+    {
+      "name": "espera.nivel.01",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-message-ttl": 2000,
+        "x-dead-letter-exchange": "infnethub.espera.nivel.00",
+        "x-dead-letter-strategy": "at-least-once",
+        "x-overflow": "reject-publish"
+      }
+    },
+    {
+      "name": "espera.nivel.02",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-message-ttl": 4000,
+        "x-dead-letter-exchange": "infnethub.espera.nivel.01",
+        "x-dead-letter-strategy": "at-least-once",
+        "x-overflow": "reject-publish"
+      }
+    },
+    {
+      "name": "espera.nivel.03",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-message-ttl": 8000,
+        "x-dead-letter-exchange": "infnethub.espera.nivel.02",
+        "x-dead-letter-strategy": "at-least-once",
+        "x-overflow": "reject-publish"
+      }
+    },
+    {
+      "name": "espera.nivel.04",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-message-ttl": 16000,
+        "x-dead-letter-exchange": "infnethub.espera.nivel.03",
+        "x-dead-letter-strategy": "at-least-once",
+        "x-overflow": "reject-publish"
+      }
+    },
+    {
+      "name": "espera.nivel.05",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-message-ttl": 32000,
+        "x-dead-letter-exchange": "infnethub.espera.nivel.04",
+        "x-dead-letter-strategy": "at-least-once",
+        "x-overflow": "reject-publish"
+      }
+    },
+    {
+      "name": "espera.nivel.06",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-message-ttl": 64000,
+        "x-dead-letter-exchange": "infnethub.espera.nivel.05",
+        "x-dead-letter-strategy": "at-least-once",
+        "x-overflow": "reject-publish"
+      }
+    },
+    {
+      "name": "espera.nivel.07",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-message-ttl": 128000,
+        "x-dead-letter-exchange": "infnethub.espera.nivel.06",
+        "x-dead-letter-strategy": "at-least-once",
+        "x-overflow": "reject-publish"
+      }
+    },
+    {
+      "name": "espera.nivel.08",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-message-ttl": 256000,
+        "x-dead-letter-exchange": "infnethub.espera.nivel.07",
+        "x-dead-letter-strategy": "at-least-once",
+        "x-overflow": "reject-publish"
+      }
+    },
+    {
+      "name": "espera.nivel.09",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-message-ttl": 512000,
+        "x-dead-letter-exchange": "infnethub.espera.nivel.08",
+        "x-dead-letter-strategy": "at-least-once",
+        "x-overflow": "reject-publish"
+      }
+    },
+    {
+      "name": "espera.nivel.10",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-message-ttl": 1024000,
+        "x-dead-letter-exchange": "infnethub.espera.nivel.09",
+        "x-dead-letter-strategy": "at-least-once",
+        "x-overflow": "reject-publish"
+      }
+    },
+    {
+      "name": "espera.nivel.11",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-message-ttl": 2048000,
+        "x-dead-letter-exchange": "infnethub.espera.nivel.10",
+        "x-dead-letter-strategy": "at-least-once",
+        "x-overflow": "reject-publish"
+      }
+    },
+    {
+      "name": "espera.nivel.12",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-message-ttl": 4096000,
+        "x-dead-letter-exchange": "infnethub.espera.nivel.11",
+        "x-dead-letter-strategy": "at-least-once",
+        "x-overflow": "reject-publish"
+      }
+    },
+    {
+      "name": "espera.nivel.13",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-message-ttl": 8192000,
+        "x-dead-letter-exchange": "infnethub.espera.nivel.12",
+        "x-dead-letter-strategy": "at-least-once",
+        "x-overflow": "reject-publish"
+      }
+    },
+    {
+      "name": "espera.nivel.14",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-message-ttl": 16384000,
+        "x-dead-letter-exchange": "infnethub.espera.nivel.13",
+        "x-dead-letter-strategy": "at-least-once",
+        "x-overflow": "reject-publish"
+      }
+    },
+    {
+      "name": "espera.nivel.15",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-message-ttl": 32768000,
+        "x-dead-letter-exchange": "infnethub.espera.nivel.14",
+        "x-dead-letter-strategy": "at-least-once",
+        "x-overflow": "reject-publish"
+      }
+    },
+    {
+      "name": "espera.nivel.16",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-message-ttl": 65536000,
+        "x-dead-letter-exchange": "infnethub.espera.nivel.15",
+        "x-dead-letter-strategy": "at-least-once",
+        "x-overflow": "reject-publish"
+      }
+    },
+    {
+      "name": "espera.nivel.17",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-message-ttl": 131072000,
+        "x-dead-letter-exchange": "infnethub.espera.nivel.16",
+        "x-dead-letter-strategy": "at-least-once",
+        "x-overflow": "reject-publish"
+      }
+    },
+    {
+      "name": "espera.nivel.18",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-message-ttl": 262144000,
+        "x-dead-letter-exchange": "infnethub.espera.nivel.17",
+        "x-dead-letter-strategy": "at-least-once",
+        "x-overflow": "reject-publish"
+      }
+    },
+    {
+      "name": "espera.nivel.19",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-message-ttl": 524288000,
+        "x-dead-letter-exchange": "infnethub.espera.nivel.18",
+        "x-dead-letter-strategy": "at-least-once",
+        "x-overflow": "reject-publish"
+      }
+    },
+    {
+      "name": "espera.nivel.20",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-message-ttl": 1048576000,
+        "x-dead-letter-exchange": "infnethub.espera.nivel.19",
+        "x-dead-letter-strategy": "at-least-once",
+        "x-overflow": "reject-publish"
+      }
+    },
+    {
+      "name": "espera.nivel.21",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-message-ttl": 2097152000,
+        "x-dead-letter-exchange": "infnethub.espera.nivel.20",
+        "x-dead-letter-strategy": "at-least-once",
+        "x-overflow": "reject-publish"
+      }
+    }
+  ],
+  "bindings": [
+    {
+      "source": "infnethub.eventos",
+      "vhost": "/",
+      "destination": "boletim.usuarios",
+      "destination_type": "queue",
+      "routing_key": "usuario.*",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.eventos",
+      "vhost": "/",
+      "destination": "notificacao.eventos",
+      "destination_type": "queue",
+      "routing_key": "usuario.*",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.eventos",
+      "vhost": "/",
+      "destination": "notificacao.eventos",
+      "destination_type": "queue",
+      "routing_key": "post.*",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.eventos",
+      "vhost": "/",
+      "destination": "notificacao.eventos",
+      "destination_type": "queue",
+      "routing_key": "vaga.*",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.dlx",
+      "vhost": "/",
+      "destination": "boletim.usuarios.dlq",
+      "destination_type": "queue",
+      "routing_key": "boletim.usuarios.dlq",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.dlx",
+      "vhost": "/",
+      "destination": "notificacao.eventos.dlq",
+      "destination_type": "queue",
+      "routing_key": "notificacao.eventos.dlq",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.comandos",
+      "vhost": "/",
+      "destination": "notificacao.comandos",
+      "destination_type": "queue",
+      "routing_key": "notificacao.enviar",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.dlx",
+      "vhost": "/",
+      "destination": "notificacao.comandos.dlq",
+      "destination_type": "queue",
+      "routing_key": "notificacao.comandos.dlq",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.consultas",
+      "vhost": "/",
+      "destination": "boletim.consultas",
+      "destination_type": "queue",
+      "routing_key": "boletim.situacao",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.eventos",
+      "vhost": "/",
+      "destination": "core.expurgo",
+      "destination_type": "queue",
+      "routing_key": "aluno.*",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.dlx",
+      "vhost": "/",
+      "destination": "core.expurgo.dlq",
+      "destination_type": "queue",
+      "routing_key": "core.expurgo.dlq",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.entrega",
+      "vhost": "/",
+      "destination": "notificacao.comandos",
+      "destination_type": "queue",
+      "routing_key": "#.notificacao.enviar",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.00",
+      "vhost": "/",
+      "destination": "espera.nivel.00",
+      "destination_type": "queue",
+      "routing_key": "*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.1.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.00",
+      "vhost": "/",
+      "destination": "infnethub.espera.entrega",
+      "destination_type": "exchange",
+      "routing_key": "*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.0.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.01",
+      "vhost": "/",
+      "destination": "espera.nivel.01",
+      "destination_type": "queue",
+      "routing_key": "*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.1.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.01",
+      "vhost": "/",
+      "destination": "infnethub.espera.nivel.00",
+      "destination_type": "exchange",
+      "routing_key": "*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.0.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.02",
+      "vhost": "/",
+      "destination": "espera.nivel.02",
+      "destination_type": "queue",
+      "routing_key": "*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.1.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.02",
+      "vhost": "/",
+      "destination": "infnethub.espera.nivel.01",
+      "destination_type": "exchange",
+      "routing_key": "*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.0.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.03",
+      "vhost": "/",
+      "destination": "espera.nivel.03",
+      "destination_type": "queue",
+      "routing_key": "*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.1.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.03",
+      "vhost": "/",
+      "destination": "infnethub.espera.nivel.02",
+      "destination_type": "exchange",
+      "routing_key": "*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.0.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.04",
+      "vhost": "/",
+      "destination": "espera.nivel.04",
+      "destination_type": "queue",
+      "routing_key": "*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.1.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.04",
+      "vhost": "/",
+      "destination": "infnethub.espera.nivel.03",
+      "destination_type": "exchange",
+      "routing_key": "*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.0.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.05",
+      "vhost": "/",
+      "destination": "espera.nivel.05",
+      "destination_type": "queue",
+      "routing_key": "*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.1.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.05",
+      "vhost": "/",
+      "destination": "infnethub.espera.nivel.04",
+      "destination_type": "exchange",
+      "routing_key": "*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.0.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.06",
+      "vhost": "/",
+      "destination": "espera.nivel.06",
+      "destination_type": "queue",
+      "routing_key": "*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.1.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.06",
+      "vhost": "/",
+      "destination": "infnethub.espera.nivel.05",
+      "destination_type": "exchange",
+      "routing_key": "*.*.*.*.*.*.*.*.*.*.*.*.*.*.*.0.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.07",
+      "vhost": "/",
+      "destination": "espera.nivel.07",
+      "destination_type": "queue",
+      "routing_key": "*.*.*.*.*.*.*.*.*.*.*.*.*.*.1.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.07",
+      "vhost": "/",
+      "destination": "infnethub.espera.nivel.06",
+      "destination_type": "exchange",
+      "routing_key": "*.*.*.*.*.*.*.*.*.*.*.*.*.*.0.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.08",
+      "vhost": "/",
+      "destination": "espera.nivel.08",
+      "destination_type": "queue",
+      "routing_key": "*.*.*.*.*.*.*.*.*.*.*.*.*.1.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.08",
+      "vhost": "/",
+      "destination": "infnethub.espera.nivel.07",
+      "destination_type": "exchange",
+      "routing_key": "*.*.*.*.*.*.*.*.*.*.*.*.*.0.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.09",
+      "vhost": "/",
+      "destination": "espera.nivel.09",
+      "destination_type": "queue",
+      "routing_key": "*.*.*.*.*.*.*.*.*.*.*.*.1.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.09",
+      "vhost": "/",
+      "destination": "infnethub.espera.nivel.08",
+      "destination_type": "exchange",
+      "routing_key": "*.*.*.*.*.*.*.*.*.*.*.*.0.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.10",
+      "vhost": "/",
+      "destination": "espera.nivel.10",
+      "destination_type": "queue",
+      "routing_key": "*.*.*.*.*.*.*.*.*.*.*.1.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.10",
+      "vhost": "/",
+      "destination": "infnethub.espera.nivel.09",
+      "destination_type": "exchange",
+      "routing_key": "*.*.*.*.*.*.*.*.*.*.*.0.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.11",
+      "vhost": "/",
+      "destination": "espera.nivel.11",
+      "destination_type": "queue",
+      "routing_key": "*.*.*.*.*.*.*.*.*.*.1.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.11",
+      "vhost": "/",
+      "destination": "infnethub.espera.nivel.10",
+      "destination_type": "exchange",
+      "routing_key": "*.*.*.*.*.*.*.*.*.*.0.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.12",
+      "vhost": "/",
+      "destination": "espera.nivel.12",
+      "destination_type": "queue",
+      "routing_key": "*.*.*.*.*.*.*.*.*.1.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.12",
+      "vhost": "/",
+      "destination": "infnethub.espera.nivel.11",
+      "destination_type": "exchange",
+      "routing_key": "*.*.*.*.*.*.*.*.*.0.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.13",
+      "vhost": "/",
+      "destination": "espera.nivel.13",
+      "destination_type": "queue",
+      "routing_key": "*.*.*.*.*.*.*.*.1.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.13",
+      "vhost": "/",
+      "destination": "infnethub.espera.nivel.12",
+      "destination_type": "exchange",
+      "routing_key": "*.*.*.*.*.*.*.*.0.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.14",
+      "vhost": "/",
+      "destination": "espera.nivel.14",
+      "destination_type": "queue",
+      "routing_key": "*.*.*.*.*.*.*.1.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.14",
+      "vhost": "/",
+      "destination": "infnethub.espera.nivel.13",
+      "destination_type": "exchange",
+      "routing_key": "*.*.*.*.*.*.*.0.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.15",
+      "vhost": "/",
+      "destination": "espera.nivel.15",
+      "destination_type": "queue",
+      "routing_key": "*.*.*.*.*.*.1.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.15",
+      "vhost": "/",
+      "destination": "infnethub.espera.nivel.14",
+      "destination_type": "exchange",
+      "routing_key": "*.*.*.*.*.*.0.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.16",
+      "vhost": "/",
+      "destination": "espera.nivel.16",
+      "destination_type": "queue",
+      "routing_key": "*.*.*.*.*.1.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.16",
+      "vhost": "/",
+      "destination": "infnethub.espera.nivel.15",
+      "destination_type": "exchange",
+      "routing_key": "*.*.*.*.*.0.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.17",
+      "vhost": "/",
+      "destination": "espera.nivel.17",
+      "destination_type": "queue",
+      "routing_key": "*.*.*.*.1.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.17",
+      "vhost": "/",
+      "destination": "infnethub.espera.nivel.16",
+      "destination_type": "exchange",
+      "routing_key": "*.*.*.*.0.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.18",
+      "vhost": "/",
+      "destination": "espera.nivel.18",
+      "destination_type": "queue",
+      "routing_key": "*.*.*.1.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.18",
+      "vhost": "/",
+      "destination": "infnethub.espera.nivel.17",
+      "destination_type": "exchange",
+      "routing_key": "*.*.*.0.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.19",
+      "vhost": "/",
+      "destination": "espera.nivel.19",
+      "destination_type": "queue",
+      "routing_key": "*.*.1.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.19",
+      "vhost": "/",
+      "destination": "infnethub.espera.nivel.18",
+      "destination_type": "exchange",
+      "routing_key": "*.*.0.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.20",
+      "vhost": "/",
+      "destination": "espera.nivel.20",
+      "destination_type": "queue",
+      "routing_key": "*.1.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.20",
+      "vhost": "/",
+      "destination": "infnethub.espera.nivel.19",
+      "destination_type": "exchange",
+      "routing_key": "*.0.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.21",
+      "vhost": "/",
+      "destination": "espera.nivel.21",
+      "destination_type": "queue",
+      "routing_key": "1.#",
+      "arguments": {}
+    },
+    {
+      "source": "infnethub.espera.nivel.21",
+      "vhost": "/",
+      "destination": "infnethub.espera.nivel.20",
+      "destination_type": "exchange",
+      "routing_key": "0.#",
+      "arguments": {}
+    }
+  ]
+}

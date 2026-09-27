@@ -1,0 +1,48 @@
+# Fora do contexto de build das imagens dos serviços Java (context: .)
+#
+# No TP3 o contexto passou a ser a raiz do repositório para todos os módulos —
+# um módulo Maven não compila sem o pom pai. Isso torna estas exclusões mais
+# importantes, não menos: o Docker envia o contexto INTEIRO ao daemon antes de
+# qualquer COPY, e agora são quatro imagens fazendo esse envio.
+
+# Front-end tem imagem própria (frontend/Dockerfile, context: ./frontend)
+frontend
+
+# Artefatos de build — as imagens compilam do zero. O ** alcança os target/ de
+# cada módulo; sem ele, só o da raiz (que nem existe mais) seria excluído.
+**/target
+
+# Controle de versão, docs e ferramentas — irrelevantes para a imagem
+.git
+.gitignore
+.gitattributes
+doc
+http
+# TP5: implantação, pipeline, testes de ponta a ponta e de carga
+k8s
+.github
+testes
+demo
+infra
+CHANGELOG.md
+README.md
+LICENSE
+
+# Contexto local de desenvolvimento — nunca dentro da imagem
+CLAUDE.md
+.claude
+
+# Segredos e ambiente local
+.env
+.env.*
+
+# Docker. Os Dockerfiles agora vivem nas pastas dos módulos, daí o **.
+docker-compose.yml
+**/Dockerfile
+.dockerignore
+
+# SO / IDE
+.DS_Store
+Thumbs.db
+.idea
+.vscode

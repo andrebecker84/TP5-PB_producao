@@ -1,0 +1,418 @@
+.panel {
+  width: 250px; flex-shrink: 0;
+  display: flex; flex-direction: column; gap: 1rem;
+  position: sticky;
+  top: calc(var(--header-h) + 1.25rem);
+  max-height: calc(100vh - var(--header-h) - 2.5rem);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.panel::-webkit-scrollbar { width: 3px; }
+.panel::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 99px; }
+
+.card {
+  background: var(--glass-bg); border: 1px solid var(--glass-border);
+  backdrop-filter: var(--glass-blur);
+  border-radius: var(--radius-lg); padding: .875rem;
+  display: flex; flex-direction: column; gap: .625rem;
+}
+
+/* ── Calendar ── */
+.calHeader {
+  position: relative;
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: .25rem;
+}
+/* névoa luminosa suave no topo do calendário (cores do tema) */
+.calHeader::before {
+  content: ''; position: absolute; left: 50%; top: -8px;
+  width: 180px; height: 58px; transform: translateX(-50%);
+  background: radial-gradient(ellipse at center top, rgba(34,211,238,.35), rgba(59,142,245,.16) 46%, transparent 72%);
+  filter: blur(9px); pointer-events: none; z-index: 0;
+  animation: brilhoTitulo 4s ease-in-out infinite;
+}
+@keyframes brilhoTitulo { 0%,100% { opacity: .5; } 50% { opacity: .95; } }
+
+.calTitle {
+  position: relative; z-index: 1;
+  font-size: .9rem; font-weight: 700; color: var(--text);
+  display: inline-flex; align-items: center; gap: .35rem;
+}
+.calTitleIco { color: var(--primary); flex-shrink: 0; }
+/* setas em botão circular de vidro, com leve brilho do tema */
+.calNav {
+  position: relative; z-index: 1;
+  width: 28px; height: 28px; border-radius: 50%;
+  color: var(--primary);
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(145deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
+  border: 1px solid var(--border-2);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 0 10px rgba(34,211,238,.18);
+  transition: color .15s, box-shadow .2s, border-color .2s, transform .15s;
+}
+.calNav:hover {
+  transform: translateY(-1px);
+  border-color: rgba(34,211,238,.55);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.16), 0 0 16px rgba(34,211,238,.5);
+}
+
+.calGrid {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  overflow: visible;
+}
+/* dias da semana bem sutis */
+.calDay {
+  text-align: center; font-size: .66rem; font-weight: 700;
+  letter-spacing: .02em; color: var(--text-muted); opacity: .6;
+  padding: .2rem 0;
+}
+/* datas mais destacadas */
+.calCell {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center;
+  font-size: .8rem; color: var(--text);
+  padding: .1rem 0 .7rem; line-height: 1;
+}
+.calNum {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 50%; position: relative; z-index: 1;
+  transition: background .15s;
+}
+.calCell:hover .calNum { background: var(--surface-2); }
+/* hoje: círculo com anel luminoso — só o dia atual é circulado */
+.calToday .calNum {
+  color: var(--primary); font-weight: 800;
+  border: 2px solid var(--primary);
+  box-shadow: 0 0 12px rgba(59,142,245,.7), inset 0 0 9px rgba(59,142,245,.28);
+}
+.calToday:hover .calNum { background: none; }
+/* dias do mês anterior/seguinte — apenas indicativos, bem apagados */
+.calOutside { pointer-events: none; }
+.calOutside .calNum { color: var(--text-muted); opacity: .3; font-weight: 400; }
+/* dias com entrega: pontinho com leve brilho na cor do status */
+.taskDot {
+  position: absolute; bottom: 1px; left: 50%; transform: translateX(-50%);
+  width: 5px; height: 5px; border-radius: 50%;
+}
+/* o número dos dias com entrega fica um tom mais forte */
+.calTask .calNum { font-weight: 700; }
+.dot_done         { background: var(--success);    box-shadow: 0 0 5px var(--success); }
+.dot_pending      { background: var(--warning);    box-shadow: 0 0 5px var(--warning); }
+.dot_nao_iniciada { background: var(--text-dim);   box-shadow: 0 0 4px rgba(148,163,184,.6); }
+.dot_atrasada     { background: var(--danger);     box-shadow: 0 0 6px var(--danger); }
+
+/* ── Tooltip de tarefa (fixed — não é clipped por overflow dos pais) ── */
+.tooltip {
+  position: fixed;
+  transform: translate(-50%, -100%);
+  z-index: 99999;
+  width: 168px;
+  background:
+    linear-gradient(160deg, rgba(255,255,255,.06), rgba(255,255,255,0) 45%),
+    color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: var(--glass-blur) saturate(1.3);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius);
+  padding: .5rem .625rem;
+  display: flex; flex-direction: column; gap: .25rem;
+  pointer-events: none;
+  box-shadow: var(--shadow-lg);
+  text-align: left;
+  animation: tipIn .12s ease;
+}
+@keyframes tipIn { from { opacity:0; transform:translate(-50%,-calc(100% - 4px)); } to { opacity:1; transform:translate(-50%,-100%); } }
+.ttTitle {
+  font-size: .75rem; font-weight: 700; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ttBadge {
+  display: inline-flex; align-items: center;
+  font-size: .65rem; font-weight: 700; padding: .1rem .4rem;
+  border-radius: 99px; text-transform: uppercase; letter-spacing: .03em;
+  width: fit-content;
+}
+.ttBadge_done         { background: rgba(34,197,94,.15);   color: #86efac; }
+.ttBadge_pending      { background: rgba(245,158,11,.15);  color: #fcd34d; }
+.ttBadge_nao_iniciada { background: rgba(148,163,184,.12); color: var(--text-muted); }
+.ttBadge_atrasada     { background: rgba(248,113,113,.15); color: #fca5a5; }
+.ttGrupo {
+  font-size: .68rem; color: var(--text-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ── Light theme overrides ── */
+:global([data-theme="light"]) .ttBadge_done         { color: #166534; background: rgba(34,197,94,.14); }
+:global([data-theme="light"]) .ttBadge_pending      { color: #92400e; background: rgba(245,158,11,.14); }
+:global([data-theme="light"]) .ttBadge_atrasada     { color: #991b1b; background: rgba(248,113,113,.14); }
+:global([data-theme="light"]) .ttBadge_nao_iniciada { color: #334155; background: rgba(100,116,139,.12); }
+:global([data-theme="light"]) .tarefaData           { color: var(--primary); }
+
+/* ── Tarefas ── */
+.title {
+  font-size: .9rem; font-weight: 700; color: var(--text);
+  display: flex; align-items: center; gap: .4rem;
+}
+.titleIco { color: var(--primary); flex-shrink: 0; }
+
+/* seletor de faixa: 1 mês · Trimestre · Semestre — segmentado de vidro sutil */
+.faixaRow {
+  display: flex; gap: 1px; padding: 3px; margin-bottom: .15rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--pill);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,.18);
+}
+.faixaBtn {
+  flex: 1; padding: .34rem .2rem; border-radius: var(--pill);
+  font-size: .68rem; font-weight: 600; letter-spacing: .01em;
+  color: var(--text-muted);
+  background: none; cursor: pointer;
+  transition: color .18s, background .18s, box-shadow .22s, font-weight .18s;
+}
+.faixaBtn:hover { color: var(--text-dim); }
+.faixaAtiva {
+  color: #fff; font-weight: 700;
+  background: linear-gradient(160deg, #3b8ef5, #2d6fd0);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.28),
+    0 1px 4px rgba(0,0,0,.3),
+    0 0 12px rgba(59,142,245,.5);
+}
+.faixaAtiva:hover { color: #fff; }
+
+/* ── Mini-donut de progresso da faixa + legenda (Concluídas/Andamento/Não concl.) ── */
+.faixaProg {
+  display: flex; align-items: center; gap: .7rem;
+  padding: .5rem .6rem; margin-bottom: .1rem;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.faixaProgDonut { position: relative; width: 52px; height: 52px; flex-shrink: 0; }
+.faixaProgDonut svg { width: 100%; height: 100%; }
+.faixaProgTrilho { fill: none; stroke: var(--surface-3); stroke-width: 5; opacity: .6; }
+.faixaProgDonut circle { transition: stroke-dasharray .5s ease; }
+.faixaProgPct {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: .8rem; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums;
+}
+.faixaProgLeg {
+  flex: 1; min-width: 0; list-style: none;
+  display: flex; flex-direction: column; gap: .24rem;
+  font-size: .7rem; color: var(--text-dim);
+}
+.faixaProgLeg li { display: flex; align-items: center; gap: .4rem; white-space: nowrap; }
+.faixaProgLeg b { margin-left: auto; color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; }
+.legDot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.tarefaVazio { font-size: .74rem; color: var(--text-muted); text-align: center; padding: .6rem 0; }
+.avisoAtraso {
+  display: inline-flex; align-items: center; gap: .15rem; flex-shrink: 0;
+  color: #fca5a5; font-weight: 700; text-transform: none;
+}
+
+.tarefaList { display: flex; flex-direction: column; gap: .4rem; }
+/* lista rolável de altura fixa (≈5 itens, sem cortar) — pareada com Meus Grupos */
+.tarefaScroll {
+  max-height: 18rem; flex-shrink: 0;
+  display: flex; flex-direction: column; gap: .4rem;
+  padding-right: 4px;
+}
+.tarefaItem {
+  display: flex; align-items: center; gap: .5rem;
+  padding: .5rem; border-radius: var(--radius); flex-shrink: 0;
+  background: var(--surface-2); border: 1px solid var(--border);
+  transition: border-color .15s, background .15s;
+}
+.tarefaItem:hover { border-color: var(--border-2); }
+.tarefaDone { opacity: .58; }
+/* o MarqueeText põe o texto num <span> inline-block, que NÃO herda o
+   line-through do pai — por isso aplicamos direto no span interno também */
+.tarefaDone .tarefaTitulo,
+.tarefaDone .tarefaTitulo > span,
+.tarefaDone .tarefaGrupo,
+.tarefaDone .tarefaGrupo > span {
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--text) 45%, transparent);
+  text-decoration-thickness: 1.5px;
+}
+
+/* atrasada: exclamação vermelha piscando JUNTO na frente do título + título vermelho */
+.tarefaTituloRow { display: flex; align-items: center; gap: .3rem; min-width: 0; }
+.tarefaTituloRow .tarefaTitulo { flex: 1; min-width: 0; }
+.tarefaAtrasada .tarefaTitulo,
+.tarefaAtrasada .tarefaTitulo > span { color: var(--danger); }
+.atrasoBadge {
+  flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+  color: var(--danger);
+  filter: drop-shadow(0 0 4px rgba(248,113,113,.6));
+  animation: piscaAtraso 1.05s ease-in-out infinite;
+}
+@keyframes piscaAtraso { 0%, 100% { opacity: 1; } 50% { opacity: .18; } }
+@media (prefers-reduced-motion: reduce) { .atrasoBadge { animation: none; } }
+
+/* ── Card de Tarefas como BLOCO DE NOTAS ESPIRAL ──
+   nada embaixo (aquele efeito vazava pelo vidro); a "identidade" de bloco vem
+   da ESPIRAL no TOPO — furos metálicos regularmente espaçados perfurando a
+   borda superior, como a argola de um caderno */
+.cardNotas {
+  position: relative; z-index: 1;
+  box-shadow: 0 12px 22px -12px rgba(0,0,0,.5);
+}
+/* espiral: SVG de argolas cromadas straddling o topo (ver .espiral) */
+.espiral {
+  position: absolute; top: -12px; left: 12px; right: 12px; height: 26px;
+  z-index: 4; pointer-events: none;
+  filter: drop-shadow(0 3px 3px rgba(0,0,0,.55));
+}
+.espiral svg { width: 100%; height: 100%; display: block; overflow: visible; }
+/* respiro para as argolas no topo + folga do card de cima (calendário) */
+.cardNotas { padding-top: 1.1rem; margin-top: .85rem; }
+/* reflexo do metal na chapa, logo abaixo das argolas (realismo) */
+.cardNotas::after {
+  content: ''; position: absolute; top: 0; left: 14px; right: 14px; height: 12px;
+  z-index: 3; pointer-events: none; border-radius: 8px;
+  background: linear-gradient(180deg, rgba(190,208,238,.12), rgba(190,208,238,0));
+}
+
+/* Identificação por status: a cor entra como um FIO na aresta esquerda e no
+   ícone — o corpo do grupo continua neutro. Assim quatro grupos empilhados não
+   viram quatro blocos coloridos competindo entre si.
+   Especificidade .kbGroup.kb_* para vencer o `border` base do .kbGroup. */
+.kbGroup.kb_done         { --stat: #34d399; }
+.kbGroup.kb_pending      { --stat: #fbbf24; }
+.kbGroup.kb_nao_iniciada { --stat: #94a3b8; }
+.kbGroup.kb_atrasada     { --stat: #f87171; }
+.kbGroup.kb_done,
+.kbGroup.kb_pending,
+.kbGroup.kb_nao_iniciada,
+.kbGroup.kb_atrasada {
+  border-color: var(--border);
+  box-shadow:
+    inset 2px 0 0 color-mix(in srgb, var(--stat) 70%, transparent),
+    0 2px 8px -5px rgba(0,0,0,.5);
+}
+
+/* cada linha CRAVEJADA (inset), como o campo de busca da referência */
+.kbBody .tarefaItem {
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.3), inset 0 -1px 0 rgba(255,255,255,.03);
+}
+
+/* ── Grupos do kanban (por status) ── */
+.kbGroup {
+  flex-shrink: 0;
+  border: 1px solid var(--border); border-radius: 10px;
+  background: var(--surface-2); overflow: hidden;
+  box-shadow: 0 2px 8px -5px rgba(0,0,0,.5);
+}
+.kbHead {
+  display: flex; align-items: center; gap: .4rem;
+  width: 100%; padding: .42rem .5rem;
+  background: color-mix(in srgb, var(--surface-3) 50%, transparent);
+  cursor: pointer; text-align: left;
+  transition: background .15s;
+}
+.kbHead:hover { background: color-mix(in srgb, var(--surface-3) 85%, transparent); }
+/* o cabeçalho é neutro; só o ícone do status leva cor */
+.kbHead svg:first-of-type { color: var(--stat, var(--text-muted)); }
+.kbChevron { color: var(--text-muted); flex-shrink: 0; transition: transform .18s; }
+.kbChevronCol { transform: rotate(-90deg); }
+.kbLabel { flex: 1; font-size: .74rem; font-weight: 700; color: var(--text-dim); }
+.kbCount {
+  flex-shrink: 0; min-width: 20px; text-align: center;
+  font-size: .66rem; font-weight: 800; font-variant-numeric: tabular-nums;
+  color: var(--text-dim); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 99px; padding: 1px 6px;
+}
+.kbBody { display: flex; flex-direction: column; }
+
+/* itens dentro do grupo: sem caixa própria — divididos por linha fina */
+.kbBody .tarefaItem {
+  background: none; border: none; border-radius: 0;
+  border-top: 1px solid var(--border); padding: .45rem .5rem;
+}
+.kbBody .tarefaItem:hover { background: color-mix(in srgb, var(--surface-3) 45%, transparent); }
+
+/* checkbox redondo (estilo do modelo de tarefas) */
+.tarefaCheck {
+  flex-shrink: 0; width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
+  background: none; cursor: pointer;
+}
+.checkBox {
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid var(--text-muted);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; transition: transform .15s, box-shadow .2s;
+}
+.tarefaCheck:hover .checkBox { transform: scale(1.14); box-shadow: 0 0 8px rgba(34,211,238,.35); }
+/* anel limpo por status (sem "círculo dentro de círculo") */
+.chk_done         { background: var(--success); border-color: var(--success); }
+.chk_pending      { border-color: var(--warning); background: radial-gradient(circle, var(--warning) 0 2px, transparent 2.6px); }
+.chk_nao_iniciada { border-color: var(--text-muted); }
+.chk_atrasada     { border-color: var(--danger); }
+
+.tarefaStatus {
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 50%;
+  background: none; cursor: pointer;
+  transition: background .15s, box-shadow .2s, transform .15s;
+}
+.tarefaStatus:hover {
+  transform: scale(1.08);
+  background: var(--surface-3);
+  box-shadow: 0 0 10px rgba(34,211,238,.3);
+}
+.iconDone        { color: var(--success); }
+.iconPending     { color: var(--warning); }
+.iconNaoIniciada { color: var(--text-muted); }
+.iconAtrasada    { color: var(--danger); }
+
+/* menu de status (portal) */
+.statusMenu {
+  position: fixed; z-index: 99999;
+  width: 176px; padding: .35rem;
+  background:
+    linear-gradient(160deg, rgba(255,255,255,.06), rgba(255,255,255,0) 45%),
+    color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: var(--glass-blur) saturate(1.3);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  display: flex; flex-direction: column; gap: 1px;
+  animation: menuIn .12s ease;
+}
+@keyframes menuIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.statusMenuTitle {
+  font-size: .66rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--text-muted); padding: .3rem .45rem .2rem;
+}
+.statusOpt {
+  display: flex; align-items: center; gap: .5rem;
+  padding: .4rem .45rem; border-radius: 6px;
+  font-size: .78rem; color: var(--text-dim);
+  background: none; cursor: pointer; text-align: left;
+  transition: background .12s, color .12s;
+}
+.statusOpt span { flex: 1; }
+.statusOpt:hover { background: var(--surface-2); color: var(--text); }
+.statusOptAtivo { background: var(--primary-dim); color: var(--text); }
+.statusOptCheck { color: var(--primary); flex-shrink: 0; }
+
+.tarefaInfo { flex: 1; min-width: 0; }
+.tarefaTitulo { font-size: .8rem; font-weight: 600; color: var(--text); }
+.tarefaMeta   {
+  display: flex; align-items: center; gap: .35rem; min-width: 0;
+  font-size: .72rem; color: var(--text-muted); margin-top: 1px;
+}
+.tarefaGrupo { min-width: 0; flex: 1; }
+.tarefaData {
+  font-size: .72rem; color: var(--accent); font-weight: 600;
+  flex-shrink: 0; white-space: nowrap;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+}
+.tarefaDataIco { color: var(--primary); opacity: .85; }
+
+/* Responsivo: Atendimento/Meus Grupos (RightPanel) somem primeiro (1180px);
+   depois o painel esquerdo some também, sem empilhar — fica só o feed + tab bar. */
+@media (max-width: 980px) { .panel { display: none; } }

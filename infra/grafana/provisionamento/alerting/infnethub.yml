@@ -1,0 +1,3 @@
+# Alertas provisionados: nenhum por enquanto. O arquivo existe porque o
+# Grafana procura esta pasta na subida e registra erro quando ela falta.
+apiVersion: 1

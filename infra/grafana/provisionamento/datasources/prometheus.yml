@@ -1,0 +1,25 @@
+# O Prometheus como fonte de dados, por TLS, conferindo o certificado contra a
+# autoridade de desenvolvimento. $__file lê o arquivo na subida do Grafana.
+#
+# Exemplares (TP5): o histograma de tempo de resposta guarda, junto de cada
+# faixa, o traceId de uma requisição que caiu nela. No gráfico de latência, o
+# ponto de um pico vira um link para o trace daquela requisição no Tempo.
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: https://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      tlsAuthWithCACert: true
+      serverName: prometheus
+      timeInterval: 15s
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: tempo
+          urlDisplayLabel: Ver o trace
+    secureJsonData:
+      tlsCACert: $__file{/certs/ca.crt}

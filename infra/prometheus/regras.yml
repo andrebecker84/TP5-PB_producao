@@ -1,0 +1,99 @@
+# =========================================================================
+# Regras de alerta do Infnet Hub (TP5) — o que merece a atenção de alguém.
+#
+# Avaliadas pelo próprio Prometheus a cada 15 s. Aparecem em Alerts, na
+# interface do Prometheus, e no Grafana (Alerting → regras da fonte de dados).
+# Encaminhar para e-mail ou chat é trabalho de um Alertmanager, fora do escopo
+# desta entrega; as regras já estão no formato que ele consome.
+#
+# Os limiares seguem as métricas de ouro de um serviço — disponibilidade,
+# erros, latência — e duas que são próprias desta arquitetura: mensagem morta
+# e caixa de saída parada. Em ambas, o sintoma é invisível para quem usa a
+# plataforma até ser tarde.
+#
+# O mesmo arquivo é carregado no Compose e no Kubernetes (k8s/): os nomes dos
+# jobs de coleta são iguais nos dois ambientes.
+# =========================================================================
+
+groups:
+  - name: infnethub-servicos
+    rules:
+      - alert: ServicoForaDoAr
+        expr: up{job=~"infnethub-core|boletim-service|notificacao-service|api-gateway"} == 0
+        for: 1m
+        labels:
+          severidade: critica
+        annotations:
+          resumo: "{{ $labels.job }} ({{ $labels.instance }}) não responde há 1 minuto"
+
+      - alert: ServicoSemInstancias
+        # O caso que a regra de cima não vê. No Kubernetes, um serviço sem
+        # nenhuma réplica não deixa alvo "fora do ar": o pod some, a descoberta
+        # o tira da lista, e a série up desaparece — em vez de valer 0. absent()
+        # dispara justamente quando não há série nenhuma.
+        expr: |
+          absent(up{job="infnethub-core"}) or absent(up{job="boletim-service"})
+            or absent(up{job="notificacao-service"}) or absent(up{job="api-gateway"})
+        for: 1m
+        labels:
+          severidade: critica
+        annotations:
+          resumo: "{{ $labels.job }}: nenhuma instância no ar há 1 minuto"
+
+      - alert: TaxaDeErroAlta
+        # Só 5xx: um 4xx é o cliente errando, e o serviço acertando ao recusar.
+        expr: |
+          sum by (application) (rate(http_server_requests_seconds_count{status=~"5..", uri!~"/actuator.*"}[5m]))
+            /
+          sum by (application) (rate(http_server_requests_seconds_count{uri!~"/actuator.*"}[5m]))
+            > 0.05
+        for: 5m
+        labels:
+          severidade: alta
+        annotations:
+          resumo: "{{ $labels.application }}: mais de 5% das requisições terminando em erro 5xx"
+
+      - alert: LatenciaAlta
+        expr: |
+          histogram_quantile(0.95,
+            sum by (application, le) (rate(http_server_requests_seconds_bucket{uri!~"/actuator.*"}[5m])))
+            > 1
+        for: 5m
+        labels:
+          severidade: media
+        annotations:
+          resumo: "{{ $labels.application }}: p95 do tempo de resposta acima de 1 s"
+
+  - name: infnethub-mensageria
+    rules:
+      - alert: MensagensMortas
+        # Uma mensagem na DLQ é um evento que algum consumidor não conseguiu
+        # aplicar: um cadastro que não chegou ao boletim, uma notificação que
+        # não saiu. Não se resolve sozinho.
+        expr: sum by (queue) (max by (queue) (rabbitmq_queue_messages{queue=~`.*\.dlq`})) > 0
+        for: 1m
+        labels:
+          severidade: alta
+        annotations:
+          resumo: "{{ $value }} mensagem(ns) morta(s) em {{ $labels.queue }}"
+
+      - alert: CaixaDeSaidaParada
+        # O relay publica a cada meio segundo. Um minuto de espera quer dizer
+        # broker inacessível ou evento sem destino — os dados estão salvos,
+        # mas os outros serviços não estão sabendo deles.
+        expr: max by (application) (infnethub_outbox_espera_maxima_seconds) > 60
+        for: 2m
+        labels:
+          severidade: alta
+        annotations:
+          resumo: "{{ $labels.application }}: evento esperando há mais de 1 minuto na caixa de saída"
+
+      - alert: NoDoBrokerFora
+        # O cluster de três nós tolera a perda de um sem parar; a perda de dois
+        # para as filas quorum. O alerta vem na primeira, para dar tempo.
+        expr: count(up{job="rabbitmq"} == 1) < 3
+        for: 1m
+        labels:
+          severidade: alta
+        annotations:
+          resumo: "cluster do RabbitMQ com {{ $value }} de 3 nós no ar"

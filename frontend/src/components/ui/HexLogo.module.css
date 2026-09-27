@@ -1,0 +1,72 @@
+.hex {
+  flex-shrink: 0;
+  /* CRÍTICO: sem overflow visible o drop-shadow é recortado no retângulo do
+     SVG e aparece como um QUADRADO atrás da logo. Com visible a sombra segue
+     as formas (rede/aluno) e não há mais quadrado. */
+  overflow: visible;
+  filter:
+    drop-shadow(0 0 5px rgba(59, 142, 245, .55))
+    drop-shadow(0 0 11px rgba(34, 211, 238, .4));
+}
+/* no tema claro o glow ciano some no branco — troca por definição e saturação */
+:global([data-theme="light"]) .hex {
+  filter:
+    drop-shadow(0 1px 2px rgba(10, 40, 90, .28))
+    saturate(1.25) brightness(.92);
+}
+/* dentro de um trecho fixado no escuro (as telas de entrada), o brilho de sempre */
+:global([data-theme="light"]) :global([data-theme="dark"]) .hex {
+  filter:
+    drop-shadow(0 0 5px rgba(59, 142, 245, .55))
+    drop-shadow(0 0 11px rgba(34, 211, 238, .4));
+}
+
+/* conexões e anel se desenham na entrada (pathLength=1 normaliza o traço) */
+.anel,
+.spokes line {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: traca .9s ease .15s forwards;
+}
+@keyframes traca { to { stroke-dashoffset: 0; } }
+
+/* no hover a marca NÃO inclina — apenas as linhas se redesenham (movimento) */
+.hex:hover .anel { animation: retraca .8s ease; }
+.hex:hover .spokes line { animation: retraca .8s ease; }
+.hex:hover .spokes line:nth-child(1) { animation-delay: 0s; }
+.hex:hover .spokes line:nth-child(2) { animation-delay: .05s; }
+.hex:hover .spokes line:nth-child(3) { animation-delay: .1s; }
+.hex:hover .spokes line:nth-child(4) { animation-delay: .15s; }
+.hex:hover .spokes line:nth-child(5) { animation-delay: .2s; }
+.hex:hover .spokes line:nth-child(6) { animation-delay: .25s; }
+@keyframes retraca {
+  from { stroke-dashoffset: 1; }
+  to   { stroke-dashoffset: 0; }
+}
+
+/* nós surgem em sequência, com mola, depois das conexões */
+.nos circle {
+  opacity: 0;
+  transform-box: fill-box; transform-origin: center;
+  animation: surge .45s cubic-bezier(.34,1.56,.64,1) forwards;
+}
+.nos circle:nth-child(1) { animation-delay: .55s; }
+.nos circle:nth-child(2) { animation-delay: .62s; }
+.nos circle:nth-child(3) { animation-delay: .69s; }
+.nos circle:nth-child(4) { animation-delay: .76s; }
+.nos circle:nth-child(5) { animation-delay: .83s; }
+.nos circle:nth-child(6) { animation-delay: .90s; }
+@keyframes surge {
+  from { opacity: 0; transform: scale(.2); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* núcleo respira de leve — vida ambiente, sem distrair */
+.halo {
+  transform-box: fill-box; transform-origin: center;
+  animation: respira 3.2s ease-in-out infinite;
+}
+@keyframes respira {
+  0%, 100% { opacity: .45; transform: scale(.9); }
+  50%      { opacity: .85; transform: scale(1.08); }
+}

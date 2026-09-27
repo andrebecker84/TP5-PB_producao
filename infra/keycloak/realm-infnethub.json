@@ -1,0 +1,320 @@
+{
+  "realm": "infnethub",
+  "enabled": true,
+  "displayName": "Infnet Hub",
+  "displayNameHtml": "Infnet<b>Hub</b>",
+  "loginTheme": "infnethub",
+  "attributes": {
+    "parRequestUriLifespan": "1800"
+  },
+  "internationalizationEnabled": true,
+  "supportedLocales": ["pt-BR"],
+  "defaultLocale": "pt-BR",
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "editUsernameAllowed": false,
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "roles": {
+    "realm": [
+      {
+        "name": "ALUNO",
+        "description": "Aluno(a) — vê o próprio boletim e participa do feed"
+      },
+      {
+        "name": "PROFESSOR",
+        "description": "Professor(a) — lança conceitos e publica no feed"
+      },
+      {
+        "name": "SECRETARIA",
+        "description": "Secretaria — publica vagas e avisos institucionais"
+      },
+      {
+        "name": "COORDENADOR",
+        "description": "Coordenador(a) — acompanha o desempenho das turmas"
+      },
+      {
+        "name": "SUPORTE_TI",
+        "description": "Suporte de TI: opera a infraestrutura e acessa o painel de operação (Grafana). Não é papel acadêmico."
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "infnethub-bff",
+      "name": "Infnet Hub — BFF (API Gateway)",
+      "description": "Cliente confidencial do gateway. É ele que faz o login OIDC; o navegador nunca recebe token, só o cookie de sessão do gateway.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "bff-segredo-de-desenvolvimento",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:21080/login/oauth2/code/keycloak"
+      ],
+      "webOrigins": [
+        "http://localhost:21080"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "require.pushed.authorization.requests": "true",
+        "post.logout.redirect.uris": "http://localhost:21000/*##http://localhost:21080/*"
+      },
+      "protocolMappers": [
+        {
+          "name": "papeis-do-realm",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "claim.name": "realm_access.roles",
+            "multivalued": "true",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "usuario_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "usuario_id",
+            "claim.name": "usuario_id",
+            "jsonType.label": "long",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "infnethub-dev-cli",
+      "name": "Infnet Hub — CLI de desenvolvimento",
+      "description": "SOMENTE DESENVOLVIMENTO. Cliente público com concessão direta de senha, para a coleção http/ e os scripts de verificação obterem um token sem navegador. Não deve existir em produção: a concessão por senha é desaconselhada pelo OAuth 2.1.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [],
+      "webOrigins": [],
+      "protocolMappers": [
+        {
+          "name": "usuario_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "usuario_id",
+            "claim.name": "usuario_id",
+            "jsonType.label": "long",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "infnethub-grafana",
+      "name": "Infnet Hub — Grafana (painel de operação)",
+      "description": "Cliente confidencial do Grafana. O painel só aceita quem tem o papel SUPORTE_TI; os demais são recusados no login.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "grafana-segredo-de-desenvolvimento",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:21300/login/generic_oauth"
+      ],
+      "webOrigins": [
+        "http://localhost:21300"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:21000##http://localhost:21000/*"
+      },
+      "protocolMappers": [
+        {
+          "name": "papeis-do-realm",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "claim.name": "realm_access.roles",
+            "multivalued": "true",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "lucas.mendonca",
+      "email": "lucas.mendonca@hub.infnet.local",
+      "firstName": "Lucas",
+      "lastName": "Mendonça",
+      "enabled": true,
+      "emailVerified": true,
+      "attributes": {
+        "usuario_id": [
+          "1"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "infnet",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "ALUNO"
+      ]
+    },
+    {
+      "username": "carlos.oliveira",
+      "email": "carlos.oliveira@hub.infnet.local",
+      "firstName": "Carlos",
+      "lastName": "Oliveira",
+      "enabled": true,
+      "emailVerified": true,
+      "attributes": {
+        "usuario_id": [
+          "2"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "infnet",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "PROFESSOR"
+      ]
+    },
+    {
+      "username": "atendimento",
+      "email": "atendimento@hub.infnet.local",
+      "firstName": "Atendimento",
+      "lastName": "Infnet Hub",
+      "enabled": true,
+      "emailVerified": true,
+      "attributes": {
+        "usuario_id": [
+          "3"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "infnet",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "SECRETARIA"
+      ]
+    },
+    {
+      "username": "mariana.ferreira",
+      "email": "mariana.ferreira@hub.infnet.local",
+      "firstName": "Mariana",
+      "lastName": "Ferreira",
+      "enabled": true,
+      "emailVerified": true,
+      "attributes": {
+        "usuario_id": [
+          "4"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "infnet",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "ALUNO"
+      ]
+    },
+    {
+      "username": "rafael.azevedo",
+      "email": "rafael.azevedo@hub.infnet.local",
+      "firstName": "Rafael",
+      "lastName": "Azevedo",
+      "enabled": true,
+      "emailVerified": true,
+      "attributes": {
+        "usuario_id": [
+          "5"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "infnet",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "ALUNO"
+      ]
+    },
+    {
+      "username": "suporte.ti",
+      "email": "suporte.ti@hub.infnet.local",
+      "firstName": "Suporte",
+      "lastName": "de TI",
+      "enabled": true,
+      "emailVerified": true,
+      "attributes": {
+        "usuario_id": [
+          "1000"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "infnet",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "SUPORTE_TI"
+      ]
+    }
+  ],
+  "components": {
+    "org.keycloak.userprofile.UserProfileProvider": [
+      {
+        "providerId": "declarative-user-profile",
+        "subComponents": {},
+        "config": {
+          "kc.user.profile.config": [
+            "{\"unmanagedAttributePolicy\":\"ADMIN_EDIT\",\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"usuario_id\",\"displayName\":\"Id do usuário no infnethub-core\",\"validations\":{\"integer\":{}},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false}],\"groups\":[{\"name\":\"user-metadata\",\"displayHeader\":\"User metadata\",\"displayDescription\":\"Attributes, which refer to user metadata\"}]}"
+          ]
+        }
+      }
+    ]
+  }
+}

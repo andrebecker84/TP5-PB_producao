@@ -1,0 +1,250 @@
+.wrap { position: relative; display: inline-flex; }
+
+/* ── Badge (sem contorno, cor definida por --stcor) ── */
+.badge {
+  display: inline-flex; align-items: center; gap: .4rem;
+  padding: .1rem .35rem; border: none; background: none; cursor: pointer;
+  font-size: .74rem; font-weight: 700; letter-spacing: .01em;
+  color: var(--stcor); border-radius: 99px;
+  transition: background .15s;
+}
+.badge:hover { background: color-mix(in srgb, var(--stcor) 16%, transparent); }
+.compacto { padding: .2rem; }
+
+/* --stcor: a cor do sinal · --stluz: o halo, uma versão mais clara e
+   translúcida da mesma cor — é ela que pulsa, para o brilho não estourar */
+.online   { --stcor: #22c55e; --stluz: rgba(110,231,150,.5); }
+.ausente  { --stcor: #f59e0b; --stluz: rgba(253,205,110,.48); }
+.ocupado  { --stcor: #ef4444; --stluz: rgba(252,150,150,.48); }
+.dormindo { --stcor: #a78bfa; --stluz: rgba(206,193,253,.48); }
+.offline  { --stcor: #94a3b8; --stluz: rgba(148,163,184,.3); }
+
+/* ── A luz ── */
+.luz {
+  position: relative; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--stcor); flex-shrink: 0; box-shadow: 0 0 6px var(--stluz);
+}
+
+/* online: acende, a onda se abre, apaga — ciclo contínuo e sem emenda */
+.online .luz { animation: pulso 2.2s ease-in-out infinite; }
+.online .luz::after {
+  content: ''; position: absolute; inset: -1px; border-radius: 50%;
+  border: 1px solid var(--stcor); animation: onda 2.2s ease-out infinite;
+}
+@keyframes pulso {
+  0%   { opacity: .15; box-shadow: 0 0 0 var(--stcor); }
+  15%  { opacity: 1;   box-shadow: 0 0 11px var(--stcor); }
+  60%  { opacity: 1;   box-shadow: 0 0 8px var(--stcor); }
+  100% { opacity: .15; box-shadow: 0 0 0 var(--stcor); }
+}
+@keyframes onda {
+  0%   { transform: scale(1);    opacity: 0; }
+  15%  { transform: scale(1.05); opacity: .55; }
+  100% { transform: scale(3.2);  opacity: 0; }
+}
+
+/* ausente: respiração lenta e larga — a luz incha e recolhe, com uma onda
+   preguiçosa saindo junto (bem mais devagar que a do online) */
+.ausente .luz { animation: respira 3s ease-in-out infinite; }
+.ausente .luz::after {
+  content: ''; position: absolute; inset: -1px; border-radius: 50%;
+  border: 1.5px solid var(--stcor); animation: respiraOnda 3s ease-in-out infinite;
+}
+@keyframes respira {
+  0%, 100% { transform: scale(.9);  opacity: .5; box-shadow: 0 0 3px var(--stcor); }
+  50%      { transform: scale(1.4); opacity: 1;  box-shadow: 0 0 13px 2px var(--stcor); }
+}
+@keyframes respiraOnda {
+  0%, 100% { transform: scale(1);   opacity: .55; }
+  50%      { transform: scale(2.4); opacity: 0; }
+}
+
+/* ocupado: só a bolinha vermelha, batendo como um coração (duas pancadas
+   fortes e uma pausa) — cresce e acende junto, para a batida ficar visível */
+.ocupado .luz { animation: batida 2s ease-out infinite; }
+.ocupado .luz::after {
+  content: ''; position: absolute; inset: -1px; border-radius: 50%;
+  border: 1.5px solid var(--stcor); animation: batidaOnda 2s ease-out infinite;
+}
+@keyframes batida {
+  0%          { transform: scale(1);    box-shadow: 0 0 4px var(--stcor); }
+  10%         { transform: scale(1.45); box-shadow: 0 0 14px 2px var(--stcor); }
+  20%         { transform: scale(1);    box-shadow: 0 0 4px var(--stcor); }
+  30%         { transform: scale(1.32); box-shadow: 0 0 11px 1px var(--stcor); }
+  42%, 100%   { transform: scale(1);    box-shadow: 0 0 4px var(--stcor); }
+}
+@keyframes batidaOnda {
+  0%        { transform: scale(1);   opacity: .7; }
+  38%       { transform: scale(2.6); opacity: 0; }
+  100%      { transform: scale(2.6); opacity: 0; }
+}
+
+/* offline: só o contorno, sem brilho e sem animação */
+.offline .luz { background: none; box-shadow: none; border: 1.6px solid var(--stcor); opacity: .85; }
+
+/* ── O bonequinho: o mesmo desenho em todos os estados, na cor do status ── */
+.boneco { overflow: visible; flex-shrink: 0; color: var(--stcor); }
+.pupila, .bocaAberta { fill: rgba(8,10,30,.85); }
+.travesseiro { fill: currentColor; opacity: .22; }
+.cabeca { fill: currentColor; }
+.olho, .boca { fill: none; stroke: rgba(8,10,30,.8); stroke-width: 1.1; stroke-linecap: round; }
+/* dormindo: ronca */
+.boca { stroke-width: .9; opacity: .7; }
+.bochecha { fill: rgba(255,140,175,.55); }
+/* o ronco: infla devagar e solta */
+.corpo {
+  transform-box: view-box; transform-origin: 8px 13.5px;
+  animation: ronco 3.2s ease-in-out infinite;
+}
+@keyframes ronco {
+  0%, 100% { transform: scale(1); }
+  42%      { transform: scale(1.09); }
+  62%      { transform: scale(.99); }
+}
+.zs { fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; }
+.z1, .z2 { transform-box: view-box; transform-origin: 18px 9px; }
+.z1 { animation: sobeZ 3.2s ease-out infinite; }
+.z2 { animation: sobeZ 3.2s ease-out infinite .55s; transform-origin: 21px 6px; }
+@keyframes sobeZ {
+  0%   { opacity: 0; transform: translate(0, 3px) scale(.55); }
+  25%  { opacity: 1; transform: translate(1px, 0) scale(1); }
+  100% { opacity: 0; transform: translate(3.5px, -5px) scale(1.15); }
+}
+
+/* online: pula alegre, a sombra encolhe no alto, os brilhos piscam */
+.pula { transform-box: view-box; transform-origin: 12px 18px; animation: pulinho 1.3s cubic-bezier(.34,1.4,.64,1) infinite; }
+@keyframes pulinho {
+  0%, 100% { transform: translateY(0) scale(1.03, .97); }
+  45%      { transform: translateY(-2.4px) scale(.98, 1.02); }
+}
+.sombra { fill: currentColor; opacity: .2; transform-box: fill-box; transform-origin: center; animation: sombra 1.3s ease-in-out infinite; }
+@keyframes sombra { 45% { transform: scaleX(.7); opacity: .1; } }
+.brilho { fill: none; stroke: currentColor; stroke-width: 1.1; stroke-linecap: round; transform-box: fill-box; transform-origin: center; }
+.brilho1 { animation: brilha 1.6s ease-in-out infinite; }
+.brilho2 { animation: brilha 1.6s ease-in-out infinite .8s; }
+@keyframes brilha { 0%, 100% { opacity: 0; transform: scale(.4) rotate(0); } 50% { opacity: 1; transform: scale(1) rotate(45deg); } }
+
+/* ausente: voando num foguete, com a chama tremulando */
+.voo { transform-box: view-box; transform-origin: 13px 15px; animation: voa 1.8s ease-in-out infinite; }
+@keyframes voa {
+  0%, 100% { transform: translate(0, 0) rotate(-6deg); }
+  50%      { transform: translate(.8px, -1.6px) rotate(-10deg); }
+}
+/* o foguete de sempre: corpo claro, bico e asas vermelhos — contrasta com o
+   amarelo do status no claro e no escuro */
+.foguete { fill: #f1f5f9; stroke: #b91c1c; stroke-width: .7; stroke-linejoin: round; }
+.fogueteBico { fill: #ef4444; stroke: #b91c1c; stroke-width: .6; stroke-linejoin: round; }
+.fogueteAsa { fill: #ef4444; stroke: #b91c1c; stroke-width: .5; stroke-linejoin: round; }
+.janela { fill: #38bdf8; stroke: #0f172a; stroke-width: .6; }
+.chama { fill: #fb923c; transform-box: fill-box; transform-origin: right center; animation: chama .16s ease-in-out infinite alternate; }
+@keyframes chama { from { transform: scaleX(.65); fill: #fbbf24; } to { transform: scaleX(1.15); fill: #f97316; } }
+
+/* ocupado: corre feito maluco — sacode, as pernas giram, o suor pinga */
+.corre { transform-box: view-box; transform-origin: 15px 14px; animation: sacode .22s ease-in-out infinite alternate; }
+@keyframes sacode { from { transform: translateY(0) rotate(4deg); } to { transform: translateY(-1px) rotate(8deg); } }
+.perna { transform-box: view-box; transform-origin: 15px 15.6px; }
+.jeans { stroke: #2563eb; stroke-width: 1.9; stroke-linecap: round; }
+.tenis { fill: #f8fafc; stroke: #334155; stroke-width: .4; }
+.perna1 { animation: passo .22s linear infinite alternate; }
+.perna2 { animation: passo .22s linear infinite alternate-reverse; }
+@keyframes passo { from { transform: rotate(-38deg); } to { transform: rotate(38deg); } }
+.braco { transform-box: view-box; }
+.pele { stroke: #f4c095; stroke-width: 1.5; stroke-linecap: round; }
+.mao { fill: #f4c095; stroke: #b7794d; stroke-width: .35; }
+.braco1 { transform-origin: 11.2px 14.4px; animation: balanco .22s ease-in-out infinite alternate-reverse; }
+/* o braço da frente corre e, de vez em quando, sobe e passa na testa */
+.braco2 { transform-origin: 18.8px 14.4px; animation: enxuga 1.6s ease-in-out infinite; }
+@keyframes enxuga {
+  0%, 100% { transform: rotate(55deg); }
+  11%      { transform: rotate(-55deg); }
+  22%      { transform: rotate(55deg); }
+  33%      { transform: rotate(-55deg); }
+  44%      { transform: rotate(55deg); }
+  56%      { transform: rotate(188deg); }
+  64%      { transform: rotate(206deg); }
+  72%      { transform: rotate(184deg); }
+  80%      { transform: rotate(206deg); }
+  90%      { transform: rotate(55deg); }
+}
+@keyframes balanco { from { transform: rotate(-55deg); } to { transform: rotate(55deg); } }
+.velocidade { fill: none; stroke: currentColor; stroke-width: 1.1; stroke-linecap: round; opacity: .7; }
+.velocidade path { stroke-dasharray: 3 3; animation: vento .3s linear infinite; }
+@keyframes vento { to { stroke-dashoffset: 6; } }
+/* a gota: azul-claro com contorno escuro, para aparecer sobre a cabeça vermelha */
+.suor, .respingo { fill: #bae6fd; stroke: #0c4a6e; stroke-width: .45; }
+/* a gota escorre pela lateral; a mão passa, e o suor voa longe */
+.suor { animation: escorre 1.6s ease-in infinite; }
+@keyframes escorre {
+  0%       { opacity: 0; transform: translate(0, 0); }
+  8%       { opacity: 1; }
+  45%      { opacity: 1; transform: translate(.8px, 3px); }
+  56%, 100% { opacity: 0; transform: translate(1.4px, 3.6px); }
+}
+.respingo { opacity: 0; }
+.respingo1 { animation: respinga 1.6s ease-out infinite; }
+.respingo2 { animation: respinga2 1.6s ease-out infinite; }
+@keyframes respinga {
+  0%, 72% { opacity: 0; transform: translate(-3px, -1px) scale(.4); }
+  80%     { opacity: 1; transform: translate(0, 0) scale(1); }
+  100%    { opacity: 0; transform: translate(2.6px, -1.4px) scale(.6); }
+}
+@keyframes respinga2 {
+  0%, 76% { opacity: 0; transform: translate(-3px, -1px) scale(.4); }
+  84%     { opacity: 1; transform: translate(0, 0) scale(1); }
+  100%    { opacity: 0; transform: translate(2.8px, 1.2px) scale(.6); }
+}
+
+/* offline: espia por trás da nuvem, sobe e se esconde */
+.espia { animation: espia 4.2s ease-in-out infinite; }
+@keyframes espia {
+  0%, 30%, 100% { transform: translateY(3.4px); }
+  45%, 80%      { transform: translateY(0); }
+}
+/* nuvem branca com contorno, para destacar da cabeça cinza atrás dela */
+.nuvem {
+  fill: #f8fafc; stroke: #64748b; stroke-width: .6; stroke-linejoin: round;
+  filter: drop-shadow(0 .6px .8px rgba(0,0,0,.35));
+  animation: deriva 5s ease-in-out infinite alternate;
+}
+@keyframes deriva { to { transform: translateX(.8px); } }
+
+/* ── Menu ── */
+/* vai por portal para o <body>: posição fixa, calculada a partir do botão */
+.menu {
+  position: fixed; z-index: 9700;
+  width: 232px; padding: .35rem;
+  background: color-mix(in srgb, var(--surface) 97%, transparent);
+  border: 1px solid var(--border-2); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  display: flex; flex-direction: column; gap: 1px;
+  animation: abre .16s cubic-bezier(.34,1.3,.64,1);
+}
+@keyframes abre { from { opacity: 0; transform: translateY(-5px) scale(.97); } }
+/* no dock (ancorado na base da página) o menu abre para CIMA */
+.menuCima { animation: abreCima .16s cubic-bezier(.34,1.3,.64,1); }
+@keyframes abreCima { from { opacity: 0; transform: translateY(5px) scale(.97); } }
+
+/* o optLuz precisa caber o bonequinho, que é maior que uma bolinha */
+.optLuz { min-height: 26px; }
+.menuTitulo {
+  font-size: .62rem; font-weight: 800; text-transform: uppercase; letter-spacing: .07em;
+  color: var(--text-muted); padding: .35rem .5rem .3rem;
+}
+.opt {
+  display: flex; align-items: center; gap: .55rem; width: 100%;
+  padding: .42rem .5rem; border: none; background: none; cursor: pointer;
+  border-radius: var(--radius); text-align: left;
+  transition: background .13s;
+}
+.opt:hover { background: color-mix(in srgb, var(--stcor) 12%, transparent); }
+.optOn { background: color-mix(in srgb, var(--stcor) 15%, transparent); }
+.optLuz { width: 30px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.optTxt { display: flex; flex-direction: column; min-width: 0; }
+.optTxt b { font-size: .78rem; font-weight: 700; color: var(--text); }
+.optTxt i { font-style: normal; font-size: .66rem; color: var(--text-muted); }
+.optCheck { margin-left: auto; color: var(--stcor); flex-shrink: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .luz, .luz::after, .corpo, .z1, .z2, .pula, .sombra, .brilho1, .brilho2, .voo, .chama,
+  .corre, .perna1, .perna2, .braco1, .braco2, .velocidade path, .suor, .respingo1, .respingo2, .espia, .nuvem { animation: none !important; }
+}

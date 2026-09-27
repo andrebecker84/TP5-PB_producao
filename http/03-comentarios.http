@@ -1,0 +1,41 @@
+# Comentários — entidade do agregado Post
+#
+# Comentário não tem rota própria de primeiro nível: vive sob /posts/{id}.
+# A URL espelha o modelo — o comentário não existe fora do post.
+
+### Listar comentários de um post
+GET {{baseUrl}}/api/v1/posts/1/comentarios
+Authorization: Bearer {{tokenAluno}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200);
+    });
+%}
+
+### Criar comentário
+POST {{baseUrl}}/api/v1/posts/1/comentarios
+Authorization: Bearer {{tokenAluno}}
+Content-Type: application/json
+
+{
+  "conteudo": "Ótimo post! Muito esclarecedor."
+}
+
+> {%
+    client.test("responde 201", () => {
+        client.assert(response.status === 201, "esperado 201, veio " + response.status);
+    });
+    client.global.set("comentarioId", response.body.id);
+%}
+
+### Deletar comentário
+DELETE {{baseUrl}}/api/v1/posts/1/comentarios/{{comentarioId}}
+Authorization: Bearer {{tokenAluno}}
+
+> {%
+    client.test("responde 204", () => {
+        client.assert(response.status === 204, "esperado 204, veio " + response.status);
+    });
+%}

@@ -1,0 +1,110 @@
+# Histórico de dados — Hibernate Envers + Spring Data Envers
+#
+# Somente GET, de propósito: o histórico é escrito pelo Envers como efeito das
+# operações do domínio. Um endpoint capaz de alterar revisões destruiria a
+# garantia que torna o registro confiável.
+#
+# Para ver movimento aqui, execute antes as alterações em 02-posts.http.
+
+### Histórico de um post
+# Todas as revisões do post, da mais antiga para a mais recente.
+#
+# Cada entrada traz o snapshot completo do post naquela revisão — o estado
+# inteiro, não um diff — junto de quem alterou, quando e de onde.
+GET {{baseUrl}}/api/v1/historico/posts/1?pagina=0&tamanho=20
+Authorization: Bearer {{tokenProfessor}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200);
+    });
+    // Guarda o número da revisão mais recente para a consulta seguinte.
+    if (response.body.conteudo && response.body.conteudo.length > 0) {
+        client.global.set("rev", response.body.conteudo[0].revisao);
+    }
+%}
+
+### Revisão específica de um post
+# Estado exato do post naquela revisão. Mesmo que ele tenha sido editado várias
+# vezes depois, esta revisão continua respondendo como ele estava naquele
+# momento. É a essência do histórico por snapshot: não é preciso reconstruir o
+# estado a partir de diffs. Um número inexistente retorna 404.
+GET {{baseUrl}}/api/v1/historico/posts/1/revisoes/{{rev}}
+Authorization: Bearer {{tokenProfessor}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200);
+    });
+%}
+
+### Última revisão de um post, mesmo excluído
+# Execute "Deletar post" em 02-posts.http e depois esta requisição. O post não
+# existe mais na tabela `posts`, mas a auditoria ainda responde o que ele dizia,
+# com tipo "EXCLUSAO".
+#
+# Isso depende de store_data_at_delete=true. No padrão do Envers, a revisão de
+# exclusão guardaria apenas o id e nulos nos demais campos.
+GET {{baseUrl}}/api/v1/historico/posts/1/ultima-revisao
+Authorization: Bearer {{tokenProfessor}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200);
+    });
+%}
+
+### Histórico de um usuário
+# Útil para rastrear mudanças sensíveis de identidade — troca de papel
+# (ALUNO → PROFESSOR), correção de e-mail institucional, mudança de turma.
+GET {{baseUrl}}/api/v1/historico/usuarios/1
+Authorization: Bearer {{tokenProfessor}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200);
+    });
+%}
+
+### Histórico de uma vaga
+GET {{baseUrl}}/api/v1/historico/vagas/1
+Authorization: Bearer {{tokenProfessor}}
+Accept: application/json
+
+### Histórico de um comentário
+# Não há endpoint de histórico para curtidas: a entidade não é auditada.
+# Uma curtida não tem estado mutável — é criada e removida, nunca editada.
+GET {{baseUrl}}/api/v1/historico/comentarios/1
+Authorization: Bearer {{tokenProfessor}}
+Accept: application/json
+
+### Linha do tempo global
+# Toda alteração registrada no sistema, da mais recente para a mais antiga.
+#
+# Enquanto os demais endpoints respondem "o que aconteceu com este registro?",
+# este responde a pergunta transversal: "o que aconteceu no sistema, e quem
+# fez?" — lendo apenas o cabeçalho das revisões, sem tocar em nenhuma tabela _aud.
+#
+# Numa base recém-carregada, as primeiras revisões aparecem com autor "sistema":
+# são os dados iniciais, que nascem com histórico porque o DataLoader grava via
+# JPA e não por SQL bruto.
+GET {{baseUrl}}/api/v1/historico/revisoes?pagina=0&tamanho=20
+Authorization: Bearer {{tokenProfessor}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200);
+    });
+    client.test("traz autor e origem em cada revisão", () => {
+        if (response.body.conteudo && response.body.conteudo.length > 0) {
+            const r = response.body.conteudo[0];
+            client.assert(r.autor !== undefined, "sem campo autor");
+            client.assert(r.dataHora !== undefined, "sem campo dataHora");
+        }
+    });
+%}

@@ -1,0 +1,201 @@
+# Avisos — o padrão comando, e o comando com hora marcada
+#
+# Todo o resto da coleção pede coisas que acontecem na hora. Aqui não: o core
+# aceita o pedido, responde 202 e vai embora. Quem escreve as notificações é
+# outro serviço, com outro banco, que pode até estar fora do ar neste momento.
+#
+# Por isso as verificações vêm em duas partes. Primeiro o contrato — quem pode
+# pedir, o que a resposta promete. Depois, algumas requisições adiante, o
+# efeito: a notificação que o comando gerou do outro lado.
+
+### Aluno não avisa a turma — 403
+# Autenticado não é autorizado. Sem esta regra, qualquer conta válida mandaria
+# notificação para todo mundo.
+POST {{baseUrl}}/api/v1/avisos
+Authorization: Bearer {{tokenAluno}}
+Content-Type: application/json
+
+{
+  "texto": "Todos liberados hoje"
+}
+
+> {%
+    client.test("responde 403", () => {
+        client.assert(response.status === 403, "esperado 403, veio " + response.status);
+    });
+%}
+
+### Sem token não há aviso — 401
+POST {{baseUrl}}/api/v1/avisos
+Content-Type: application/json
+
+{
+  "texto": "Aviso sem remetente"
+}
+
+> {%
+    client.test("responde 401", () => {
+        client.assert(response.status === 401, "esperado 401, veio " + response.status);
+    });
+%}
+
+### Aviso sem texto é recusado — 400
+POST {{baseUrl}}/api/v1/avisos
+Authorization: Bearer {{tokenSecretaria}}
+Content-Type: application/json
+
+{
+  "destinatarios": [1]
+}
+
+> {%
+    client.test("responde 400", () => {
+        client.assert(response.status === 400, "esperado 400, veio " + response.status);
+    });
+%}
+
+### A secretaria avisa o Lucas — 202, e não 201
+# 201 diria que nasceu um recurso com endereço próprio. Não nasceu: a
+# notificação será escrita por outro serviço, no banco dele. 202 diz o que de
+# fato aconteceu — o pedido foi aceito.
+POST {{baseUrl}}/api/v1/avisos
+Authorization: Bearer {{tokenSecretaria}}
+Content-Type: application/json
+
+{
+  "destinatarios": [1],
+  "texto": "Sua matrícula no Bloco 5 foi confirmada",
+  "link": "/boletim"
+}
+
+> {%
+    client.test("responde 202 Accepted", () => {
+        client.assert(response.status === 202, "esperado 202, veio " + response.status);
+    });
+    client.test("o recibo traz o id que segue no broker", () => {
+        client.assert(response.body.mensagemId !== undefined, "sem mensagemId");
+        client.assert(response.body.alcance === "1 pessoa(s)", "alcance inesperado: " + response.body.alcance);
+    });
+    client.global.set("avisoId", response.body.mensagemId);
+%}
+
+### O mesmo aviso, para daqui a uma hora
+# O atraso não é um agendador dentro do serviço: vira o prazo de validade da
+# mensagem numa fila sem consumidor. Quando vence, o próprio RabbitMQ a
+# reencaminha para a fila de trabalho. Reiniciar os serviços não perde o
+# agendamento, porque ele não está em nenhum deles.
+#
+# A entrega em si é verificada pelo teste ComandoDeAvisoIntegracaoTest, que tem
+# como esperar o prazo; aqui se verifica o que a API promete.
+#
+# O texto leva uma marca desta execução. Sem ela, o lembrete agendado por uma
+# execução de mais de uma hora atrás — já entregue, e corretamente — seria
+# confundido com o desta, e a verificação de "ainda não chegou" falharia sem
+# que nada estivesse errado.
+< {%
+    client.global.set("marcaAgendado", String(Date.now()));
+%}
+POST {{baseUrl}}/api/v1/avisos
+Authorization: Bearer {{tokenSecretaria}}
+Content-Type: application/json
+
+{
+  "destinatarios": [1],
+  "texto": "Lembrete: o prazo do TP4 termina amanhã (#{{marcaAgendado}})",
+  "link": "/boletim",
+  "atrasoSegundos": 3600
+}
+
+> {%
+    client.test("responde 202", () => {
+        client.assert(response.status === 202, "esperado 202, veio " + response.status);
+    });
+    client.test("a entrega fica marcada para daqui a uma hora", () => {
+        const entrega = new Date(response.body.entrega).getTime();
+        const daquiUmaHora = Date.now() + 3600 * 1000;
+        // Cinco minutos de folga cobrem a diferença de relógio entre o
+        // contêiner e a máquina que roda a coleção.
+        client.assert(Math.abs(entrega - daquiUmaHora) < 5 * 60 * 1000,
+            "entrega marcada para " + response.body.entrega);
+    });
+%}
+
+### Aviso sem lista de destinatários alcança toda a turma
+POST {{baseUrl}}/api/v1/avisos
+Authorization: Bearer {{tokenProfessor}}
+Content-Type: application/json
+
+{
+  "texto": "Aula de Arquitetura de quinta será no laboratório 3",
+  "link": "/feed"
+}
+
+> {%
+    client.test("responde 202", () => {
+        client.assert(response.status === 202, "esperado 202, veio " + response.status);
+    });
+    client.test("o alcance é a turma inteira", () => {
+        client.assert(response.body.alcance === "toda a turma",
+            "alcance inesperado: " + response.body.alcance);
+    });
+%}
+
+### Saúde do core
+# As três verificações a seguir existem por conta própria — são a checagem de
+# que os serviços estão no ar. De quebra, dão ao caminho assíncrono o tempo de
+# uma volta: o relay despacha a cada 500 ms, e três idas e vindas de rede
+# passam disso com folga.
+GET {{baseUrl}}/actuator/health
+
+> {%
+    client.test("core no ar", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+        client.assert(response.body.status === "UP", "estado: " + response.body.status);
+    });
+%}
+
+### Saúde do boletim
+GET {{boletimUrl}}/actuator/health
+
+> {%
+    client.test("boletim no ar", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+    });
+%}
+
+### Saúde do serviço de notificação
+GET {{notificacaoUrl}}/actuator/health
+
+> {%
+    client.test("notificação no ar", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+    });
+%}
+
+### O comando chegou do outro lado
+# Esta é a verificação que importa: o aviso saiu do core como pedido e chegou
+# ao serviço de notificação como notificação — dois bancos, dois serviços,
+# nenhuma chamada HTTP entre eles.
+GET {{notificacaoUrl}}/api/v1/notificacoes
+Authorization: Bearer {{tokenAluno}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+    });
+    client.test("a matrícula confirmada virou notificação do tipo AVISO", () => {
+        const avisos = response.body.filter(n => n.tipo === "AVISO");
+        client.assert(avisos.length > 0, "nenhuma notificação do tipo AVISO chegou");
+        const matricula = avisos.find(n => n.texto.indexOf("Bloco 5") >= 0);
+        client.assert(matricula !== undefined,
+            "o aviso da matrícula não chegou; vieram: " + avisos.map(a => a.texto).join(" | "));
+        client.assert(matricula.link === "/boletim", "link inesperado: " + matricula.link);
+    });
+%}
+
+# O aviso endereçado à turma inteira e o aviso agendado são conferidos no
+# arquivo seguinte, depois de mais algumas idas e vindas. O motivo é o próprio
+# padrão: um aviso para uma pessoa escreve uma linha, um aviso para a turma
+# escreve uma por aluno — e chega alguns centésimos depois. Conferir os dois no
+# mesmo instante seria escrever um teste que às vezes passa.

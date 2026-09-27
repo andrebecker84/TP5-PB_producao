@@ -1,0 +1,218 @@
+# =========================================================================
+# API Gateway — ponto único de entrada
+#
+# Em YAML, e não em .properties como os demais módulos: as rotas do gateway são
+# uma lista de objetos com listas dentro (predicates, filters). Em .properties
+# isso vira spring.cloud.gateway.server.webflux.routes[0].predicates[0], e a
+# configuração deixa de ser legível justamente onde precisa ser conferida.
+# =========================================================================
+
+spring:
+  application:
+    name: api-gateway
+
+  security:
+    oauth2:
+      # Cliente: é o gateway quem faz o login no Keycloak (fluxo do navegador).
+      # Resource server: é também o gateway quem valida o token de quem chega
+      # com Authorization — script, coleção HTTP, teste de fumaça.
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${app.keycloak.url-interna}/realms/${app.keycloak.realm}/protocol/openid-connect/certs
+          issuer-uri: ${app.keycloak.url-publica}/realms/${app.keycloak.realm}
+      client:
+        provider:
+          keycloak:
+            authorization-uri: ${app.keycloak.url-publica}/realms/${app.keycloak.realm}/protocol/openid-connect/auth
+            token-uri: ${app.keycloak.url-interna}/realms/${app.keycloak.realm}/protocol/openid-connect/token
+            jwk-set-uri: ${app.keycloak.url-interna}/realms/${app.keycloak.realm}/protocol/openid-connect/certs
+            user-info-uri: ${app.keycloak.url-interna}/realms/${app.keycloak.realm}/protocol/openid-connect/userinfo
+            user-name-attribute: preferred_username
+        registration:
+          keycloak:
+            client-id: ${KEYCLOAK_BFF_CLIENT:infnethub-bff}
+            client-secret: ${KEYCLOAK_BFF_SECRET:bff-segredo-de-desenvolvimento}
+            authorization-grant-type: authorization_code
+            scope: openid,profile,email
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+
+  cloud:
+    loadbalancer:
+      cache:
+        ttl: 5s
+    gateway:
+      server:
+        webflux:
+          # ── Cadeia de proxies confiáveis ────────────────────────────────
+          # Sem esta propriedade o gateway REMOVE os headers X-Forwarded-* e
+          # Forwarded antes de encaminhar a requisição. Não é defeito: é o
+          # endurecimento introduzido no Spring Cloud Gateway 4 contra spoofing
+          # de origem — sem saber em quais proxies confiar, a única resposta
+          # segura é descartar o que qualquer cliente possa ter forjado.
+          #
+          # A consequência aparece longe daqui: a auditoria do infnethub-core
+          # registrava o IP do próprio gateway em toda revisão, e o campo de
+          # origem virava uma coluna sempre igual. Verificado em execução — o
+          # gateway observava corretamente 172.28.0.1 e o core recebia
+          # 172.28.0.7.
+          #
+          # O regex cobre as faixas privadas: a rede do Compose (172.16–31.x.x),
+          # loopback e as demais faixas RFC 1918. Endereço público nenhum é
+          # confiável aqui, porque este gateway é a borda — não há proxy legítimo
+          # à frente dele.
+          trusted-proxies: "127\\.0\\.0\\.1|10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|172\\.(1[6-9]|2\\d|3[01])\\.\\d{1,3}\\.\\d{1,3}|192\\.168\\.\\d{1,3}\\.\\d{1,3}"
+
+          # ── Cabeçalhos duplicados de CORS ───────────────────────────────
+          # O gateway responde ao CORS, e os serviços de trás também mantêm a
+          # sua configuração para o acesso direto em desenvolvimento. Numa
+          # requisição que atravessa o gateway, os dois escrevem
+          # Access-Control-Allow-Origin, e a resposta sai com o header repetido.
+          #
+          # O navegador então RECUSA: a especificação exige um valor único, e
+          # "http://localhost:21000, http://localhost:21000" — dois valores
+          # idênticos — é inválido do mesmo jeito. A falha só aparece no
+          # navegador; curl não aplica política de CORS, e o preflight parece
+          # correto porque o OPTIONS é respondido pelo gateway sozinho, sem
+          # chegar ao serviço de trás.
+          #
+          # RETAIN_UNIQUE mantém uma ocorrência de cada valor distinto. A
+          # alternativa seria desligar o CORS nos serviços internos, mas isso
+          # custaria a possibilidade de abri-los direto para diagnóstico.
+          default-filters:
+            - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
+            # ── TokenRelay ────────────────────────────────────────────────
+            # Pega o token de acesso guardado na sessão do gateway e o põe no
+            # cabeçalho Authorization das requisições encaminhadas. É o elo
+            # entre o cookie do navegador (fora) e o JWT dos serviços (dentro).
+            # Também renova o token quando ele expira, usando o refresh token
+            # que só o gateway tem.
+            - TokenRelay=
+            # ── Nova tentativa, só quando a conexão nem chegou a abrir ─────
+            # Entre uma instância sair e o registro deixar de oferecê-la,
+            # passam alguns segundos; nesse intervalo o balanceador ainda pode
+            # sortear o endereço antigo, e a conexão é recusada. Recusada quer
+            # dizer que a requisição não foi enviada: tentar de novo — agora em
+            # outra instância — é seguro até para um POST. Por isso a regra é a
+            # EXCEÇÃO de conexão, e não o status: um 5xx de um POST significa
+            # que ele pode ter sido executado, e repeti-lo não seria seguro.
+            # `series` vazio desliga a regra padrão, que repetiria todo 5xx.
+            - name: Retry
+              args:
+                retries: 2
+                series: ""
+                methods: GET,POST,PUT,PATCH,DELETE
+                exceptions: java.net.ConnectException
+
+          # ── Rotas ───────────────────────────────────────────────────────
+          # O destino é lb://<nome-no-eureka>, não host:porta. O "lb" liga o
+          # balanceador de carga do Spring Cloud: o endereço é resolvido no
+          # registro a cada requisição, e havendo mais de uma instância do
+          # serviço, elas são alternadas. Fixar localhost:21081 aqui faria o
+          # Eureka virar enfeite.
+          routes:
+            - id: infnethub-core
+              uri: lb://infnethub-core
+              predicates:
+                # Os recursos da aplicação central. Note que comentários e
+                # curtidas não aparecem: vivem sob /posts/{id}/..., já cobertos
+                # pelo padrão de posts. Avisos entram aqui, e não no serviço de
+                # notificação, porque quem recebe o pedido é o core — o serviço
+                # de notificação nem tem rota para isso: ele só executa o que
+                # chega pelo broker.
+                - Path=/api/v1/usuarios/**,/api/v1/posts/**,/api/v1/vagas/**,/api/v1/historico/**,/api/v1/avisos/**
+
+            - id: boletim-service
+              uri: lb://boletim-service
+              predicates:
+                - Path=/api/v1/boletim/**,/api/v1/desempenho/**,/api/v1/catalogo/**,/api/v1/alunos/**
+
+            # Pode haver várias instâncias do serviço de notificações; o "lb"
+            # distribui entre elas. Inclui a conexão ao vivo (/ao-vivo, SSE),
+            # que o gateway reativo repassa como fluxo, sem acumular a resposta.
+            - id: notificacao-service
+              uri: lb://notificacao-service
+              predicates:
+                - Path=/api/v1/notificacoes/**
+
+          # O CORS não fica aqui desde o TP4: passou para um bean
+          # (seguranca/CorsConfig), porque a configuração do gateway só
+          # alcança as respostas ROTEADAS — e o 401 de quem não está
+          # autenticado é respondido pelo próprio gateway, antes de rotear.
+
+# ── Identidade (OpenID Connect no Keycloak) ─────────────────────────────────
+# Duas URLs para o mesmo Keycloak, e isso não é redundância:
+#
+#   url-publica  o que o NAVEGADOR acessa (localhost:21180). É para onde a
+#                pessoa é levada para digitar a senha, e é o valor que aparece
+#                no campo "iss" dos tokens.
+#   url-interna  o que os CONTÊINERES acessam (keycloak:8080). Dentro da rede
+#                do Compose, "localhost" seria o próprio contêiner.
+#
+# Por isso os endereços do provedor são declarados um a um, em vez de usar a
+# descoberta automática pelo issuer-uri: a descoberta exigiria que as duas
+# pontas usassem a mesma URL, e nenhuma das duas serve para os dois lados.
+app:
+  front-end:
+    url: ${FRONTEND_URL:http://localhost:21000}
+  keycloak:
+    url-publica: ${KEYCLOAK_URL_PUBLICA:http://localhost:21180}
+    url-interna: ${KEYCLOAK_URL_INTERNA:http://localhost:21180}
+    realm: ${KEYCLOAK_REALM:infnethub}
+
+server:
+  port: ${SERVER_PORT:21080}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:21761/eureka}
+    # O gateway é quem mais precisa saber, depressa, que uma instância saiu:
+    # o padrão de 30 s para rebuscar o registro mais os 35 s de cache do
+    # balanceador deixavam o endereço de um contêiner recriado em uso por mais
+    # de meio minuto. Cinco segundos em cada ponta.
+    registry-fetch-interval-seconds: 5
+  instance:
+    prefer-ip-address: true
+
+management:
+  # ── Rastreamento distribuído (TP5) ────────────────────────────────────────
+  # O gateway é onde o trace NASCE: a requisição do navegador chega sem
+  # traceparent, ganha um aqui, e o repasse aos serviços leva o cabeçalho
+  # adiante. Os detalhes de cada propriedade estão comentados no
+  # application.properties do infnethub-core.
+  tracing:
+    sampling:
+      probability: ${TRACING_AMOSTRAGEM:1.0}
+    export:
+      otlp:
+        enabled: ${OTLP_HABILITADO:false}
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          endpoint: ${OTLP_TRACES_URL:http://localhost:4318/v1/traces}
+    resource-attributes:
+      "[deployment.environment]": ${AMBIENTE:local}
+  otlp:
+    metrics:
+      export:
+        enabled: false
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+  endpoints:
+    web:
+      exposure:
+        # O endpoint "gateway" expõe as rotas efetivamente carregadas — é por
+        # ele que se confere se um Path escrito errado simplesmente não subiu.
+        include: health,info,gateway,prometheus
+  endpoint:
+    gateway:
+      # Expor não basta: desde o Spring Cloud Gateway 4 este endpoint vem
+      # desabilitado por padrão, e listá-lo no "include" acima sem liberar o
+      # acesso aqui resulta num 404 que parece erro de digitação na rota.
+      # "access" substituiu o antigo "enabled" a partir do Boot 3.4.
+      access: unrestricted

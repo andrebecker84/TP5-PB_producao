@@ -1,0 +1,241 @@
+# Expurgo (LGPD) — a saga, e a compensação dela
+#
+# Remover uma pessoa envolve três bancos que nenhuma transação alcança ao mesmo
+# tempo. Aqui isso é um PROCESSO com estados, e não um DELETE otimista:
+#
+#   1. a secretaria pede     → o core BLOQUEIA (não apaga) e anuncia
+#   2. o boletim decide      → anonimiza, ou recusa com motivo
+#   3a. conclui              → o cadastro é anonimizado, agora é definitivo
+#   3b. compensa             → o bloqueio é DESFEITO e quem pediu é avisado
+#
+# Este arquivo ABRE as duas sagas e verifica tudo o que é imediato e
+# determinístico: quem pode pedir, o que a resposta promete, e o efeito do
+# bloqueio nas leituras. O DESFECHO fica no arquivo seguinte — a explicação
+# está no fim deste.
+#
+# O aluno 1 tem competências em avaliação, então o boletim sempre recusa: não
+# se desvincula a identidade de um registro escolar em curso. Por isso este
+# arquivo pode ser repetido à vontade — ele termina com tudo como estava.
+
+### Aluno não remove ninguém — 403
+DELETE {{baseUrl}}/api/v1/usuarios/2
+Authorization: Bearer {{tokenAluno}}
+
+> {%
+    client.test("responde 403", () => {
+        client.assert(response.status === 403, "esperado 403, veio " + response.status);
+    });
+%}
+
+### Sem token não se remove ninguém — 401
+DELETE {{baseUrl}}/api/v1/usuarios/2
+
+> {%
+    client.test("responde 401", () => {
+        client.assert(response.status === 401, "esperado 401, veio " + response.status);
+    });
+%}
+
+### SAGA A · a secretaria pede a remoção do aluno 1 — 202, e não 204
+# 204 diria "feito, não há mais nada a dizer". Mas há: o que acontece com os
+# dados nos outros serviços ainda está em curso.
+DELETE {{baseUrl}}/api/v1/usuarios/1
+Authorization: Bearer {{tokenSecretaria}}
+
+> {%
+    client.test("responde 202 Accepted", () => {
+        client.assert(response.status === 202, "esperado 202, veio " + response.status);
+    });
+    client.test("o processo nasce em SOLICITADO", () => {
+        client.assert(response.body.estado === "SOLICITADO", "estado: " + response.body.estado);
+        client.assert(response.body.encerradoEm === null, "já nasceu encerrado?");
+        client.assert(response.body.solicitadoPor === 3, "quem pediu veio do token? " + response.body.solicitadoPor);
+    });
+    client.global.set("sagaA", response.body.id);
+%}
+
+### Pedir de novo é conflito, não erro de requisição — 409
+# O pedido está bem formado e seria válido em outro momento; o que impede é o
+# estado atual do recurso.
+#
+# Vem IMEDIATAMENTE depois do pedido, e não mais adiante, por um motivo de
+# tempo: a janela em que a saga está aberta dura o que a volta dura. Para ela se
+# fechar antes desta requisição, os dois relays (de 500 ms cada) teriam de
+# disparar, ambos, nas poucas dezenas de milissegundos entre uma requisição e a
+# seguinte. A regra em si é coberta, sem depender de tempo, pelo SagaDeExpurgoTest.
+DELETE {{baseUrl}}/api/v1/usuarios/1
+Authorization: Bearer {{tokenSecretaria}}
+
+> {%
+    client.test("responde 409", () => {
+        client.assert(response.status === 409, "esperado 409, veio " + response.status);
+    });
+    client.test("a mensagem explica o motivo", () => {
+        client.assert(String(response.body.error).indexOf("andamento") >= 0,
+            "mensagem inesperada: " + response.body.error);
+    });
+%}
+
+### Aluno não lê o histórico de expurgo — 403
+GET {{baseUrl}}/api/v1/usuarios/1/expurgo
+Authorization: Bearer {{tokenAluno}}
+Accept: application/json
+
+> {%
+    client.test("responde 403", () => {
+        client.assert(response.status === 403, "esperado 403, veio " + response.status);
+    });
+%}
+
+### SAGA B · um cadastro sem vida acadêmica, para o desfecho oposto
+POST {{baseUrl}}/api/v1/usuarios
+Authorization: Bearer {{tokenSecretaria}}
+Content-Type: application/json
+
+{
+  "nome": "Cadastro Duplicado Por Engano",
+  "email": "duplicado-{{$timestamp}}@hub.infnet.local",
+  "escola": "Escola Superior de Tecnologia",
+  "ultimoBloco": "Bloco 1",
+  "classe": "26E2"
+}
+
+> {%
+    client.test("responde 201", () => {
+        client.assert(response.status === 201, "esperado 201, veio " + response.status);
+    });
+    client.global.set("aExpurgar", response.body.id);
+%}
+
+### SAGA B · e a remoção dele — 202
+# Sem matrícula e sem conceito lançado, o boletim não tem o que segurar: esta
+# saga vai até o fim.
+DELETE {{baseUrl}}/api/v1/usuarios/{{aExpurgar}}
+Authorization: Bearer {{tokenSecretaria}}
+
+> {%
+    client.test("responde 202", () => {
+        client.assert(response.status === 202, "esperado 202, veio " + response.status);
+    });
+    client.global.set("sagaB", response.body.id);
+%}
+
+### Bloqueado: para a API, a pessoa já não existe — 404
+# É o passo que torna a compensação possível. O registro continua no banco; o
+# que mudou é que ele deixou de ser alcançável. Um DELETE de verdade aqui não
+# teria volta.
+#
+# Verificado sobre a saga B, e não sobre a A, porque só aqui a resposta não
+# depende de tempo: enquanto a saga corre, o cadastro está bloqueado; quando ela
+# termina, está anonimizado. Nos dois casos, 404. O aluno 1, ao contrário, volta
+# a existir assim que a recusa chega — e numa pilha recém-iniciada ela chega
+# antes de a coleção alcançar esta linha.
+GET {{baseUrl}}/api/v1/usuarios/{{aExpurgar}}
+Authorization: Bearer {{tokenSecretaria}}
+Accept: application/json
+
+> {%
+    client.test("responde 404", () => {
+        client.assert(response.status === 404, "esperado 404, veio " + response.status);
+    });
+%}
+
+### Some da listagem
+GET {{baseUrl}}/api/v1/usuarios
+Authorization: Bearer {{tokenSecretaria}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+    });
+    client.test("quem está em expurgo some das listagens", () => {
+        const ids = response.body.map(u => u.id);
+        client.assert(ids.indexOf(Number(client.global.get("aExpurgar"))) < 0,
+            "o cadastro em expurgo continua na listagem");
+    });
+%}
+
+### E a busca também não o alcança
+GET {{baseUrl}}/api/v1/usuarios/buscar?termo=Duplicado
+Authorization: Bearer {{tokenSecretaria}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+    });
+    client.test("o bloqueio vale para todos os caminhos de leitura", () => {
+        const id = Number(client.global.get("aExpurgar"));
+        client.assert(response.body.filter(u => u.id === id).length === 0,
+            "a busca encontrou quem está em expurgo");
+    });
+%}
+
+### Saúde do core
+# As verificações de saúde valem por si — e, de quebra, dão às duas sagas o
+# tempo de completar a volta.
+GET {{baseUrl}}/actuator/health/readiness
+
+> {%
+    client.test("core pronto", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+    });
+%}
+
+### Saúde do boletim
+GET {{boletimUrl}}/actuator/health/readiness
+
+> {%
+    client.test("boletim pronto", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+    });
+%}
+
+### Saúde do serviço de notificação
+GET {{notificacaoUrl}}/actuator/health/readiness
+
+> {%
+    client.test("notificação pronto", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+    });
+%}
+
+### O catálogo do boletim continua respondendo durante tudo isso
+# Uma saga em curso não é uma parada do sistema: os outros serviços seguem
+# atendendo normalmente.
+GET {{boletimUrl}}/api/v1/catalogo/blocos
+Authorization: Bearer {{tokenProfessor}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+    });
+%}
+
+### O feed também
+GET {{baseUrl}}/api/v1/posts
+Authorization: Bearer {{tokenProfessor}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+    });
+%}
+
+# ── E o desfecho? ──────────────────────────────────────────────────────────
+#
+# Fica no arquivo seguinte, `12-expurgo-desfecho.http`, e não aqui — por uma
+# razão que vale registrar.
+#
+# A volta completa da saga leva perto de um segundo: core → broker → boletim →
+# broker → core, com dois relays de 500 ms pelo caminho. Enfileirar requisições
+# de enchimento até dar tempo produz um teste que passa quase sempre, que é
+# outro nome para um teste que falha às vezes — e foi exatamente o que aconteceu
+# na primeira versão deste arquivo, duas vezes em três execuções.
+#
+# A espera pertence a quem executa a coleção, não à coleção. O `verificar.sh`
+# roda o desfecho numa segunda chamada, depois de uma pausa explícita. O cliente
+# HTTP não tem como esperar, e fingir que tem seria esconder o problema.

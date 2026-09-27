@@ -1,0 +1,450 @@
+LICENÇA DE CÓDIGO VISÍVEL — SOMENTE LEITURA
+Todos os direitos reservados · Uso mediante autorização
+Infnet Hub · Projeto de Bloco: Engenharia de Softwares Escaláveis
+
+Copyright (c) 2026 André Luis Becker. Todos os direitos reservados.
+
+================================================================================
+PREÂMBULO — o que esta licença faz, em português claro
+================================================================================
+
+Este é um trabalho acadêmico com CÓDIGO VISÍVEL (source-available), e não código
+aberto. O repositório é público para que o trabalho possa ser LIDO, ESTUDADO e
+AVALIADO. Publicar o código não o coloca em domínio público, nem o torna livre
+para uso: nenhuma licença de uso, cópia, execução, modificação ou distribuição é
+concedida por este documento, salvo o expressamente descrito abaixo.
+
+  PODE, sem pedir nada a ninguém:
+    · ler, consultar e analisar o código e a documentação nesta página;
+    · citar trechos curtos em trabalho acadêmico ou técnico, com atribuição
+      e indicação da origem.
+
+  PODE, para AVALIAÇÃO ACADÊMICA formal:
+    · o corpo docente e a coordenação da instituição de ensino em que este
+      trabalho foi apresentado podem obter, executar e examinar o Software
+      no que for necessário à avaliação. É para isso que ele existe.
+
+  DEPENDE DE AUTORIZAÇÃO ESCRITA do titular — qualquer outro uso, inclusive:
+    · copiar, baixar, clonar ou reproduzir o Software para uso próprio;
+    · executá-lo, ainda que apenas localmente e sem fim lucrativo;
+    · modificá-lo, adaptá-lo ou dele derivar outro trabalho;
+    · redistribuir, publicar, hospedar ou espelhar o projeto, no todo ou em
+      parte;
+    · empregá-lo em produto, serviço ou atividade com finalidade comercial;
+    · usá-lo como dado de treinamento de modelos de aprendizado de máquina;
+    · apresentar este trabalho, ou derivação dele, como produção acadêmica
+      própria em qualquer instituição de ensino.
+
+Pedir autorização é gratuito e costuma ser respondido: veja a Cláusula 4. A
+restrição existe para preservar a autoria de um percurso acadêmico individual,
+não para dificultar o estudo de quem tem interesse legítimo.
+
+Este preâmbulo resume as cláusulas a seguir e não as substitui. Em caso de
+divergência, prevalece o texto das cláusulas.
+
+================================================================================
+1. DEFINIÇÕES
+================================================================================
+
+1.1. "Software" — o código-fonte, a documentação, os diagramas, as migrations,
+     os testes e os demais arquivos deste repositório, exceto os Materiais de
+     Terceiros descritos na Cláusula 6.
+
+1.2. "Titular" — André Luis Becker, autor e detentor dos direitos patrimoniais
+     sobre o Software.
+
+1.3. "Você" — a pessoa física ou jurídica que acessa, lê, copia, executa ou de
+     qualquer outro modo interage com o Software, inclusive por meio de agente
+     automatizado sob seu comando.
+
+1.3.1. "Instituição Avaliadora" — a instituição de ensino perante a qual este
+     trabalho foi apresentado como atividade acadêmica, e os agentes que atuam
+     em seu nome na avaliação: docentes, coordenação e banca.
+
+1.4. "Finalidade Comercial" — qualquer uso destinado, direta ou indiretamente,
+     a vantagem comercial ou remuneração, inclusive uso interno por pessoa
+     jurídica em suas atividades produtivas, prestação de serviços a terceiros,
+     incorporação a produto ofertado ao mercado e uso em treinamento de modelos
+     comercializados.
+
+1.5. "Finalidade Não Comercial" — uso pessoal, de pesquisa, de ensino ou de
+     avaliação acadêmica, sem as características do item 1.4.
+
+================================================================================
+2. CONCESSÃO LIMITADA
+================================================================================
+
+2.1. CONCESSÃO GERAL — LEITURA
+
+O Titular concede a Você licença mundial, gratuita, não exclusiva,
+intransferível, não sublicenciável e revogável para:
+
+  a) acessar e ler o código-fonte e a documentação do Software, para fins de
+     estudo, consulta e avaliação técnica;
+  b) citar trechos curtos em trabalho acadêmico, técnico ou jornalístico, desde
+     que com atribuição ao Titular e indicação da origem.
+
+A concessão desta cláusula é de LEITURA. Ela NÃO abrange copiar, baixar, clonar,
+armazenar, executar, compilar, implantar, modificar, adaptar, traduzir,
+descompilar, redistribuir ou de qualquer forma explorar o Software.
+
+2.2. CONCESSÃO ESPECÍFICA — AVALIAÇÃO ACADÊMICA INSTITUCIONAL
+
+O Software foi produzido para ser avaliado. Ficam autorizados, independentemente
+de pedido, o corpo docente, a coordenação, a banca e os demais agentes da
+instituição de ensino perante a qual o trabalho foi apresentado a obter,
+reproduzir, compilar e executar o Software na medida necessária à conferência,
+correção e arguição da entrega.
+
+Esta autorização é limitada a essa finalidade e não abrange redistribuição,
+publicação, uso comercial nem incorporação a outro trabalho.
+
+2.3. RESERVA
+
+Nenhum outro direito é concedido. Todos os direitos não expressamente
+concedidos nesta cláusula permanecem reservados ao Titular, na forma da Lei nº
+9.610/1998 e da Lei nº 9.609/1998.
+
+Na dúvida sobre se um uso pretendido está coberto, presuma que NÃO está e peça
+autorização (Cláusula 4).
+
+2.4. TERMOS DA PLATAFORMA DE HOSPEDAGEM
+
+O Software é publicado em repositório hospedado no GitHub. Os Termos de Serviço
+dessa plataforma concedem a seus usuários, por força do próprio ato de
+publicação, a faculdade de visualizar o repositório e de criar bifurcações
+("forks") dentro da plataforma. Esta licença NÃO revoga o que a plataforma
+concede — não teria como.
+
+O que ela determina é o que Você pode fazer com o conteúdo assim obtido: a
+existência de um fork não amplia a Cláusula 2.1. Executar, modificar,
+redistribuir ou publicar o Software a partir de um fork continua dependendo de
+autorização escrita, e a bifurcação em si não constitui autorização de espécie
+alguma.
+
+================================================================================
+3. RESTRIÇÕES
+================================================================================
+
+Sem autorização prévia e por escrito do Titular, e ressalvada a Cláusula 2.2, é
+vedado:
+
+3.0. REPRODUÇÃO E EXECUÇÃO. Copiar, baixar, clonar, espelhar, armazenar em
+     sistema de recuperação, compilar, instalar, implantar ou executar o
+     Software, no todo ou em parte, ainda que em máquina local, em ambiente
+     privado e sem qualquer proveito econômico.
+
+3.1. Empregar o Software, no todo ou em parte, para Finalidade Comercial.
+
+3.2. Distribuir, publicar, hospedar, disponibilizar em rede, comercializar,
+     alugar, emprestar ou de outro modo transferir o Software a terceiros.
+
+3.3. Modificar, adaptar, traduzir, refatorar ou realizar engenharia reversa do
+     Software, bem como publicar obras derivadas, adaptações ou versões
+     modificadas.
+
+3.4. Sublicenciar o Software ou relicenciá-lo sob outros termos, inclusive sob
+     licenças de código aberto.
+
+3.5. Remover, ocultar ou alterar avisos de autoria, de copyright ou esta
+     licença.
+
+3.6. INTEGRIDADE ACADÊMICA. Apresentar o Software, ou trabalho dele derivado,
+     como produção própria em atividade avaliativa, trabalho de conclusão,
+     processo seletivo ou publicação, em qualquer instituição de ensino.
+     Esta restrição é o principal objetivo desta licença: o Software é o
+     resultado de um percurso acadêmico individual, e sua reapresentação por
+     terceiros como trabalho próprio configura, além de violação contratual,
+     fraude acadêmica perante a instituição envolvida.
+
+3.7. MINERAÇÃO E TREINAMENTO DE MODELOS. Utilizar o Software, no todo ou em
+     parte, como dado de treinamento, ajuste fino ou avaliação de modelos de
+     aprendizado de máquina, bem como incluí-lo em conjunto de dados destinado
+     a esse fim, com ou sem finalidade comercial.
+
+     Reserva declarada de direitos para efeito de coleta automatizada: esta
+     cláusula constitui manifestação expressa e legível por máquina de oposição
+     à extração e à reprodução do Software por rastreadores, coletores e
+     agentes automatizados de qualquer natureza.
+
+================================================================================
+4. AUTORIZAÇÕES EXCEPCIONAIS
+================================================================================
+
+Usos fora do escopo da Cláusula 2 podem ser autorizados, e o pedido é gratuito.
+Deve ser dirigido ao Titular, por escrito, descrevendo o uso pretendido, sua
+extensão e sua finalidade. A autorização, quando concedida, será específica para
+o uso descrito, por prazo determinado quando couber, e não se estende a usos
+posteriores nem a terceiros.
+
+CANAL ÚNICO DE CONTATO — GitHub:
+
+  · Abrir uma issue no repositório oficial do projeto:
+    https://github.com/andrebecker84/TP5-PB_producao/issues
+
+  · Ou entrar em contato pelo perfil do Titular:
+    https://github.com/andrebecker84
+
+O Titular não divulga endereço de correio eletrônico pessoal para esta
+finalidade. Pedidos enviados por outros canais podem não ser respondidos, e a
+ausência de resposta NÃO equivale a autorização tácita: o silêncio deve ser
+interpretado como negativa.
+
+Toda autorização é concedida por escrito e de forma rastreável — na própria
+issue ou em documento assinado. Declarações verbais, capturas de tela e
+mensagens de terceiros não constituem autorização.
+
+================================================================================
+5. VIGÊNCIA E RESCISÃO
+================================================================================
+
+5.1. A licença vigora enquanto Você cumprir estes termos.
+
+5.2. O descumprimento de qualquer cláusula extingue a licença automaticamente,
+     independentemente de notificação, obrigando Você a cessar o uso e destruir
+     as cópias em seu poder.
+
+5.3. A extinção não prejudica os direitos do Titular quanto a violações
+     ocorridas durante a vigência.
+
+================================================================================
+6. MATERIAIS DE TERCEIROS
+================================================================================
+
+O repositório contém materiais que NÃO pertencem ao Titular e que NÃO são
+licenciados por este documento. Cada um permanece sujeito à licença de seu
+respectivo detentor, que prevalece sobre os termos acima:
+
+  · Ilustrações 3D da página 404 (antena, satélite, astronauta) — Vecteezy
+    (https://www.vecteezy.com). Sujeitas à Vecteezy License, que exige
+    atribuição na versão gratuita e restringe a redistribuição do material
+    como arquivo isolado. Os arquivos versionados aqui são derivações em
+    formato WebP, empregadas como parte integrante da interface.
+
+  · Bibliotecas e frameworks declarados em `pom.xml` e `package.json` —
+    licenciados por seus respectivos autores, majoritariamente sob Apache-2.0
+    e MIT. Esta licença não os alcança.
+
+A concessão da Cláusula 2 recai sobre a contribuição original do Titular. Ao
+reutilizar os Materiais de Terceiros, Você deve observar as licenças de origem
+diretamente.
+
+================================================================================
+7. AUSÊNCIA DE GARANTIA
+================================================================================
+
+O SOFTWARE É FORNECIDO "NO ESTADO EM QUE SE ENCONTRA", SEM GARANTIA DE
+QUALQUER NATUREZA, EXPRESSA OU IMPLÍCITA, INCLUINDO, SEM LIMITAÇÃO, GARANTIAS
+DE COMERCIABILIDADE, ADEQUAÇÃO A FINALIDADE ESPECÍFICA, PRECISÃO E NÃO
+VIOLAÇÃO DE DIREITOS DE TERCEIROS.
+
+Trata-se de trabalho acadêmico, concebido para fins didáticos. Não foi
+submetido a auditoria de segurança nem a homologação para uso produtivo.
+
+================================================================================
+8. LIMITAÇÃO DE RESPONSABILIDADE
+================================================================================
+
+Na máxima extensão permitida pela legislação aplicável, o Titular não responde
+por danos diretos, indiretos, incidentais, especiais, punitivos ou emergentes,
+nem por lucros cessantes, perda de dados ou interrupção de atividades,
+decorrentes do uso ou da impossibilidade de uso do Software, ainda que
+advertido da possibilidade de tais danos.
+
+================================================================================
+9. LEGISLAÇÃO APLICÁVEL E FORO
+================================================================================
+
+Esta licença rege-se pelas leis da República Federativa do Brasil, em especial
+a Lei nº 9.610/1998 (Direitos Autorais) e a Lei nº 9.609/1998 (Proteção da
+Propriedade Intelectual de Programa de Computador).
+
+Fica eleito o foro da comarca de domicílio do Titular para dirimir controvérsias
+oriundas desta licença, com renúncia a qualquer outro, por mais privilegiado
+que seja.
+
+================================================================================
+ANEXO I — AVISO DE PROTEÇÃO DE DADOS (LGPD)
+================================================================================
+
+Este anexo é um AVISO informativo. Não integra a concessão de licença: uma
+licença rege direitos autorais, enquanto a proteção de dados pessoais é regida
+pela Lei nº 13.709/2018 (LGPD), que se aplica por força de lei e não por
+contrato. Os dois assuntos constam do mesmo arquivo por conveniência de quem
+avalia o projeto.
+
+A.1. DADOS CONTIDOS NO REPOSITÓRIO
+     O repositório NÃO contém dados pessoais reais. Os registros semeados pelo
+     `DataLoader` — nomes, e-mails, publicações e vagas — são FICTÍCIOS,
+     criados para demonstrar a camada de persistência. Qualquer semelhança com
+     pessoas reais é coincidência e deve ser comunicada ao Titular para
+     remoção.
+
+A.2. QUEM RESPONDE PELOS DADOS
+     O Titular não opera qualquer instância deste Software em produção e não
+     trata dados pessoais de terceiros por meio dele. Quem implantar o Software
+     e nele inserir dados pessoais assume, para todos os efeitos da LGPD, a
+     posição de CONTROLADOR, respondendo pela base legal do tratamento, pelo
+     atendimento aos direitos dos titulares (art. 18) e pela comunicação de
+     incidentes (art. 48).
+
+A.3. CARACTERÍSTICAS RELEVANTES DA IMPLEMENTAÇÃO
+     Quem for implantar deve conhecer os pontos abaixo. Os itens (a) a (c)
+     vinham das etapas anteriores; os itens (d) a (h) decorrem da arquitetura
+     distribuída e, nesta entrega, da comunicação por eventos.
+
+     a) AUTENTICAÇÃO PRESENTE; AMBIENTE FORNECIDO É DE DESENVOLVIMENTO. Esta
+        etapa implementa autenticação e autorização de verdade: a identidade
+        vem de um token OpenID Connect emitido por um servidor Keycloak, cuja
+        assinatura é verificada por cada serviço, e o antigo cabeçalho
+        `X-Usuario-Id` deixou de ser aceito.
+
+        O ambiente fornecido no `docker-compose.yml` é de DESENVOLVIMENTO: o
+        realm é importado de arquivo com contas de demonstração de senha
+        conhecida, há um cliente com concessão por senha para uso em linha de
+        comando, e a autoridade certificadora é gerada localmente. São itens de
+        configuração, e não de código: uma implantação real substitui os
+        usuários e segredos por próprios, desabilita o cliente de linha de
+        comando e usa certificados emitidos por autoridade da organização. Com
+        a configuração de desenvolvimento, o Software NÃO deve ser exposto à
+        internet nem receber dados pessoais reais.
+
+     b) REGISTRO DE AUDITORIA COM IDENTIFICAÇÃO POR EXTENSO. A trilha de
+        auditoria (Hibernate Envers) grava nome e e-mail do autor de cada
+        alteração como texto literal, e não como chave estrangeira, para que o
+        registro permaneça legível após a exclusão do usuário. A consequência
+        é relevante sob a LGPD: excluir um usuário da tabela `usuarios` NÃO
+        remove sua identificação das tabelas `*_aud`.
+
+        A conciliação com o direito à eliminação (art. 18, VI) está
+        implementada: ao concluir a remoção de uma pessoa, a aplicação
+        anonimiza, na mesma transação, as revisões anteriores do cadastro, o
+        autor de cada revisão feita por ela e os campos de autoria de tudo o
+        que ela criou ou alterou — substituindo a identificação por um
+        identificador que não leva a ninguém (art. 12). A trilha continua
+        registrando o que aconteceu e em que ordem.
+
+     c) HISTÓRICO COMPLETO DOS REGISTROS. A configuração
+        `store_data_at_delete=true` faz com que a revisão de exclusão preserve
+        o estado integral do registro apagado, e não apenas seu identificador.
+        Registros excluídos permanecem reconstituíveis a partir das tabelas de
+        auditoria.
+
+     d) DADO PESSOAL REPLICADO, E NÃO APENAS EM TRÂNSITO. Na etapa anterior, o
+        nome do aluno trafegava do `infnethub-core` para o `boletim-service` a
+        cada consulta e não era guardado do outro lado. Nesta entrega ele é
+        REPLICADO: o `boletim-service` mantém uma tabela `aluno_replica` com
+        nome, escola, turma e papel, alimentada por eventos, e o
+        `notificacao-service` mantém um cadastro próprio de destinatários.
+
+        A mudança é deliberada — é o que permite ao boletim funcionar com o
+        serviço central fora do ar —, mas altera a resposta à pergunta "onde
+        estão os dados desta pessoa?". Passam a ser TRÊS bases, e não uma, e
+        cada cópia tem seu próprio ciclo de vida.
+
+        Toda comunicação entre os componentes é cifrada com TLS e tem o
+        certificado conferido: entre serviços (HTTPS), com o broker (AMQPS),
+        entre os nós do broker, com os bancos de dados e com o sistema de
+        métricas. As portas dos serviços internos não são publicadas; apenas o
+        que um navegador precisa abrir, e somente no endereço local da máquina.
+
+     e) TRÊS BANCOS, SEM TRANSAÇÃO COMUM. O padrão Database per Service coloca
+        os dados em instâncias independentes. Não existe chave estrangeira
+        entre bancos distintos: cada serviço guarda o identificador do aluno
+        POR VALOR. As consequências sob a LGPD são concretas:
+
+          · o atendimento a um pedido de eliminação (art. 18, VI) envolve as
+            três bases, e nenhuma transação abrange todas;
+          · o inventário de tratamento (art. 37) precisa listar as três, com
+            suas próprias políticas de retenção, backup e acesso;
+          · a eliminação consistente depende de rotina da aplicação — não há
+            garantia do banco a invocar.
+
+     f) DADO PESSOAL RETIDO EM FILAS DE MENSAGENS. Esta é a característica
+        NOVA desta entrega, e a menos evidente. As mensagens que carregam dados
+        de alunos são persistentes por projeto: sobrevivem a reinícios do
+        broker e permanecem na fila enquanto não houver quem as consuma. Uma
+        mensagem que falhe repetidamente vai para uma fila de mensagens mortas
+        e FICA LÁ, com o conteúdo íntegro, até que alguém a examine — é
+        exatamente o comportamento desejado para diagnóstico, e é também
+        retenção de dado pessoal fora das bases inventariadas.
+
+        Três decisões limitam o efeito: o evento de remoção de usuário e o
+        pedido de expurgo carregam APENAS o identificador; as filas de
+        perguntas têm prazo de validade curto, de modo que se limpam sozinhas;
+        e toda fila de mensagens mortas tem prazo de retenção de sete dias,
+        aplicado pelo próprio broker, após o qual o conteúdo é descartado. O
+        broker deve constar do inventário de tratamento (art. 37).
+
+     g) A ELIMINAÇÃO É UM PROCESSO COORDENADO ENTRE OS SERVIÇOS. Como nenhuma
+        transação abrange as três bases (item e), a eliminação foi implementada
+        como uma saga coreografada, com estado persistido e compensação:
+
+          · o pedido BLOQUEIA o cadastro — que deixa de ser alcançável pela
+            aplicação — sem apagá-lo, e registra quem pediu, com a identidade
+            tirada do token;
+          · o `boletim-service` apaga a réplica local, mantendo as matrículas
+            por identificador sem dado pessoal, OU recusa a operação quando há
+            competência em avaliação, porque o registro escolar em curso
+            precisa permanecer identificado;
+          · havendo confirmação, o cadastro é ANONIMIZADO (art. 12) e só então
+            é anunciada a remoção, momento em que o `notificacao-service` apaga
+            o histórico de notificações da pessoa; havendo recusa, o bloqueio é
+            desfeito e quem pediu é avisado do motivo.
+
+        Cada pedido e seu desfecho ficam registrados, o que permite demonstrar
+        o atendimento ao titular (art. 18, VI) ou o fundamento da recusa.
+
+        A conclusão anonimiza também a trilha de auditoria (item b). O processo
+        tem prazo: se um participante não responder, o bloqueio é desfeito e o
+        cadastro mantido; se responder depois, a aplicação o faz restaurar o
+        que tiver removido. Mensagens em filas de mensagens mortas são
+        descartadas pela retenção do item f.
+
+     h) IDENTIDADE E ORIGEM VERIFICADAS. O autor de cada alteração vem do
+        token, com assinatura verificada, e não mais de um cabeçalho que
+        qualquer um podia escrever. O endereço de origem vem de
+        `X-Forwarded-For`, escrito pelo gateway — e, como as portas dos
+        serviços internos não são publicadas, só o gateway alcança os serviços
+        e pode escrevê-lo. Os registros de auditoria desta etapa têm, por isso,
+        valor probatório muito superior aos da anterior.
+
+A.4. MEDIDAS ESPERADAS DE QUEM IMPLANTAR
+     Definir a base legal para o tratamento; substituir a configuração de
+     desenvolvimento descrita no item a (usuários, segredos, cliente de linha
+     de comando e autoridade certificadora); definir o prazo de guarda da
+     trilha de auditoria e dos dados acadêmicos segundo a obrigação legal
+     aplicável (art. 16, I); restringir o acesso administrativo aos bancos e
+     ao painel de gestão do broker; e manter registro das operações de
+     tratamento (art. 37), incluindo as três bases e o broker.
+
+A.5. CONTATO
+     Comunicações sobre dados pessoais relacionadas a este repositório devem
+     ser dirigidas ao Titular pelos canais indicados na Cláusula 4.
+
+================================================================================
+
+NOTA SOBRE A CATEGORIA DESTA LICENÇA
+
+Esta é uma licença PROPRIETÁRIA de código visível (source-available), do tipo
+"todos os direitos reservados, leitura permitida". Não é licença de código
+aberto: não atende à Open Source Definition nem às Quatro Liberdades, e isso é
+deliberado. O GitHub a classifica como "Other".
+
+Equivalentes e referências de mercado para propósitos próximos, em ordem
+crescente de permissividade:
+
+  · Todos os direitos reservados / source-available — ausência de licença de
+    uso, com o código apenas visível. É a categoria desta licença.
+  · Creative Commons BY-NC-ND 4.0 — permite redistribuir sem modificar;
+    concebida para obras editoriais, não para software.
+    https://creativecommons.org/licenses/by-nc-nd/4.0/
+  · PolyForm Noncommercial 1.0.0 — permite uso e modificação sem fim comercial.
+    https://polyformproject.org/licenses/noncommercial/1.0.0/
+  · Business Source License 1.1 — restringe uso em produção e converte-se em
+    licença aberta após prazo determinado.
+    https://mariadb.com/bsl11/
+
+Este documento foi redigido para um projeto acadêmico e não constitui
+aconselhamento jurídico. Para uso com consequências patrimoniais relevantes,
+recomenda-se revisão por profissional habilitado.

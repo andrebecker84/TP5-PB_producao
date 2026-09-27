@@ -1,0 +1,741 @@
+asyncapi: 3.0.0
+
+# =============================================================================
+# Infnet Hub — especificação dos canais assíncronos
+#
+# Este arquivo é para a mensageria o que o OpenAPI é para o HTTP: descreve, num
+# formato que ferramentas leem, o que trafega pelo RabbitMQ e quem trafega.
+#
+# Existe por um motivo prático. Um contrato HTTP é fácil de descobrir — basta
+# chamar o serviço e ver o que volta. Um contrato de evento não: o produtor não
+# conhece os consumidores, o consumidor não conhece o produtor, e a única coisa
+# que os liga é o formato da mensagem. Sem um documento como este, esse formato
+# só existe espalhado por classes Java de três serviços, e a pergunta "quem
+# quebra se eu renomear este campo?" não tem resposta.
+#
+# A fonte da verdade continua sendo o módulo `contratos`, verificado pelo
+# compilador. Este arquivo é a mesma informação em forma legível por quem não
+# abre o código — e por ferramentas de documentação e validação.
+# =============================================================================
+
+info:
+  title: Infnet Hub — canais de integração
+  version: 1.0.0
+  description: |
+    Eventos, comandos e consultas trocados entre `infnethub-core`,
+    `boletim-service` e `notificacao-service` através do RabbitMQ.
+
+    **Três formas de mensagem, três tratamentos.**
+
+    | Forma | Diz | Destinatários | Exchange | Se ninguém consumir |
+    |---|---|---|---|---|
+    | Evento | aconteceu isto | nenhum ou muitos | `topic` | a mensagem é devolvida ao produtor, que tenta de novo |
+    | Comando | faça isto | exatamente um | `direct` | idem — o pedido não se perde |
+    | Consulta | me diga isto | um, que responde | `direct` | vence em 10 s e é descartada |
+
+    A diferença da última linha é a que mais importa: evento e comando têm
+    valor duradouro e são publicados a partir de uma caixa de saída
+    transacional, com confirmação do broker. Uma pergunta cuja resposta chegue
+    tarde não tem valor nenhum, e guardá-la seria só acumular lixo.
+  license:
+    name: Uso Restrito — Não Comercial
+    url: https://github.com/andrebecker84/TP5-PB_producao/blob/main/LICENSE
+
+defaultContentType: application/json
+
+servers:
+  desenvolvimento:
+    host: rabbitmq-1:5671
+    protocol: amqps
+    description: |
+      Cluster de três nós do RabbitMQ — `rabbitmq-1`, `rabbitmq-2` e
+      `rabbitmq-3`, todos na 5671 —, só por TLS: a porta AMQP sem cifragem é
+      desligada, e o certificado do nó é conferido pelo nome. Os serviços
+      recebem os três endereços e se reconectam no seguinte quando um cai.
+      Todas as filas são quorum, replicadas nos três nós.
+
+      Painel de gestão em http://localhost:21673; do host, o primeiro nó
+      atende AMQPS em localhost:21672. A topologia também é carregada de
+      `infra/rabbitmq/definitions.json` na subida do broker, para que exista
+      antes de qualquer serviço — sem isso, o primeiro evento publicado não
+      encontraria fila de destino.
+    security:
+      - $ref: '#/components/securitySchemes/usuarioESenha'
+
+# -----------------------------------------------------------------------------
+# Canais — nomeados pela fila do consumidor, não pelo evento
+# -----------------------------------------------------------------------------
+# A fila pertence a quem consome. O core anuncia `usuario.cadastrado` uma vez;
+# o boletim e o serviço de notificação têm cada um a sua fila, com seu ritmo e
+# sua fila de mensagens mortas. Um consumidor lento não atrasa o outro.
+channels:
+
+  boletimUsuarios:
+    address: boletim.usuarios
+    title: Réplica de alunos do boletim
+    description: |
+      Fila quorum ligada a `infnethub.eventos` pelo padrão `usuario.*`.
+      Alimenta a tabela `aluno_replica`, que substituiu a chamada Feign do TP3.
+      Consumidor único, porque a ordem dos fatos de um mesmo usuário importa.
+    bindings:
+      amqp:
+        is: queue
+        queue:
+          name: boletim.usuarios
+          durable: true
+          vhost: /
+    messages:
+      UsuarioCadastradoV1:
+        $ref: '#/components/messages/UsuarioCadastradoV1'
+      UsuarioAtualizadoV1:
+        $ref: '#/components/messages/UsuarioAtualizadoV1'
+      ExpurgoSolicitadoV1:
+        $ref: '#/components/messages/ExpurgoSolicitadoV1'
+      UsuarioRemovidoV1:
+        $ref: '#/components/messages/UsuarioRemovidoV1'
+
+  notificacaoEventos:
+    address: notificacao.eventos
+    title: Eventos que viram notificação
+    description: |
+      Fila quorum ligada a `infnethub.eventos` por três padrões — `usuario.*`,
+      `post.*` e `vaga.*`. Consumida em paralelo por quantas instâncias houver
+      (*competing consumers*): aqui a ordem entre mensagens não importa, e o
+      volume é o que pede escala.
+    bindings:
+      amqp:
+        is: queue
+        queue:
+          name: notificacao.eventos
+          durable: true
+          vhost: /
+    messages:
+      UsuarioCadastradoV1:
+        $ref: '#/components/messages/UsuarioCadastradoV1'
+      UsuarioAtualizadoV1:
+        $ref: '#/components/messages/UsuarioAtualizadoV1'
+      ExpurgoSolicitadoV1:
+        $ref: '#/components/messages/ExpurgoSolicitadoV1'
+      UsuarioRemovidoV1:
+        $ref: '#/components/messages/UsuarioRemovidoV1'
+      PostCurtidoV1:
+        $ref: '#/components/messages/PostCurtidoV1'
+      PostComentadoV1:
+        $ref: '#/components/messages/PostComentadoV1'
+      VagaPublicadaV1:
+        $ref: '#/components/messages/VagaPublicadaV1'
+
+  coreExpurgo:
+    address: core.expurgo
+    title: A volta da saga de expurgo
+    description: |
+      Fila quorum ligada a `infnethub.eventos` pelo padrão `aluno.*`. É a única
+      fila do core, e existe porque a saga é coreografada: ninguém pergunta ao
+      boletim como foi — ele anuncia, e o core escuta. Consumidor único, com
+      controle de duplicidade e limite de 5 entregas antes da DLQ.
+    bindings:
+      amqp:
+        is: queue
+        queue:
+          name: core.expurgo
+          durable: true
+          vhost: /
+    messages:
+      AlunoAnonimizadoV1:
+        $ref: '#/components/messages/AlunoAnonimizadoV1'
+      AnonimizacaoRecusadaV1:
+        $ref: '#/components/messages/AnonimizacaoRecusadaV1'
+
+  notificacaoComandos:
+    address: notificacao.comandos
+    title: Pedidos de aviso
+    description: |
+      Fila de trabalho ligada a `infnethub.comandos` (direct) pela chave
+      `notificacao.enviar`. Recebe tanto os avisos imediatos quanto os que
+      esperaram o prazo na sala de espera — deste lado não há diferença.
+    bindings:
+      amqp:
+        is: queue
+        queue:
+          name: notificacao.comandos
+          durable: true
+          vhost: /
+    messages:
+      EnviarAvisoV1:
+        $ref: '#/components/messages/EnviarAvisoV1'
+
+  salaDeEspera:
+    address: infnethub.espera.nivel.21
+    title: Sala de espera dos avisos agendados — entrada da cascata
+    description: |
+      A mensagem com atraso sem bloqueio de cabeça de fila. São 22 níveis; o
+      nível *i* é uma exchange `topic` e uma fila **sem consumidor** que segura
+      toda mensagem por exatamente 2^i segundos (`x-message-ttl` na fila, e
+      não na mensagem). O atraso vai na chave de roteamento, em binário, um bit
+      por palavra, seguido do destino: 13 s é
+      `0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.1.1.0.1.notificacao.enviar`.
+
+      Em cada nível, bit 1 leva à fila do nível e bit 0 pula para o nível
+      seguinte; ao vencer, a mensagem segue por dead-letter com a chave
+      intacta. O último nível entrega em `infnethub.espera.entrega`, que roteia
+      `#.notificacao.enviar` para `notificacao.comandos`.
+
+      Com um prazo só por fila, a ordem de chegada é a ordem de vencimento: um
+      aviso de 5 s publicado atrás de um de 1 h chega em 5 s. A definição mora
+      em `SalaDeEspera`, no módulo `contratos`, e é usada pelo relay (para
+      montar a chave) e pelo serviço de notificação (para declarar os níveis).
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: infnethub.espera.nivel.21
+          type: topic
+          durable: true
+          vhost: /
+    messages:
+      EnviarAvisoV1:
+        $ref: '#/components/messages/EnviarAvisoV1'
+
+  boletimConsultas:
+    address: boletim.consultas
+    title: Perguntas sobre a vida acadêmica de um aluno
+    description: |
+      Fila com `x-message-ttl` de 10 s e **sem** fila de mensagens mortas — o
+      oposto de todas as outras, e cada diferença vem da natureza do que
+      trafega. Uma pergunta cujo dono já desistiu de esperar não deve ser
+      respondida nem guardada.
+
+      A resposta não tem canal próprio: viaja pelo `reply-to` que a pergunta
+      carrega, correlacionada pelo `correlation-id`. É o `direct reply-to` do
+      RabbitMQ, que dispensa declarar qualquer fila de resposta.
+    bindings:
+      amqp:
+        is: queue
+        queue:
+          name: boletim.consultas
+          durable: true
+          vhost: /
+    messages:
+      SituacaoAcademicaPerguntaV1:
+        $ref: '#/components/messages/SituacaoAcademicaPerguntaV1'
+
+  notificacoesAoVivo:
+    address: infnethub.notificacoes.aovivo
+    title: Difusão entre instâncias do serviço de notificação
+    description: |
+      Exchange `fanout` com uma fila exclusiva por instância. Uma notificação
+      gravada por qualquer instância precisa chegar à instância onde a pessoa
+      tem a conexão SSE aberta — e só ela sabe quem está ligado nela. Por isso
+      a mensagem vai para **todas**, ao contrário da fila de trabalho, onde vai
+      para **uma**.
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: infnethub.notificacoes.aovivo
+          type: fanout
+          durable: true
+          vhost: /
+    messages:
+      AvisoAoVivo:
+        $ref: '#/components/messages/AvisoAoVivo'
+
+  mensagensMortas:
+    address: infnethub.dlx
+    title: Mensagens que esgotaram as tentativas
+    description: |
+      Exchange `direct` para onde vão as mensagens recusadas. Cada fila de
+      trabalho tem a sua `<fila>.dlq`, ligada pelo próprio nome, e o conteúdo
+      fica no painel do RabbitMQ para inspeção. Nada é descartado em silêncio.
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: infnethub.dlx
+          type: direct
+          durable: true
+          vhost: /
+
+# -----------------------------------------------------------------------------
+# Operações — quem publica e quem recebe
+# -----------------------------------------------------------------------------
+operations:
+
+  coreAnunciaUsuarios:
+    action: send
+    channel:
+      $ref: '#/channels/boletimUsuarios'
+    title: infnethub-core anuncia fatos sobre usuários
+    description: |
+      Publicados a partir da caixa de saída transacional: o evento é gravado na
+      mesma transação do usuário e entregue depois pelo relay, que só marca a
+      linha como publicada após o `ack` do broker.
+
+  boletimReplicaAlunos:
+    action: receive
+    channel:
+      $ref: '#/channels/boletimUsuarios'
+    title: boletim-service mantém a réplica local
+
+  notificacaoOuveEventos:
+    action: receive
+    channel:
+      $ref: '#/channels/notificacaoEventos'
+    title: notificacao-service transforma fatos em notificações
+
+  coreAbreExpurgo:
+    action: send
+    channel:
+      $ref: '#/channels/boletimUsuarios'
+    title: infnethub-core abre a saga de expurgo
+    messages:
+      - $ref: '#/channels/boletimUsuarios/messages/ExpurgoSolicitadoV1'
+    description: |
+      Passo 1 da saga. Na mesma transação, o cadastro é BLOQUEADO (não apagado)
+      e o processo nasce em `SOLICITADO` na tabela `expurgo_lgpd`. Bloquear é o
+      que torna a compensação possível: um DELETE aqui não teria volta.
+
+  boletimDecideExpurgo:
+    action: send
+    channel:
+      $ref: '#/channels/coreExpurgo'
+    title: boletim-service anonimiza ou recusa
+    description: |
+      Passo 2. Sem competência em avaliação, apaga a linha da réplica (as
+      matrículas ficam, ligadas a um id que não leva a ninguém) e publica
+      `aluno.anonimizado`. Com competência em aberto, não toca em nada e publica
+      `aluno.anonimizacao-recusada` com o motivo em texto legível. Pela caixa de
+      saída do próprio boletim, com confirmação do broker.
+
+  coreEncerraExpurgo:
+    action: receive
+    channel:
+      $ref: '#/channels/coreExpurgo'
+    title: infnethub-core conclui ou compensa
+    description: |
+      Passo 3. Na confirmação, anonimiza o cadastro, marca `CONCLUIDO` e só
+      então publica `UsuarioRemovidoV1` — o fato consumado. Na recusa, desfaz o
+      bloqueio, marca `REVERTIDO` com o motivo e envia `EnviarAvisoV1` para quem
+      pediu a remoção. Resposta sem processo em `SOLICITADO` é descartada.
+
+  coreEnviaAviso:
+    action: send
+    channel:
+      $ref: '#/channels/notificacaoComandos'
+    title: infnethub-core pede que um aviso seja entregue
+
+  notificacaoExecutaAviso:
+    action: receive
+    channel:
+      $ref: '#/channels/notificacaoComandos'
+    title: notificacao-service executa o pedido
+
+  coreAgendaAviso:
+    action: send
+    channel:
+      $ref: '#/channels/salaDeEspera'
+    title: infnethub-core agenda um aviso para depois
+
+  corePerguntaSituacao:
+    action: send
+    channel:
+      $ref: '#/channels/boletimConsultas'
+    title: infnethub-core pergunta e espera resposta
+    reply:
+      messages:
+        - $ref: '#/components/messages/SituacaoAcademicaRespostaV1'
+    description: |
+      A única operação síncrona do sistema, e está documentada como exceção.
+      Tempo de espera de 3 s; sem resposta, o core responde `consultado: false`
+      em vez de afirmar que nada consta.
+
+  boletimResponde:
+    action: receive
+    channel:
+      $ref: '#/channels/boletimConsultas'
+    title: boletim-service responde sobre o aluno
+
+# -----------------------------------------------------------------------------
+# Mensagens e esquemas
+# -----------------------------------------------------------------------------
+components:
+
+  securitySchemes:
+    usuarioESenha:
+      type: userPassword
+      description: |
+        Usuário e senha do broker, sobre conexão TLS. Em desenvolvimento,
+        `infnethub` / `infnethub`, declarados em `definitions.json`.
+
+  messages:
+
+    UsuarioCadastradoV1:
+      name: UsuarioCadastradoV1
+      title: Um usuário entrou no Infnet Hub
+      summary: |
+        *Event-Carried State Transfer*: leva o estado do usuário junto, para que
+        o consumidor não precise perguntar de volta. É o que permitiu apagar a
+        chamada Feign do boletim.
+      contentType: application/json
+      headers:
+        $ref: '#/components/schemas/CabecalhosPadrao'
+      payload:
+        $ref: '#/components/schemas/Usuario'
+
+    UsuarioAtualizadoV1:
+      name: UsuarioAtualizadoV1
+      title: Os dados de um usuário mudaram
+      summary: |
+        Mesmo formato do cadastro, de propósito: o consumidor aplica os dois com
+        o mesmo código. O campo `versao` descarta um evento antigo que chegue
+        depois de um mais novo.
+      contentType: application/json
+      headers:
+        $ref: '#/components/schemas/CabecalhosPadrao'
+      payload:
+        $ref: '#/components/schemas/Usuario'
+
+    UsuarioRemovidoV1:
+      name: UsuarioRemovidoV1
+      title: Um usuário deixou de existir
+      summary: |
+        Só o id. Repetir aqui o nome de quem foi removido seria espalhar pelo
+        broker justamente o dado que acabou de ser apagado — e ele ficaria nas
+        filas depois disso.
+      contentType: application/json
+      headers:
+        $ref: '#/components/schemas/CabecalhosPadrao'
+      payload:
+        type: object
+        required: [mensagemId, ocorridoEm, usuarioId]
+        properties:
+          mensagemId:
+            type: string
+            format: uuid
+          ocorridoEm:
+            type: string
+            format: date-time
+          usuarioId:
+            type: integer
+            format: int64
+
+    ExpurgoSolicitadoV1:
+      name: ExpurgoSolicitadoV1
+      title: Pediram a remoção de uma pessoa
+      summary: |
+        O PEDIDO, e não o fato. Nome diferente de `UsuarioRemovidoV1` de
+        propósito: quem apaga dados ao receber a remoção (o serviço de
+        notificação) precisa saber que ela é definitiva. Agir sobre o pedido
+        seria apagar dados de alguém cuja remoção ainda pode ser revertida.
+      contentType: application/json
+      headers:
+        $ref: '#/components/schemas/CabecalhosPadrao'
+      payload:
+        type: object
+        required: [mensagemId, ocorridoEm, processoId, usuarioId]
+        properties:
+          mensagemId:
+            type: string
+            format: uuid
+          ocorridoEm:
+            type: string
+            format: date-time
+          processoId:
+            type: integer
+            format: int64
+            description: |
+              O processo em `expurgo_lgpd`. As respostas o devolvem, e é por
+              ele — e não pela pessoa — que o core as casa com o pedido.
+          usuarioId:
+            type: integer
+            format: int64
+
+    AlunoAnonimizadoV1:
+      name: AlunoAnonimizadoV1
+      title: O boletim desvinculou a identidade do aluno
+      summary: |
+        Routing key `aluno.anonimizado`. `registrosMantidos` diz quantas
+        matrículas ficaram, agora sem identificação — o histórico escolar não é
+        apagado, só deixa de levar a alguém.
+      contentType: application/json
+      headers:
+        $ref: '#/components/schemas/CabecalhosPadrao'
+      payload:
+        type: object
+        required: [mensagemId, ocorridoEm, processoId, usuarioId, registrosMantidos]
+        properties:
+          mensagemId:
+            type: string
+            format: uuid
+          ocorridoEm:
+            type: string
+            format: date-time
+          processoId:
+            type: integer
+            format: int64
+            description: |
+              O processo em `expurgo_lgpd`. As respostas o devolvem, e é por
+              ele — e não pela pessoa — que o core as casa com o pedido.
+          usuarioId:
+            type: integer
+            format: int64
+          registrosMantidos:
+            type: integer
+            minimum: 0
+
+    AnonimizacaoRecusadaV1:
+      name: AnonimizacaoRecusadaV1
+      title: O boletim não pode anonimizar agora
+      summary: |
+        Routing key `aluno.anonimizacao-recusada`. Dispara a compensação no core.
+        A recusa é regra de negócio, não falha técnica: o motivo viaja em texto
+        legível e chega ao histórico do processo e ao aviso de quem pediu.
+      contentType: application/json
+      headers:
+        $ref: '#/components/schemas/CabecalhosPadrao'
+      payload:
+        type: object
+        required: [mensagemId, ocorridoEm, processoId, usuarioId, motivo]
+        properties:
+          mensagemId:
+            type: string
+            format: uuid
+          ocorridoEm:
+            type: string
+            format: date-time
+          processoId:
+            type: integer
+            format: int64
+            description: |
+              O processo em `expurgo_lgpd`. As respostas o devolvem, e é por
+              ele — e não pela pessoa — que o core as casa com o pedido.
+          usuarioId:
+            type: integer
+            format: int64
+          motivo:
+            type: string
+            examples:
+              - o aluno tem 5 competência(s) em avaliação; o registro escolar precisa permanecer identificado até a conclusão
+
+    PostCurtidoV1:
+      name: PostCurtidoV1
+      title: Alguém curtiu uma publicação
+      summary: |
+        *Event Notification*, o contraponto do anterior: leva ids e o mínimo
+        para montar um texto, não o estado do post. Quem quiser o post inteiro
+        busca o post — e a maioria não quer.
+      contentType: application/json
+      headers:
+        $ref: '#/components/schemas/CabecalhosPadrao'
+      payload:
+        type: object
+        required: [mensagemId, ocorridoEm, postId, autorDoPostId, curtidoPorId]
+        properties:
+          mensagemId: { type: string, format: uuid }
+          ocorridoEm: { type: string, format: date-time }
+          postId: { type: integer, format: int64 }
+          resumoDoPost: { type: string }
+          autorDoPostId: { type: integer, format: int64 }
+          curtidoPorId: { type: integer, format: int64 }
+          curtidoPorNome: { type: string }
+
+    PostComentadoV1:
+      name: PostComentadoV1
+      title: Alguém comentou uma publicação
+      contentType: application/json
+      headers:
+        $ref: '#/components/schemas/CabecalhosPadrao'
+      payload:
+        type: object
+        required: [mensagemId, ocorridoEm, postId, autorDoPostId, comentadoPorId]
+        properties:
+          mensagemId: { type: string, format: uuid }
+          ocorridoEm: { type: string, format: date-time }
+          postId: { type: integer, format: int64 }
+          resumoDoPost: { type: string }
+          autorDoPostId: { type: integer, format: int64 }
+          comentarioId: { type: integer, format: int64 }
+          comentadoPorId: { type: integer, format: int64 }
+          comentadoPorNome: { type: string }
+          trechoDoComentario: { type: string }
+
+    VagaPublicadaV1:
+      name: VagaPublicadaV1
+      title: Uma vaga foi publicada
+      summary: |
+        Um evento, muitas notificações: o serviço de notificação escreve uma
+        linha por aluno ativo (*fan-out* na escrita), porque "já li" é uma
+        resposta por pessoa.
+      contentType: application/json
+      headers:
+        $ref: '#/components/schemas/CabecalhosPadrao'
+      payload:
+        type: object
+        required: [mensagemId, ocorridoEm, vagaId, titulo, empresa]
+        properties:
+          mensagemId: { type: string, format: uuid }
+          ocorridoEm: { type: string, format: date-time }
+          vagaId: { type: integer, format: int64 }
+          titulo: { type: string }
+          empresa: { type: string }
+          tipo:
+            type: string
+            description: |
+              O tipo da **vaga** (ESTAGIO, CLT…), não o tipo da mensagem. A
+              distinção custou caro: enquanto o método do contrato se chamava
+              `tipo()`, o acessor deste campo o sobrescreveu em silêncio e o
+              evento passou a se anunciar como "ESTAGIO". Daí o método hoje se
+              chamar `tipoDaMensagem()`, com um teste que impede a recaída.
+          publicadaPorId: { type: integer, format: int64 }
+
+    EnviarAvisoV1:
+      name: EnviarAvisoV1
+      title: Entregue este aviso a estas pessoas
+      summary: |
+        **Comando**, não evento: nome no imperativo, um executor só, e pode ser
+        recusado. É o canal da secretaria e dos professores para falar com a
+        turma — nada disso é consequência de um fato do sistema.
+      contentType: application/json
+      headers:
+        $ref: '#/components/schemas/CabecalhosPadrao'
+      payload:
+        type: object
+        required: [mensagemId, ocorridoEm, texto, solicitadoPorId]
+        properties:
+          mensagemId: { type: string, format: uuid }
+          ocorridoEm: { type: string, format: date-time }
+          destinatarios:
+            type: array
+            items: { type: integer, format: int64 }
+            description: |
+              Lista vazia significa **todos os alunos ativos** — quem são é
+              resolvido no serviço que sabe, não em quem pede.
+          texto: { type: string, maxLength: 500 }
+          link: { type: string }
+          solicitadoPorId:
+            type: integer
+            format: int64
+            description: |
+              Lido do token de quem chamou a API, nunca do corpo da requisição.
+
+    SituacaoAcademicaPerguntaV1:
+      name: SituacaoAcademicaPerguntaV1
+      title: Este aluno tem vida acadêmica no boletim?
+      summary: |
+        Não é evento nem comando: não precisa sobreviver a nada. Não passa pela
+        caixa de saída, não tem deduplicação e vence em 10 s.
+      contentType: application/json
+      payload:
+        type: object
+        required: [alunoId]
+        properties:
+          alunoId: { type: integer, format: int64 }
+
+    SituacaoAcademicaRespostaV1:
+      name: SituacaoAcademicaRespostaV1
+      title: O que o boletim sabe sobre o aluno
+      contentType: application/json
+      payload:
+        type: object
+        required: [alunoId, consultado, matriculas, avaliacoes, podeSerExcluido]
+        properties:
+          alunoId: { type: integer, format: int64 }
+          consultado:
+            type: boolean
+            description: |
+              O campo mais importante da resposta. `false` quando o boletim não
+              respondeu a tempo — sem ele, "nenhuma matrícula" e "não consegui
+              perguntar" seriam a mesma coisa, e a secretaria excluiria uma
+              pessoa com matrícula ativa achando que não tinha nenhuma.
+          matriculas: { type: integer }
+          avaliacoes: { type: integer }
+          podeSerExcluido:
+            type: boolean
+            description: |
+              Só quando o boletim respondeu **e** nada consta. Na dúvida, não.
+
+    AvisoAoVivo:
+      name: AvisoAoVivo
+      title: Notificação recém-criada, para as conexões abertas
+      summary: |
+        Mensagem interna do `notificacao-service`, publicada depois do commit
+        (`@TransactionalEventListener(AFTER_COMMIT)`). Não é contrato público:
+        nasce e morre dentro do serviço, atravessando o broker apenas para
+        alcançar as outras instâncias dele mesmo.
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          destinatarioId: { type: integer, format: int64 }
+          notificacao:
+            type: object
+            properties:
+              id: { type: integer, format: int64 }
+              tipo:
+                type: string
+                enum: [BOAS_VINDAS, CURTIDA, COMENTARIO, VAGA, AVISO]
+              texto: { type: string }
+              link: { type: string }
+              criadaEm: { type: string, format: date-time }
+              lida: { type: boolean }
+
+  schemas:
+
+    CabecalhosPadrao:
+      type: object
+      description: |
+        Todo evento e todo comando viajam com estes cabeçalhos AMQP. Os
+        prefixados com `cloudEvents:` seguem o *binding* AMQP do CloudEvents
+        (CNCF), o que deixa id, tipo, origem e horário legíveis no painel do
+        RabbitMQ sem abrir o corpo da mensagem — e sem nenhuma dependência a
+        mais no projeto.
+      properties:
+        message_id:
+          type: string
+          format: uuid
+          description: Por onde o consumidor descarta a repetição.
+        type:
+          type: string
+          description: Nome versionado do contrato, ex. `UsuarioCadastradoV1`.
+        app_id:
+          type: string
+          description: Serviço que publicou.
+        delivery_mode:
+          type: integer
+          enum: [2]
+          description: Persistente — a mensagem sobrevive a um reinício do broker.
+        expiration:
+          type: string
+          description: |
+            Presente só nos agendados e nas consultas. Prazo em milissegundos.
+        'cloudEvents:specversion': { type: string, enum: ['1.0'] }
+        'cloudEvents:id': { type: string, format: uuid }
+        'cloudEvents:type': { type: string, examples: ['br.infnet.hub.UsuarioCadastradoV1'] }
+        'cloudEvents:source': { type: string, examples: ['/infnethub-core'] }
+        'cloudEvents:subject':
+          type: string
+          description: O agregado a que a mensagem se refere.
+        'cloudEvents:time': { type: string, format: date-time }
+
+    Usuario:
+      type: object
+      required: [mensagemId, ocorridoEm, usuarioId, versao, nome, papel]
+      properties:
+        mensagemId: { type: string, format: uuid }
+        ocorridoEm: { type: string, format: date-time }
+        usuarioId: { type: integer, format: int64 }
+        versao:
+          type: integer
+          format: int64
+          description: |
+            Versão do registro na origem. O consumidor descarta o evento cuja
+            versão seja menor ou igual à que já aplicou — é assim que um evento
+            atrasado não sobrescreve um estado mais novo.
+        nome: { type: string }
+        escola: { type: string }
+        ultimoBloco: { type: string }
+        classe: { type: string }
+        papel:
+          type: string
+          enum: [ALUNO, PROFESSOR, SECRETARIA, COORDENADOR]
+        papelDescricao: { type: string }

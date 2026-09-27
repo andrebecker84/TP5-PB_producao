@@ -1,0 +1,223 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* o tema escuro também vale como atributo: um trecho da página pode fixá-lo
+   (as telas de entrada, sempre escuras como a tela de senha do provedor) */
+:root, [data-theme="dark"] {
+  --bg:        #030a16;
+  --surface:   #091526;
+  --surface-2: #0d1e35;
+  --surface-3: #122545;
+  --border:    rgba(90,120,200,0.14);
+  --border-2:  rgba(90,120,200,0.26);
+
+  --primary:       #3b8ef5;
+  --primary-hover: #2f7ae0;
+  --primary-dim:   rgba(59,142,245,0.13);
+  --primary-glow:  rgba(59,142,245,0.28);
+
+  --accent:   #22d3ee;
+  --success:  #34d399;
+  --warning:  #fbbf24;
+  --danger:   #f87171;
+  --danger-hover: #ef4444;
+
+  --text:      #eef2ff;
+  --text-dim:  #94a3b8;
+  --text-muted:#4a5f80;
+
+  /* brilho difuso no topo da página — profundidade sem custo de render */
+  --bg-glow: radial-gradient(1100px 480px at 50% -12%, rgba(59,142,245,.08), transparent 60%);
+
+  --gradient:         linear-gradient(135deg, #3b8ef5, #22d3ee);
+  --gradient-surface: linear-gradient(135deg, rgba(59,142,245,.08), rgba(34,211,238,.04));
+
+  --radius:    8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --pill:      99px;
+
+  /* --edge: realce interno no topo das superfícies escuras — dá a leitura de
+     relevo sem custo de render; no tema claro vira transparente. */
+  --edge:      inset 0 1px 0 rgba(255,255,255,.05);
+
+  /* Receita de glassmorphism dos cards: superfície translúcida (o fundo vaza
+     pelo blur), lâmina de luz no canto superior e borda fria de vidro. */
+  --glass-bg:     linear-gradient(160deg, rgba(255,255,255,.055), rgba(255,255,255,0) 45%),
+                  color-mix(in srgb, var(--surface) 72%, transparent);
+  --glass-border: rgba(140, 158, 235, .17);
+  --glass-blur:   blur(14px);
+  --shadow:    0 2px 10px rgba(0,0,0,.45), var(--edge);
+  --shadow-lg: 0 8px 36px rgba(0,0,0,.55), var(--edge);
+  --glow:      0 0 22px rgba(59,142,245,.18);
+
+  --header-bg: rgba(4,12,26,.96);
+  --icon-bg:   var(--gradient);
+
+  --header-h:     60px;
+  --sidebar-mini: 64px;
+  --sidebar-full: 264px;
+  --sidebar-w:    var(--sidebar-mini);
+}
+
+[data-theme="light"] {
+  --bg:        #f3f5f9;
+  --surface:   #fafbfd;
+  --surface-2: #f0f2f7;
+  --surface-3: #e8ebf3;
+  --border:    rgba(12, 24, 68, 0.09);
+  --border-2:  rgba(12, 24, 68, 0.16);
+
+  --primary:       #0a66c2;
+  --primary-hover: #004182;
+  --primary-dim:   rgba(10, 102, 194, 0.09);
+  --primary-glow:  rgba(10, 102, 194, 0.18);
+
+  --accent:  #0a66c2;
+  --success: #1a7a5e;
+  --warning: #92560a;
+  --danger:  #b91c1c;
+
+  --text:      #0c1020;
+  --text-dim:  #253356;
+  --text-muted:#5a6e8c;
+
+  --bg-glow: radial-gradient(1100px 480px at 50% -12%, rgba(10,102,194,.05), transparent 60%);
+
+  --gradient:         #0a66c2;
+  --gradient-surface: rgba(10, 102, 194, 0.06);
+
+  --edge:      0 0 0 0 transparent;
+
+  --glass-bg:     linear-gradient(160deg, rgba(255,255,255,.9), rgba(255,255,255,.35) 45%),
+                  color-mix(in srgb, var(--surface) 55%, transparent);
+  --glass-border: rgba(255, 255, 255, .85);
+  --glass-blur:   blur(14px);
+
+  --shadow:    0 1px 6px rgba(10,20,60,.08), 0 2px 16px rgba(10,20,60,.06);
+  --shadow-lg: 0 4px 24px rgba(10,20,60,.12), 0 8px 40px rgba(10,20,60,.08);
+  --glow:      0 0 18px rgba(10,102,194,.12);
+
+  --header-bg: rgba(243, 245, 249, .97);
+  --icon-bg:   linear-gradient(135deg, #dbeafe, #bfdbfe);
+}
+
+html {
+  background: var(--bg);
+}
+body {
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-sans), 'Segoe UI', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100%;
+}
+/* Brilho do topo numa camada FIXA própria: pintada uma vez e apenas composta
+   no scroll. O background-attachment: fixed que ficava no body repintava o
+   fundo da página inteira a cada frame de rolagem — jank, agravado pelos
+   vidros com backdrop-filter por cima. O html segue com var(--bg) sólido. */
+body::before {
+  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: var(--bg-glow);
+}
+
+button { cursor: pointer; font-family: inherit; border: none; background: none; color: inherit;
+  transition: background .15s, opacity .15s, transform .1s, box-shadow .15s; }
+button:active { transform: scale(.97); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+
+/* Anel de foco só para navegação por teclado: :focus-visible não dispara no
+   clique do mouse, então o visual fica limpo sem sumir com o foco do Tab. */
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+input, textarea { font-family: inherit; font-size: .9375rem; }
+/* cursor de edição destacado e uniforme em todos os campos (busca, post,
+   comentário, mensagens) — a mesma cor viva da barra de busca */
+input, textarea, [contenteditable="true"] { caret-color: var(--accent); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 99px; }
+
+/* Fade curto na troca de rota dentro do hub — aplicado pelo template, que
+   remonta a cada navegação enquanto o layout (Header/Sidebar) persiste. */
+.pagina-entrada { animation: paginaEntrada .22s ease; }
+@keyframes paginaEntrada {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Aplicada por instantes pelo toggle de tema no Header: transiciona as cores
+   de tudo de uma vez e é removida em seguida, para não interferir nas
+   transições normais dos componentes. */
+.theme-transition,
+.theme-transition *,
+.theme-transition *::before,
+.theme-transition *::after {
+  transition: background-color .3s ease, color .3s ease,
+              border-color .3s ease, box-shadow .3s ease !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── Impressão ─────────────────────────────────────────────────────────────
+   No papel a página sai sempre em tema claro (tinta escura sobre branco), mas
+   COM os elementos gráficos: por padrão o navegador descarta fundos, gradientes
+   e barras de progresso — print-color-adjust: exact impede isso. */
+@media print {
+  *, *::before, *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    backdrop-filter: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+
+  :root, [data-theme="dark"], [data-theme="light"] {
+    --bg:        #ffffff;
+    --surface:   #ffffff;
+    --surface-2: #f4f6fa;
+    --surface-3: #e9edf5;
+    --border:    rgba(12, 24, 68, .18);
+    --border-2:  rgba(12, 24, 68, .30);
+
+    --primary:       #0a66c2;
+    --primary-hover: #004182;
+    --primary-dim:   rgba(10, 102, 194, .10);
+    --primary-glow:  rgba(10, 102, 194, .18);
+
+    --accent:  #0e7490;
+    --success: #15803d;
+    --warning: #a16207;
+    --danger:  #b91c1c;
+
+    --text:      #0b1020;
+    --text-dim:  #26324d;
+    --text-muted:#5a6884;
+
+    --bg-glow: none;
+    --gradient:         linear-gradient(135deg, #0a66c2, #0e7490);
+    --gradient-surface: rgba(10, 102, 194, .06);
+
+    --edge:         0 0 0 0 transparent;
+    --glass-bg:     #ffffff;
+    --glass-border: rgba(12, 24, 68, .18);
+    --glass-blur:   none;
+    --shadow: none; --shadow-lg: none; --glow: none;
+    --header-bg: #ffffff;
+    --icon-bg:   linear-gradient(135deg, #0a66c2, #0e7490);
+  }
+
+  html, body { background: #fff !important; color: var(--text); }
+  @page { margin: 14mm; }
+}

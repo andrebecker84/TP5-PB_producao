@@ -1,0 +1,119 @@
+# Situação acadêmica — a única pergunta do sistema que espera resposta
+#
+# Todo o resto do TP4 caminha na direção oposta: publica e segue em frente.
+# Esta rota para e espera o boletim responder, e está aqui justamente para ser
+# a exceção documentada.
+#
+# O que acontece por baixo não é uma chamada HTTP entre os serviços: o core
+# publica uma pergunta numa exchange `direct` com o endereço de resposta no
+# cabeçalho `reply-to`, e o boletim devolve o resultado por ali. O que se vê
+# daqui é só o efeito — mas o campo `consultado` denuncia a diferença: numa
+# chamada HTTP que falha, viria um erro; aqui vem uma resposta que admite não
+# ter conseguido perguntar.
+
+### Aluno não consulta a vida acadêmica de ninguém — 403
+GET {{baseUrl}}/api/v1/usuarios/1/situacao-academica
+Authorization: Bearer {{tokenAluno}}
+Accept: application/json
+
+> {%
+    client.test("responde 403", () => {
+        client.assert(response.status === 403, "esperado 403, veio " + response.status);
+    });
+%}
+
+### Sem token — 401
+GET {{baseUrl}}/api/v1/usuarios/1/situacao-academica
+Accept: application/json
+
+> {%
+    client.test("responde 401", () => {
+        client.assert(response.status === 401, "esperado 401, veio " + response.status);
+    });
+%}
+
+### O professor pergunta, e o boletim responde
+GET {{baseUrl}}/api/v1/usuarios/1/situacao-academica
+Authorization: Bearer {{tokenProfessor}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+    });
+    client.test("o boletim respondeu de verdade", () => {
+        // O campo que separa "não tem nada" de "não consegui perguntar". Se
+        // viesse false aqui, o serviço estaria fora do ar ou a fila de
+        // perguntas não existiria — e o teste seguinte não significaria nada.
+        client.assert(response.body.consultado === true,
+            "o boletim não respondeu dentro do prazo");
+    });
+    client.test("o aluno tem vida acadêmica e por isso não pode ser excluído", () => {
+        client.assert(response.body.matriculas > 0,
+            "esperadas matrículas para o aluno 1, vieram " + response.body.matriculas);
+        client.assert(response.body.podeSerExcluido === false,
+            "quem tem matrícula não pode ser marcado como excluível");
+    });
+%}
+
+### Quem não tem nada no boletim pode ser excluído
+# Um id que não existe no boletim responde a mesma coisa que um aluno recém
+# cadastrado: nada consta. É a resposta que a secretaria precisa antes de
+# apagar um cadastro.
+GET {{baseUrl}}/api/v1/usuarios/999999/situacao-academica
+Authorization: Bearer {{tokenSecretaria}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+    });
+    client.test("nada consta, e a exclusão fica liberada", () => {
+        client.assert(response.body.consultado === true, "o boletim não respondeu");
+        client.assert(response.body.matriculas === 0, "matrículas: " + response.body.matriculas);
+        client.assert(response.body.avaliacoes === 0, "avaliações: " + response.body.avaliacoes);
+        client.assert(response.body.podeSerExcluido === true, "deveria estar liberado");
+    });
+%}
+
+# ── De volta aos avisos ────────────────────────────────────────────────────
+# As duas verificações abaixo pertencem ao arquivo anterior e estão aqui pelo
+# tempo: entre lá e cá passaram quatro idas e vindas, folga de sobra para o
+# caminho assíncrono se completar.
+
+### O aviso para toda a turma alcançou este aluno
+GET {{notificacaoUrl}}/api/v1/notificacoes
+Authorization: Bearer {{tokenAluno}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+    });
+    client.test("um evento, muitas notificações: a do laboratório chegou", () => {
+        const turma = response.body.find(n => n.texto.indexOf("laboratório 3") >= 0);
+        client.assert(turma !== undefined,
+            "o aviso para toda a turma não chegou; vieram: "
+            + response.body.map(n => n.texto).join(" | "));
+        client.assert(turma.tipo === "AVISO", "tipo inesperado: " + turma.tipo);
+    });
+%}
+
+### O agendado ainda NÃO chegou — e é isso que prova o atraso
+# Pedido na mesma leva dos outros, mas marcado para daqui a uma hora. Se
+# aparecesse agora, a sala de espera estaria ligada direto na fila de trabalho,
+# e o atraso seria só um campo no JSON sem efeito nenhum.
+GET {{notificacaoUrl}}/api/v1/notificacoes
+Authorization: Bearer {{tokenAluno}}
+Accept: application/json
+
+> {%
+    client.test("o lembrete de amanhã não foi entregue antes da hora", () => {
+        // Procura pela marca desta execução: o lembrete de uma execução
+        // anterior, se passou da hora, chegou — e devia mesmo ter chegado.
+        client.assert(client.global.get("marcaAgendado"), "sem a marca do agendamento");
+        const marca = "#" + client.global.get("marcaAgendado");
+        const adiantado = response.body.find(n => n.texto.indexOf(marca) >= 0);
+        client.assert(adiantado === undefined, "o aviso agendado foi entregue antes do prazo");
+    });
+%}

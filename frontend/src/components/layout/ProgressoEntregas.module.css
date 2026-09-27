@@ -1,0 +1,142 @@
+.card {
+  position: relative;
+  /* profundidade de vidro: um leve realce de luz descendo do topo sobre o glass */
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,0) 42%),
+    var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: var(--glass-blur);
+  border-radius: var(--radius-lg); padding: .95rem 1rem;
+  display: flex; flex-direction: column; gap: .85rem;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+}
+.title {
+  font-size: .9rem; font-weight: 700; color: var(--text);
+  display: flex; align-items: center; gap: .45rem;
+}
+.titleIco { color: var(--primary); flex-shrink: 0; filter: drop-shadow(0 0 6px rgba(59,142,245,.4)); }
+
+/* ── Progresso premium: "X de Y concluídas" à esquerda + anel de gradiente ── */
+.donutRow { display: flex; align-items: center; justify-content: space-between; gap: .6rem; }
+/* número grande à esquerda + "de Y / concluídas" em coluna pequena ao lado
+   (igual à referência "2 of 3 completed") */
+.statBlock { display: flex; align-items: center; gap: .4rem; min-width: 0; }
+.statNum {
+  font-size: 2.4rem; font-weight: 800; letter-spacing: -.04em; line-height: .9;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.statMeta { display: flex; flex-direction: column; line-height: 1.15; }
+.statDe { font-size: .78rem; font-weight: 600; color: var(--text-dim); }
+.statSub { font-size: .78rem; font-weight: 600; color: var(--text-muted); }
+
+/* ── Barra segmentada de conclusão (uma célula por entrega) ── */
+/* ── Barras de progresso POR CATEGORIA (ícone + texto na cor + segmentos) ── */
+.catList { display: flex; flex-direction: column; gap: .5rem; }
+.catRow { display: flex; align-items: center; gap: .55rem; }
+.catIco {
+  width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface-3);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+}
+.catBody { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .3rem; }
+.catHead { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; }
+/* "3 Concluídas" à esquerda (número e label na MESMA cor da categoria) */
+/* tipografia neutra: quem carrega a cor é o ícone e a barra */
+.catLabel {
+  font-size: .78rem; font-weight: 600; color: var(--text-dim);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.catCount { font-weight: 800; margin-right: 4px; color: var(--text); font-variant-numeric: tabular-nums; }
+.catPct { font-size: .76rem; font-weight: 700; color: var(--text-muted); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+/* barra de percentual LINEAR embaixo, preenchida proporcional ao % */
+.catTrack {
+  height: 6px; border-radius: 99px; overflow: hidden;
+  background: var(--surface-3); box-shadow: inset 0 1px 2px rgba(0,0,0,.28);
+}
+.catFill { display: block; height: 100%; border-radius: 99px; transition: width .6s cubic-bezier(.4,0,.2,1); }
+
+.donutWrap {
+  position: relative; width: 96px; height: 96px; flex-shrink: 0;
+  cursor: default; outline: none;
+}
+/* brilho radial atrás do anel — profundidade sutil */
+.donutGlow {
+  position: absolute; inset: 8px; border-radius: 50%;
+  background: radial-gradient(circle at 50% 45%, rgba(124,92,255,.1), transparent 70%);
+  filter: blur(8px); pointer-events: none;
+}
+/* o brilho do arco passa da borda do SVG: sem isto ele era cortado num quadrado */
+.donut { position: relative; width: 100%; height: 100%; overflow: visible; }
+.donutTrilho { fill: none; stroke: var(--surface-3); stroke-width: 6; opacity: .55; }
+/* arco de conclusão com gradiente, animando o preenchimento (o brilho é o filtro SVG) */
+.donutArc {
+  transition: stroke-dasharray .7s cubic-bezier(.4,0,.2,1);
+}
+.donutCentro {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  line-height: 1;
+}
+
+/* ── Percentual: só os números mudando (count-up), no MESMO estilo do texto ──
+   sem placa e sem risco; o % acompanha o número (mesma cor, menor) */
+.flapWrap { display: inline-flex; align-items: baseline; }
+.flap {
+  display: inline-block; min-width: .58em;
+  font-size: 1.35rem; font-weight: 800; line-height: 1;
+  font-variant-numeric: tabular-nums; letter-spacing: -.025em;
+  color: var(--text);
+  text-shadow: 0 0 12px rgba(124,92,255,.3), 0 1px 1px rgba(0,0,0,.3);
+  /* mudança suave ao trocar o dígito (o número "rola") */
+  animation: numRoll .3s cubic-bezier(.34,1.4,.64,1);
+}
+@keyframes numRoll {
+  0%   { opacity: 0; transform: translateY(-42%); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.flapPct {
+  font-size: .78rem; font-weight: 800; color: var(--text);
+  margin-left: 1px; text-shadow: 0 0 10px rgba(124,92,255,.24);
+}
+@media (prefers-reduced-motion: reduce) { .flap { animation: none; } }
+
+/* ── Legenda da divisão por categoria (sempre visível, acima do "X de Y") ── */
+.legenda {
+  list-style: none; display: grid; grid-template-columns: 1fr 1fr;
+  gap: .18rem .7rem;
+}
+.legItem { display: flex; align-items: center; gap: .4rem; font-size: .72rem; min-width: 0; }
+.legDot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+.legLabel { flex: 1; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.legVal { font-weight: 800; font-variant-numeric: tabular-nums; }
+
+/* ── Contagem regressiva trimestre/semestre ── */
+.periodos { display: flex; flex-direction: column; gap: .5rem; }
+.periodo { display: flex; flex-direction: column; gap: .28rem; }
+.periodoTopo { display: flex; align-items: baseline; justify-content: space-between; }
+.periodoLabel { font-size: .74rem; font-weight: 700; color: var(--text-dim); }
+.periodoDias { font-size: .7rem; color: var(--text-muted); }
+.periodoDias strong { color: var(--primary); font-variant-numeric: tabular-nums; }
+.periodoTrilho {
+  position: relative;
+  height: 7px; border-radius: 99px; overflow: visible;
+  background: var(--surface-3);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.22);
+}
+.periodoBarra {
+  position: relative;
+  height: 100%; border-radius: 99px;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  box-shadow: 0 0 8px rgba(59,142,245,.4);
+  transition: width .6s cubic-bezier(.4,0,.2,1);
+}
+/* ponto de luz na ponta do progresso — acabamento premium */
+.periodoBarra::after {
+  content: ''; position: absolute; right: 0; top: 50%;
+  width: 9px; height: 9px; border-radius: 50%;
+  transform: translate(45%, -50%);
+  background: #eaf3ff;
+  box-shadow: 0 0 8px 1px var(--accent), 0 0 3px rgba(255,255,255,.9);
+}

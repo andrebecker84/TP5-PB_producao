@@ -1,0 +1,69 @@
+.panel {
+  width: 274px; flex-shrink: 0;
+  display: flex; flex-direction: column; gap: 1rem;
+  position: sticky;
+  top: calc(var(--header-h) + 1.25rem);
+  max-height: calc(100vh - var(--header-h) - 2.5rem);
+  overflow-y: auto;
+}
+.panel::-webkit-scrollbar { width: 3px; }
+.panel::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 99px; }
+
+.card {
+  background: var(--glass-bg); border: 1px solid var(--glass-border);
+  backdrop-filter: var(--glass-blur);
+  border-radius: var(--radius-lg); padding: 1rem 1rem;
+  display: flex; flex-direction: column; gap: .625rem;
+}
+
+.title {
+  font-size: .9rem; font-weight: 700; color: var(--text);
+  display: flex; align-items: center; gap: .4rem;
+}
+.titleIco { color: var(--primary); flex-shrink: 0; }
+.desc  { font-size: .8rem; color: var(--text-muted); line-height: 1.5; }
+
+/* ── Atendimento ── */
+.atendBtn {
+  display: flex; align-items: center; gap: .5rem;
+  padding: .5rem .625rem;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius);
+  font-size: .8125rem; color: var(--text-dim); text-decoration: none;
+  transition: border-color .15s, color .15s, background .15s;
+}
+.atendBtn:hover {
+  background: var(--primary-dim); border-color: var(--primary);
+  color: var(--primary); text-decoration: none;
+}
+.atendBtn:hover .atendIco { color: var(--primary); }
+.atendIco { flex-shrink: 0; color: var(--text-muted); transition: color .15s; }
+.atendBtn span { flex: 1; }
+.extIco { flex-shrink: 0; color: var(--text-muted); opacity: .4; }
+
+/* ── Grupos — lista rolável; +39px p/ compensar a faixa das tarefas e deixar
+      os dois cards com a MESMA altura ── */
+.grupoScroll {
+  height: calc(18rem + 39px); flex-shrink: 0;
+  display: flex; flex-direction: column; gap: .4rem;
+  padding-right: 4px;
+}
+.grupo {
+  display: flex; align-items: center; gap: .5rem; flex-shrink: 0;
+  padding: .45rem .55rem; border-radius: var(--radius);
+  background: var(--surface-2); border: 1px solid var(--border);
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.grupo:hover { background: var(--primary-dim); border-color: var(--primary); }
+.grupoIcon {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; color: var(--primary);
+}
+.grupoIconGeral { color: #2dd4bf; }
+.grupoInfo { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.grupoNome { font-size: .8rem; font-weight: 500; color: var(--text-dim); }
+.grupoTipo { font-size: .73rem; color: var(--text-muted); }
+
+/* some antes do painel esquerdo (que passa a empilhar acima do feed) */
+@media (max-width: 1180px) { .panel { display: none; } }

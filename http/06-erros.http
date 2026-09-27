@@ -1,0 +1,253 @@
+# Tratamento de erros — verificação do contrato JSON
+#
+# Esta API responde JSON em toda situação, inclusive nas falhas. Sem isso, um
+# cliente que chama JSON.parse na resposta quebra com um erro de sintaxe que
+# nada diz sobre a causa real — o problema fica mais difícil de diagnosticar do
+# que a falha original.
+#
+# Cada requisição aqui provoca uma falha diferente de propósito. Todas devem
+# responder JSON, e nenhuma deve devolver a página de erro padrão do Spring.
+
+### Rota inexistente — 404
+GET {{baseUrl}}/api/v1
+Authorization: Bearer {{tokenAluno}}
+Accept: application/json
+
+> {%
+    client.test("responde 404", () => {
+        client.assert(response.status === 404, "esperado 404, veio " + response.status);
+    });
+    client.test("responde JSON, não HTML", () => {
+        client.assert(response.contentType.mimeType === "application/json",
+            "veio " + response.contentType.mimeType + " — a Whitelabel voltou?");
+    });
+    client.test("não ecoa a URL solicitada", () => {
+        // Devolver o caminho faria o servidor ecoar texto arbitrário do cliente,
+        // que é o ponto de partida de XSS refletido caso algum consumidor
+        // renderize a mensagem como HTML.
+        client.assert(!JSON.stringify(response.body).includes("/api/v1"),
+            "a resposta está ecoando a URL");
+    });
+%}
+
+### Identificador de tipo inválido — 400
+GET {{baseUrl}}/api/v1/posts/abc
+Authorization: Bearer {{tokenAluno}}
+Accept: application/json
+
+> {%
+    client.test("responde 400", () => {
+        client.assert(response.status === 400, "esperado 400, veio " + response.status);
+    });
+    client.test("explica qual parâmetro falhou", () => {
+        client.assert(response.body.message !== undefined, "sem campo message");
+    });
+%}
+
+### Verbo não suportado — 405 com cabeçalho Allow
+DELETE {{baseUrl}}/api/v1/posts
+Authorization: Bearer {{tokenAluno}}
+
+> {%
+    client.test("responde 405", () => {
+        client.assert(response.status === 405, "esperado 405, veio " + response.status);
+    });
+    client.test("informa os verbos aceitos", () => {
+        // A especificação HTTP exige o cabeçalho Allow no 405: é ele que diz ao
+        // cliente o que tentar em seguida.
+        client.assert(response.headers.valueOf("Allow") !== null, "sem cabeçalho Allow");
+    });
+%}
+
+### Corpo malformado — 400
+POST {{baseUrl}}/api/v1/posts
+Authorization: Bearer {{tokenAluno}}
+Content-Type: application/json
+
+{quebrado
+
+> {%
+    client.test("responde 400", () => {
+        client.assert(response.status === 400, "esperado 400, veio " + response.status);
+    });
+    client.test("não vaza detalhe interno do Jackson", () => {
+        const corpo = JSON.stringify(response.body);
+        client.assert(!corpo.includes("com.fasterxml") && !corpo.includes("tools.jackson"),
+            "a resposta expõe a estrutura interna");
+    });
+%}
+
+### Validação de campos — 400 com detalhamento por campo
+POST {{baseUrl}}/api/v1/posts
+Authorization: Bearer {{tokenAluno}}
+Content-Type: application/json
+
+{
+  "titulo": "",
+  "conteudo": ""
+}
+
+> {%
+    client.test("responde 400", () => {
+        client.assert(response.status === 400, "esperado 400, veio " + response.status);
+    });
+    client.test("aponta os campos inválidos", () => {
+        client.assert(response.body.campos !== undefined, "sem detalhamento por campo");
+    });
+%}
+
+### Recurso inexistente — 404 de domínio
+GET {{baseUrl}}/api/v1/posts/999999
+Authorization: Bearer {{tokenAluno}}
+Accept: application/json
+
+> {%
+    client.test("responde 404", () => {
+        client.assert(response.status === 404, "esperado 404, veio " + response.status);
+    });
+%}
+
+# ── Autenticação e autorização (TP4) ─────────────────────────────────────────
+# As quatro requisições abaixo provam, contra o sistema no ar, o que os testes
+# automatizados provam em memória: quem não se identifica não entra, quem se
+# identifica só faz o que o papel permite — e o antigo cabeçalho X-Usuario-Id
+# não vale mais nada.
+
+### Sem token — 401
+GET {{baseUrl}}/api/v1/posts
+Accept: application/json
+
+> {%
+    client.test("responde 401", () => {
+        client.assert(response.status === 401, "esperado 401, veio " + response.status);
+    });
+    client.test("erro em JSON, como o resto da API", () => {
+        client.assert(response.body.status === 401, "corpo fora do contrato de erro");
+    });
+%}
+
+### Token inválido — 401
+GET {{baseUrl}}/api/v1/posts
+Authorization: Bearer nao-e-um-token
+Accept: application/json
+
+> {%
+    client.test("responde 401", () => {
+        client.assert(response.status === 401, "esperado 401, veio " + response.status);
+    });
+%}
+
+### X-Usuario-Id sozinho não identifica mais ninguém — 401
+# Era assim que, até o TP3, qualquer cliente agia em nome de qualquer usuário.
+POST {{baseUrl}}/api/v1/posts
+X-Usuario-Id: 1
+Content-Type: application/json
+
+{
+  "conteudo": "Post que não deveria ser criado."
+}
+
+> {%
+    client.test("responde 401", () => {
+        client.assert(response.status === 401, "esperado 401, veio " + response.status);
+    });
+%}
+
+### Aluno tentando publicar vaga — 403
+# Autenticado não é o mesmo que autorizado: o token é válido, o papel é que não
+# permite. Publicar vaga é ato da secretaria.
+POST {{baseUrl}}/api/v1/vagas
+Authorization: Bearer {{tokenAluno}}
+Content-Type: application/json
+
+{
+  "titulo": "Vaga que não deveria ser criada",
+  "empresa": "Empresa Qualquer",
+  "descricao": "Tentativa de publicação por quem não pode.",
+  "localizacao": "Remoto",
+  "tipo": "CLT",
+  "categoria": "Backend",
+  "criadorId": 1
+}
+
+> {%
+    client.test("responde 403", () => {
+        client.assert(response.status === 403, "esperado 403, veio " + response.status);
+    });
+    client.test("explica que falta permissão", () => {
+        client.assert(response.body.error === "Sem permissão", "erro inesperado: " + response.body.error);
+    });
+%}
+
+### Aluno tentando o boletim de outro aluno — 403
+GET {{boletimUrl}}/api/v1/boletim/4
+Authorization: Bearer {{tokenAluno}}
+Accept: application/json
+
+> {%
+    client.test("responde 403", () => {
+        client.assert(response.status === 403, "esperado 403, veio " + response.status);
+    });
+%}
+
+### Alterar o post de outra pessoa — 403
+# O post 1 é do professor. O aluno autenticado não pode editá-lo nem apagá-lo:
+# só o autor ou a moderação (secretaria, coordenação) alteram um conteúdo.
+PUT {{baseUrl}}/api/v1/posts/1
+Authorization: Bearer {{tokenAluno}}
+Content-Type: application/json
+
+{
+  "titulo": "Tentativa de alterar o post alheio",
+  "conteudo": "Não deveria ser gravado."
+}
+
+> {%
+    client.test("responde 403", () => {
+        client.assert(response.status === 403, "esperado 403, veio " + response.status);
+    });
+%}
+
+### Apagar o post de outra pessoa — 403
+DELETE {{baseUrl}}/api/v1/posts/1
+Authorization: Bearer {{tokenAluno}}
+
+> {%
+    client.test("responde 403", () => {
+        client.assert(response.status === 403, "esperado 403, veio " + response.status);
+    });
+%}
+
+### Aluno tentando alterar o cadastro de outra pessoa — 403
+# O cadastro de pessoas é administrativo: um aluno não troca o nome nem o
+# e-mail de ninguém — e a troca seguiria, por evento, para o boletim.
+PUT {{baseUrl}}/api/v1/usuarios/4
+Authorization: Bearer {{tokenAluno}}
+Content-Type: application/json
+
+{
+  "nome": "Nome Trocado Por Outra Pessoa",
+  "email": "trocado@infnet.edu.br"
+}
+
+> {%
+    client.test("responde 403", () => {
+        client.assert(response.status === 403, "esperado 403, veio " + response.status);
+    });
+%}
+
+### Aluno tentando cadastrar uma pessoa — 403
+POST {{baseUrl}}/api/v1/usuarios
+Authorization: Bearer {{tokenAluno}}
+Content-Type: application/json
+
+{
+  "nome": "Cadastro Que Não Deveria Existir",
+  "email": "indevido@infnet.edu.br"
+}
+
+> {%
+    client.test("responde 403", () => {
+        client.assert(response.status === 403, "esperado 403, veio " + response.status);
+    });
+%}

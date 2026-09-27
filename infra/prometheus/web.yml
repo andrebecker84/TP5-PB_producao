@@ -1,0 +1,5 @@
+# A interface do próprio Prometheus, também por TLS: é por ela que o Grafana
+# consulta as séries.
+tls_server_config:
+  cert_file: /certs/prometheus/servidor.crt
+  key_file: /certs/prometheus/servidor.key

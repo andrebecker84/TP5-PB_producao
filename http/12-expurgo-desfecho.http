@@ -1,0 +1,111 @@
+# O desfecho da saga de expurgo
+#
+# Roda numa SEGUNDA chamada do cliente HTTP, depois de uma pausa explícita no
+# `verificar.sh`. Não é detalhe de arrumação: é a única forma honesta de
+# verificar um desfecho assíncrono a partir de uma coleção de requisições.
+#
+# A alternativa — encher o arquivo anterior de requisições até dar tempo — foi
+# tentada e falhou duas vezes em três execuções. Um teste que passa quase sempre
+# é um teste que falha às vezes, e num relatório de entrega isso é pior do que
+# não ter o teste.
+#
+# Por rodar separado, este arquivo não herda as variáveis do anterior: ele
+# depende só do que é fixo. O aluno 1 é semeado pelo DataLoader e tem
+# competências em avaliação, então a saga aberta sobre ele SEMPRE termina em
+# recusa — e, portanto, em compensação. É o desfecho mais interessante dos dois,
+# e o único que pode ser repetido à vontade: termina com tudo como estava.
+#
+# O desfecho oposto, a conclusão, é verificado pelo SagaDeExpurgoTest (que sabe
+# esperar) e pelo cenário 9 do roteiro de demonstração.
+
+### O boletim recusou, e o core registrou o motivo
+GET {{baseUrl}}/api/v1/usuarios/1/expurgo
+Authorization: Bearer {{tokenSecretaria}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+    });
+    client.test("o processo mais recente terminou em REVERTIDO", () => {
+        // A lista vem do mais recente para o mais antigo: o primeiro é o que
+        // a execução anterior abriu.
+        const p = response.body[0];
+        client.assert(p !== undefined, "nenhum expurgo registrado para o aluno 1");
+        client.assert(p.estado === "REVERTIDO", "estado: " + p.estado);
+        client.assert(p.encerradoEm !== null, "sem data de encerramento");
+    });
+    client.test("o motivo é acadêmico, e não um código de erro", () => {
+        client.assert(String(response.body[0].motivo).indexOf("avaliação") >= 0,
+            "motivo: " + response.body[0].motivo);
+    });
+    client.test("quem pediu ficou registrado — veio do token, não do corpo", () => {
+        client.assert(response.body[0].solicitadoPor === 3,
+            "solicitadoPor: " + response.body[0].solicitadoPor);
+    });
+%}
+
+### A compensação desfez o bloqueio: a pessoa voltou a existir
+# É o que separa uma saga com compensação de um processo que só sabe seguir em
+# frente. Nada foi perdido — nem aqui, nem no boletim.
+GET {{baseUrl}}/api/v1/usuarios/1
+Authorization: Bearer {{tokenSecretaria}}
+Accept: application/json
+
+> {%
+    client.test("responde 200 de novo", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+    });
+    client.test("com os dados intactos", () => {
+        client.assert(response.body.nome === "Lucas Mendonça", "nome: " + response.body.nome);
+        client.assert(String(response.body.email).indexOf("invalid") < 0,
+            "o e-mail foi anonimizado numa saga que devia ter sido revertida");
+    });
+%}
+
+### E voltou às listagens
+GET {{baseUrl}}/api/v1/usuarios/buscar?termo=Lucas
+Authorization: Bearer {{tokenSecretaria}}
+Accept: application/json
+
+> {%
+    client.test("a busca o encontra de novo", () => {
+        client.assert(response.body.filter(u => u.id === 1).length === 1,
+            "o aluno 1 não voltou para a busca");
+    });
+%}
+
+### O boletim dele continua de pé — recusar é não mexer
+GET {{boletimUrl}}/api/v1/boletim/1
+Authorization: Bearer {{tokenProfessor}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+    });
+    client.test("a réplica não foi tocada", () => {
+        client.assert(response.body.aluno.nome === "Lucas Mendonça",
+            "nome na réplica: " + response.body.aluno.nome);
+    });
+%}
+
+### A secretaria foi avisada de que a remoção não foi adiante
+# A compensação não é silenciosa: quem pediu veria o cadastro reaparecer sem
+# explicação. O aviso sai pelo mesmo caminho de qualquer outro — um comando na
+# caixa de saída, entregue pelo serviço de notificação.
+GET {{notificacaoUrl}}/api/v1/notificacoes
+Authorization: Bearer {{tokenSecretaria}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+    });
+    client.test("há um aviso explicando a reversão", () => {
+        const aviso = response.body.find(n =>
+            n.tipo === "AVISO" && String(n.texto).indexOf("não pôde ser concluída") >= 0);
+        client.assert(aviso !== undefined,
+            "nenhum aviso de reversão chegou; vieram: " + response.body.map(n => n.tipo).join(", "));
+    });
+%}

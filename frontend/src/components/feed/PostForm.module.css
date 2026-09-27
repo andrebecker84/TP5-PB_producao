@@ -1,0 +1,205 @@
+.card {
+  background: var(--surface); border: 1px solid var(--primary); border-radius: var(--radius-lg);
+  overflow: hidden; box-shadow: 0 0 0 3px var(--primary-dim), var(--glow);
+  animation: formExpand .32s cubic-bezier(.22,1,.36,1);
+  transform-origin: top center;
+}
+/* expande de cima para baixo, como se a barra de publicar crescesse para o editor */
+@keyframes formExpand {
+  0%   { opacity: 0; transform: translateY(-10px) scaleY(.9); }
+  60%  { opacity: 1; }
+  100% { opacity: 1; transform: none; }
+}
+
+.header {
+  display: flex; align-items: center; gap: .75rem;
+  padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);
+  background: var(--gradient-surface);
+}
+.avatar {
+  width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .875rem; font-weight: 700; color: #fff;
+}
+.info  { flex: 1; }
+.name  { display: block; font-size: .9375rem; font-weight: 600; color: var(--text); }
+.sub   { display: block; font-size: .75rem; color: var(--text-muted); }
+.closeBtn {
+  width: 30px; height: 30px; border-radius: 50%; background: none;
+  color: var(--text-muted); display: flex; align-items: center; justify-content: center;
+}
+.closeBtn:hover { background: var(--surface-2); color: var(--text); }
+
+.form { padding: 1rem 1.25rem; display: flex; flex-direction: column; gap: .875rem; }
+
+.tituloInput {
+  background: transparent; border: none;
+  border-bottom: 1px solid var(--border); padding: .375rem 0;
+  color: var(--text); font-size: 1rem; font-weight: 600; width: 100%;
+}
+.tituloInput:focus { outline: none; border-bottom-color: var(--primary); }
+.tituloInput::placeholder { color: var(--text-muted); font-weight: 400; }
+
+/* ── Input box (mesmo esquema do comentário) ── */
+.inputBox {
+  background: var(--surface); border: 1.5px solid var(--border-2);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 4px rgba(0,0,0,.08);
+  transition: border-color .15s, box-shadow .15s;
+}
+.inputBox:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-dim);
+}
+
+.conteudo {
+  width: 100%; background: none; border: none; color: var(--text);
+  font-size: .9375rem; line-height: 1.7;
+  padding: .75rem 1rem .375rem;
+  resize: none; min-height: 100px;
+}
+.conteudo:focus { outline: none; }
+.conteudo::placeholder { color: var(--text-muted); }
+
+/* ── Toolbar ── */
+.toolbar {
+  display: flex; align-items: center; gap: .25rem;
+  padding: .375rem .625rem .5rem;
+  border-top: 1px solid var(--border);
+}
+.tools { display: flex; gap: .125rem; }
+.toolBtn {
+  width: 28px; height: 28px; border-radius: 6px; background: none;
+  color: var(--text-muted);
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s, color .15s;
+}
+.toolBtn:hover { background: var(--surface-3); color: var(--primary); }
+
+/* mesmas dicas de teclado do campo de comentário */
+.hints {
+  display: flex; gap: .875rem; margin-left: .5rem; flex: 1;
+  font-size: .72rem; color: var(--text-muted);
+}
+.hints kbd {
+  font-family: inherit; font-size: .7rem; font-weight: 700;
+  background: var(--surface-3); border: 1px solid var(--border-2);
+  border-radius: 4px; padding: 0 .3rem; margin-right: .2rem;
+}
+
+.btnEnviar {
+  width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+  color: var(--primary);
+  background: linear-gradient(145deg, rgba(255,255,255,.10), rgba(255,255,255,.03));
+  border: 1px solid var(--border-2);
+  backdrop-filter: blur(6px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .18s, box-shadow .2s, border-color .2s;
+}
+.btnEnviar:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(34,211,238,.6);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 0 16px rgba(34,211,238,.5);
+}
+.btnEnviar:disabled { opacity: .4; }
+:global([data-theme="light"]) .btnEnviar {
+  background: linear-gradient(145deg, rgba(255,255,255,.92), rgba(255,255,255,.55));
+  border-color: rgba(255,255,255,.9);
+  box-shadow: inset 0 1px 0 #fff, 0 1px 4px rgba(10,20,60,.08);
+}
+
+/* ── Emoji picker ── */
+.emojiWrap { position: relative; }
+
+.emojiPicker {
+  position: absolute; bottom: calc(100% + 6px); left: 0;
+  z-index: 200;
+  display: flex; flex-wrap: wrap; gap: 2px;
+  width: 210px; padding: .5rem;
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  animation: fadeUp .12s ease;
+}
+@keyframes fadeUp { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:none} }
+.emojiBtn {
+  width: 30px; height: 30px; border-radius: var(--radius);
+  background: none; font-size: 1.1rem; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .1s;
+}
+.emojiBtn:hover { background: var(--surface-2); }
+
+/* ── Anexos (pré-visualização) ── */
+.anexos {
+  display: flex; flex-wrap: wrap; gap: .5rem;
+  padding: .6rem .75rem 0;
+}
+.anexoImg {
+  position: relative; width: 68px; height: 68px; border-radius: 10px; overflow: hidden;
+  border: 1px solid var(--border-2); flex-shrink: 0;
+}
+.anexoImg img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.anexoDoc {
+  display: flex; align-items: center; gap: .5rem;
+  padding: .4rem .6rem; border-radius: 10px; max-width: 220px;
+  background: var(--surface-2); border: 1px solid var(--border-2); color: var(--primary);
+}
+.anexoDocInfo { display: flex; flex-direction: column; min-width: 0; }
+.anexoDocNome { font-size: .74rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.anexoDocTam { font-size: .64rem; color: var(--text-muted); }
+.anexoRem {
+  position: absolute; top: 3px; right: 3px;
+  width: 18px; height: 18px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(10,15,30,.7); color: #fff; cursor: pointer;
+}
+.anexoDoc .anexoRem { position: static; background: none; color: var(--text-muted); }
+.anexoDoc .anexoRem:hover { color: var(--danger); }
+.anexoImg .anexoRem:hover { background: var(--danger); }
+
+/* ── Janela suspensa de documentos ── */
+.docOverlay {
+  position: fixed; inset: 0; z-index: 9000;
+  background: rgba(4,12,26,.6); backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center;
+  animation: docFade .18s ease;
+}
+@keyframes docFade { from { opacity: 0; } to { opacity: 1; } }
+.docModal {
+  width: 92vw; max-width: 460px;
+  background:
+    linear-gradient(160deg, rgba(255,255,255,.06), rgba(255,255,255,0) 45%),
+    color-mix(in srgb, var(--surface) 96%, transparent);
+  backdrop-filter: blur(28px) saturate(1.5);
+  border: 1px solid var(--border-2); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg); overflow: hidden;
+  animation: docPop .18s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes docPop { from { opacity: 0; transform: translateY(10px) scale(.97); } to { opacity: 1; transform: none; } }
+.docHead {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .9rem 1rem; border-bottom: 1px solid var(--border);
+}
+.docTitle { display: flex; align-items: center; gap: .5rem; font-size: .9rem; font-weight: 700; color: var(--text); }
+.docTitle svg { color: var(--primary); }
+.docClose {
+  width: 30px; height: 30px; border-radius: 50%; color: var(--text-muted);
+  background: none; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.docClose:hover { background: rgba(248,113,113,.14); color: var(--danger); }
+.dropzone {
+  margin: 1rem; padding: 2rem 1rem; border-radius: var(--radius);
+  border: 2px dashed var(--border-2); cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: .5rem; text-align: center;
+  transition: border-color .18s, background .18s;
+}
+.dropzone:hover, .dropOver { border-color: var(--primary); background: var(--primary-dim); }
+.dropIco { color: var(--primary); }
+.dropTxt { font-size: .85rem; color: var(--text-dim); }
+.dropTxt strong { color: var(--primary); }
+.dropSub { font-size: .72rem; color: var(--text-muted); }

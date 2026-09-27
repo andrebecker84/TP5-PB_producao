@@ -1,0 +1,84 @@
+# =========================================================================
+# Tempo — armazenamento dos traces do Infnet Hub (TP5).
+#
+# Os serviços enviam os spans por OTLP ao Grafana Alloy, que os agrupa e os
+# repassa para cá. O Grafana consulta o Tempo para mostrar o caminho de uma
+# requisição, e dele salta para os logs daquela requisição no Loki.
+#
+# O gerador de métricas transforma os spans em séries no Prometheus:
+#   span-metrics    taxa, erros e duração por serviço e operação — inclusive
+#                   das operações de mensageria, que o Actuator não mede
+#   service-graphs  quem chama quem, com taxa e erro em cada aresta: o mapa
+#                   de serviços que o Grafana desenha
+# =========================================================================
+
+stream_over_http_enabled: true
+
+server:
+  http_listen_port: 3200
+  log_level: warn
+  http_tls_config:
+    cert_file: /certs/tempo/servidor.crt
+    key_file: /certs/tempo/servidor.key
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+          tls:
+            cert_file: /certs/tempo/servidor.crt
+            key_file: /certs/tempo/servidor.key
+
+metrics_generator:
+  registry:
+    external_labels:
+      source: tempo
+  storage:
+    path: /var/tempo/generator/wal
+    remote_write:
+      - url: https://prometheus:9090/api/v1/write
+        send_exemplars: true
+        tls_config:
+          ca_file: /certs/ca.crt
+
+storage:
+  trace:
+    backend: local
+    wal:
+      path: /var/tempo/wal
+    local:
+      path: /var/tempo/blocks
+
+# Memória e retenção. O Tempo 3 guarda em memória os traces vivos e os blocos
+# recém-fechados; com os padrões (blocos por 20 min, sem teto baixo) um teste
+# de carga de alguns minutos enche a memória, e o contêiner, morto pelo limite,
+# morre de novo ao reler o WAL na volta. Aqui: o coletor de lixo respeita o
+# limite do contêiner (automemlimit), os blocos saem da memória em 5 min, os
+# traces vivos têm teto, e a retenção é de 24 h — o volume é pequeno, e o
+# Tempo guarda traces para investigar o presente, não o histórico.
+memory:
+  automemlimit_enabled: true
+
+live_store:
+  complete_block_timeout: 5m
+  max_live_traces_bytes: 100000000
+
+backend_worker:
+  compaction:
+    block_retention: 24h
+
+backend_scheduler:
+  provider:
+    compaction:
+      compaction:
+        block_retention: 24h
+
+overrides:
+  defaults:
+    metrics_generator:
+      processors: [span-metrics, service-graphs]
+
+usage_report:
+  reporting_enabled: false

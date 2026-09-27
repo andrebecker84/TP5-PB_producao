@@ -1,0 +1,693 @@
+# =========================================================================
+# Infnet Hub — TP5 · ambiente Compose (desenvolvimento e demonstração)
+#
+# O ambiente de produção simulado é o Kubernetes (pasta k8s/); este arquivo é o
+# de quem desenvolve e o de quem quer ver tudo no ar com um comando só.
+#
+# O TP5 usa um bloco de portas próprio no host (21xxx) em vez das usuais
+# 5432/8080/3000/5672. Motivo: as portas padrão são as primeiras a serem
+# disputadas por outros projetos, e as etapas do projeto integrado podem
+# precisar rodar ao mesmo tempo. O TP1 ficou em 5432/8080/3000, o TP2 em
+# 15432/18080/13000, o TP3 em 19xxx e o TP4 em 20xxx.
+#
+# ── O que é publicado, e para quem ──────────────────────────────────────────
+# Só o que um NAVEGADOR precisa abrir, e só no 127.0.0.1 da máquina — nada
+# disto é alcançável por outro computador da rede:
+#
+#   21000  front-end           21180  Keycloak (tela de login)
+#   21080  gateway (API)       21673  painel do RabbitMQ
+#   21300  Grafana (painel de operação)
+#
+# Os serviços Java — core, boletim, notificação, Eureka — NÃO têm porta no
+# host. Chega-se a eles pelo gateway, e só por ele. É o que dá valor de prova ao
+# X-Forwarded-For registrado na auditoria: ninguém fora da rede do Compose
+# consegue falar com o core diretamente e escrever o cabeçalho que quiser.
+#
+# Os bancos e o AMQP do primeiro nó do broker também ficam no 127.0.0.1, para
+# rodar um serviço pela IDE contra esta infraestrutura (ver o README).
+#
+# ── Tráfego interno cifrado ─────────────────────────────────────────────────
+# Toda conexão entre contêineres é TLS, com o certificado conferido:
+#
+#   gateway → serviços          HTTPS            serviços → Eureka      HTTPS
+#   front-end → gateway         HTTPS            serviços → Keycloak    HTTPS
+#   serviços → RabbitMQ         AMQPS (5671)     nó ↔ nó do RabbitMQ    TLS
+#   serviços → PostgreSQL       TLS, verify-full Prometheus → alvos     HTTPS
+#   Grafana → Prometheus        HTTPS
+#   serviços → Alloy (spans)    HTTPS            Alloy → Loki / Tempo   HTTPS / gRPC+TLS
+#   Grafana → Loki / Tempo      HTTPS            Tempo → Prometheus     HTTPS
+#
+# Os certificados são gerados na primeira subida pelo serviço `certificados`
+# (infra/certificados/gerar.sh), por uma autoridade de desenvolvimento própria
+# deste ambiente. Nada disso é versionado.
+# =========================================================================
+
+# Nome fixo do projeto: é por ele que o Alloy separa os contêineres deste
+# ambiente dos demais na mesma máquina (infra/alloy/config.alloy), e é o prefixo
+# dos volumes — que assim não se misturam com os do TP4.
+name: infnethub-tp5
+
+# ── Trechos repetidos ─────────────────────────────────────────────────────────
+
+# Os serviços Java confiam na autoridade de desenvolvimento pela JVM inteira:
+# todo cliente — Eureka, RabbitMQ, Keycloak, o roteamento do gateway — passa a
+# conferir os certificados contra ela, sem configuração própria em cada um.
+#
+# E gastam pouca memória: heap de até 60% do limite do contêiner (mem_limit
+# em cada serviço), coletor serial — o de menor sobrecarga para um processo
+# com poucas threads — e compilação só no primeiro nível, que dispensa a
+# memória e as threads do compilador otimizador. Para uma demonstração, a
+# diferença de desempenho não aparece; a de memória, sim.
+x-java-com-tls: &java-com-tls
+  JAVA_TOOL_OPTIONS: >-
+    -XX:MaxRAMPercentage=60
+    -XX:+UseSerialGC
+    -XX:TieredStopAtLevel=1
+    -Xss512k
+    -Djavax.net.ssl.trustStore=/certs/confianca.p12
+    -Djavax.net.ssl.trustStorePassword=${CONFIANCA_SENHA:-infnethub-confianca}
+    -Djavax.net.ssl.trustStoreType=PKCS12
+  EUREKA_URL: https://eureka:21761/eureka
+  KEYCLOAK_URL_PUBLICA: http://localhost:${KEYCLOAK_PORT:-21180}
+  KEYCLOAK_URL_INTERNA: https://keycloak:8443
+  KEYCLOAK_REALM: ${KEYCLOAK_REALM:-infnethub}
+  CORS_ORIGINS: http://localhost:${FRONTEND_PORT:-21000}
+  # ── Observabilidade (TP5) ──
+  # Logs em JSON (formato ECS) na saída padrão, recolhidos pelo Alloy; spans
+  # por OTLP, também ao Alloy, que os repassa ao Tempo. Rodando pela IDE, sem
+  # estas variáveis, o log volta a ser texto e nada é enviado.
+  LOGGING_STRUCTURED_FORMAT_CONSOLE: ecs
+  OTLP_HABILITADO: "true"
+  OTLP_TRACES_URL: https://alloy:4318/v1/traces
+  AMBIENTE: compose
+
+# Os três nós do broker, por AMQPS, e as credenciais. Com a lista, a conexão
+# que perde o nó em que estava é refeita no seguinte.
+x-amqp: &amqp
+  SPRING_RABBITMQ_ADDRESSES: rabbitmq-1:5671,rabbitmq-2:5671,rabbitmq-3:5671
+  RABBIT_USER: ${RABBIT_USER:-infnethub}
+  RABBIT_PASS: ${RABBIT_PASS:-infnethub}
+
+# Um nó do RabbitMQ. Os três só diferem no nome.
+x-rabbitmq: &rabbitmq
+  image: rabbitmq:4.3-management-alpine
+  environment:
+    # A conversa entre os nós — e entre as ferramentas de linha de comando e o
+    # nó — vai por TLS (ver infra/rabbitmq/inter_node_tls.config). O cookie é o
+    # segredo compartilhado do cluster: nós com cookies diferentes não se unem.
+    RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: >-
+      -setcookie ${RABBIT_COOKIE:-infnethub-cluster-dev}
+      -proto_dist inet_tls -ssl_dist_optfile /etc/rabbitmq/inter_node_tls.config
+    RABBITMQ_CTL_ERL_ARGS: >-
+      -setcookie ${RABBIT_COOKIE:-infnethub-cluster-dev}
+      -proto_dist inet_tls -ssl_dist_optfile /etc/rabbitmq/inter_node_tls.config
+  volumes:
+    - ./infra/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+    - ./infra/rabbitmq/20-infnethub.conf:/etc/rabbitmq/conf.d/20-infnethub.conf:ro
+    - ./infra/rabbitmq/inter_node_tls.config:/etc/rabbitmq/inter_node_tls.config:ro
+    - certificados:/certs:ro
+  depends_on:
+    certificados:
+      condition: service_completed_successfully
+  healthcheck:
+    test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+    interval: 10s
+    timeout: 15s
+    retries: 12
+    start_period: 30s
+
+# PostgreSQL com TLS obrigatório pela rede (ver infra/postgres/pg_hba.conf).
+x-postgres: &postgres
+  image: postgres:18-alpine
+  command:
+    - postgres
+    - -c
+    - ssl=on
+    - -c
+    - ssl_cert_file=/certs/postgres/servidor.crt
+    - -c
+    - ssl_key_file=/certs/postgres/servidor.key
+    - -c
+    - hba_file=/etc/postgresql/pg_hba.conf
+  depends_on:
+    certificados:
+      condition: service_completed_successfully
+
+services:
+
+  # ── Certificados ──────────────────────────────────────────────────────────
+  # Roda, gera (só na primeira vez) e termina. Os demais esperam por ele com
+  # `service_completed_successfully`. A imagem é a mesma dos serviços Java, que
+  # já traz openssl e keytool.
+  certificados:
+    image: eclipse-temurin:25-jre-alpine
+    entrypoint: ["sh", "/gerar.sh"]
+    environment:
+      SENHA_DA_CONFIANCA: ${CONFIANCA_SENHA:-infnethub-confianca}
+    volumes:
+      - ./infra/certificados/gerar.sh:/gerar.sh:ro
+      - certificados:/certs
+
+  # ── Registro de serviços ──────────────────────────────────────────────────
+  # Sem porta no host: é infraestrutura interna. O Grafana e o painel do
+  # RabbitMQ mostram o que importa operar.
+  eureka:
+    build:
+      context: .
+      dockerfile: eureka-server/Dockerfile
+    container_name: infnethub-tp5-eureka
+    mem_limit: 384m
+    environment:
+      <<: *java-com-tls
+      SPRING_PROFILES_ACTIVE: tls
+      SERVER_PORT: "21761"
+      # Dentro da rede do Compose o hostname anunciado é o nome do serviço.
+      EUREKA_HOSTNAME: eureka
+    volumes:
+      - certificados:/certs:ro
+    depends_on:
+      certificados:
+        condition: service_completed_successfully
+      alloy:
+        condition: service_started
+    healthcheck:
+      # O wget da imagem confere o certificado — e confere de verdade, contra
+      # as autoridades do sistema. SSL_CERT_FILE aponta para a de
+      # desenvolvimento; "localhost" está entre os nomes do certificado.
+      test: ["CMD-SHELL", "SSL_CERT_FILE=/certs/ca.crt wget --spider -q https://localhost:21761/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+
+  # ── Identidade ────────────────────────────────────────────────────────────
+  # Keycloak: provedor OpenID Connect. É ele que tem a tela de login, as senhas
+  # e os papéis — nenhum serviço do Infnet Hub guarda credencial. O realm vem
+  # versionado em infra/keycloak/realm-infnethub.json e é importado na subida.
+  #
+  # Duas portas, dois públicos. A 8080, em HTTP, é a do navegador — publicada
+  # só no 127.0.0.1, e é o endereço que vai no campo "iss" dos tokens
+  # (KC_HOSTNAME). A 8443, em HTTPS, é a dos serviços: troca de código por
+  # token, chaves públicas, userinfo. KC_HOSTNAME_BACKCHANNEL_DYNAMIC é o que
+  # deixa os dois endereços coexistirem.
+  #
+  # A interface de gestão (saúde) fica em HTTP, mas presa ao 127.0.0.1 do
+  # próprio contêiner: só o healthcheck a alcança.
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.4
+    container_name: infnethub-tp5-keycloak
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASS:-admin}
+      KC_HOSTNAME: http://localhost:${KEYCLOAK_PORT:-21180}
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HEALTH_ENABLED: "true"
+      KC_HTTPS_CERTIFICATE_FILE: /certs/keycloak/servidor.crt
+      KC_HTTPS_CERTIFICATE_KEY_FILE: /certs/keycloak/servidor.key
+      KC_HTTP_MANAGEMENT_SCHEME: http
+      KC_HTTP_MANAGEMENT_HOST: 127.0.0.1
+    ports:
+      - "127.0.0.1:${KEYCLOAK_PORT:-21180}:8080"
+    volumes:
+      - ./infra/keycloak/realm-infnethub.json:/opt/keycloak/data/import/realm-infnethub.json:ro
+      - ./infra/keycloak/healthcheck.sh:/opt/keycloak/healthcheck.sh:ro
+      # tema de login com a cara da plataforma (ver infra/keycloak/temas)
+      - ./infra/keycloak/temas/infnethub:/opt/keycloak/themes/infnethub:ro
+      - keycloak_data:/opt/keycloak/data
+      - certificados:/certs:ro
+    depends_on:
+      certificados:
+        condition: service_completed_successfully
+    healthcheck:
+      # Ver infra/keycloak/healthcheck.sh — a imagem não tem curl nem wget.
+      test: ["CMD", "bash", "/opt/keycloak/healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 40s
+
+  # ── Message broker: três nós ──────────────────────────────────────────────
+  # Filas quorum replicadas nos três (ver infra/rabbitmq/20-infnethub.conf): um
+  # nó pode cair e as filas seguem aceitando e entregando. A topologia inteira e
+  # o usuário vêm de infra/rabbitmq/definitions.json, carregado na subida.
+  #
+  # Hostname fixo em cada nó: o RabbitMQ guarda os dados sob o nome do nó, e um
+  # nome novo a cada contêiner abandonaria o volume. Volume próprio por nó, pela
+  # mesma razão — cada um é uma réplica, não uma cópia do mesmo disco.
+  rabbitmq-1:
+    <<: *rabbitmq
+    container_name: infnethub-tp5-rabbitmq-1
+    hostname: rabbitmq-1
+    ports:
+      - "127.0.0.1:${RABBIT_PAINEL_PORT:-21673}:15672"
+      - "127.0.0.1:${RABBIT_PORT:-21672}:5671"
+    volumes:
+      - ./infra/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+      - ./infra/rabbitmq/20-infnethub.conf:/etc/rabbitmq/conf.d/20-infnethub.conf:ro
+      - ./infra/rabbitmq/inter_node_tls.config:/etc/rabbitmq/inter_node_tls.config:ro
+      - certificados:/certs:ro
+      - rabbitmq_1_data:/var/lib/rabbitmq
+
+  rabbitmq-2:
+    <<: *rabbitmq
+    container_name: infnethub-tp5-rabbitmq-2
+    hostname: rabbitmq-2
+    volumes:
+      - ./infra/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+      - ./infra/rabbitmq/20-infnethub.conf:/etc/rabbitmq/conf.d/20-infnethub.conf:ro
+      - ./infra/rabbitmq/inter_node_tls.config:/etc/rabbitmq/inter_node_tls.config:ro
+      - certificados:/certs:ro
+      - rabbitmq_2_data:/var/lib/rabbitmq
+
+  rabbitmq-3:
+    <<: *rabbitmq
+    container_name: infnethub-tp5-rabbitmq-3
+    hostname: rabbitmq-3
+    volumes:
+      - ./infra/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+      - ./infra/rabbitmq/20-infnethub.conf:/etc/rabbitmq/conf.d/20-infnethub.conf:ro
+      - ./infra/rabbitmq/inter_node_tls.config:/etc/rabbitmq/inter_node_tls.config:ro
+      - certificados:/certs:ro
+      - rabbitmq_3_data:/var/lib/rabbitmq
+
+  # ── Bancos: um por serviço ────────────────────────────────────────────────
+  # Três instâncias de PostgreSQL, e não três schemas numa: os serviços não
+  # compartilham processo, credencial nem arquivo de dados.
+  #
+  # Volume montado em /var/lib/postgresql, e não em /var/lib/postgresql/data: a
+  # imagem do PostgreSQL 18 guarda os dados num subdiretório por versão, e com a
+  # montagem antiga o contêiner recusa subir.
+  postgres:
+    <<: *postgres
+    container_name: infnethub-tp5-postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME:-infnethub}
+      POSTGRES_USER: ${DB_USER:-infnethub}
+      POSTGRES_PASSWORD: ${DB_PASS:-infnethub}
+    ports:
+      - "127.0.0.1:${DB_PORT:-21432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ./infra/postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+      - certificados:/certs:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-infnethub} -d ${DB_NAME:-infnethub}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  postgres-boletim:
+    <<: *postgres
+    container_name: infnethub-tp5-postgres-boletim
+    environment:
+      POSTGRES_DB: ${BOLETIM_DB_NAME:-boletim}
+      POSTGRES_USER: ${BOLETIM_DB_USER:-boletim}
+      POSTGRES_PASSWORD: ${BOLETIM_DB_PASS:-boletim}
+    ports:
+      - "127.0.0.1:${BOLETIM_DB_PORT:-21433}:5432"
+    volumes:
+      - postgres_boletim_data:/var/lib/postgresql
+      - ./infra/postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+      - certificados:/certs:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${BOLETIM_DB_USER:-boletim} -d ${BOLETIM_DB_NAME:-boletim}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  postgres-notificacao:
+    <<: *postgres
+    container_name: infnethub-tp5-postgres-notificacao
+    environment:
+      POSTGRES_DB: ${NOTIFICACAO_DB_NAME:-notificacao}
+      POSTGRES_USER: ${NOTIFICACAO_DB_USER:-notificacao}
+      POSTGRES_PASSWORD: ${NOTIFICACAO_DB_PASS:-notificacao}
+    ports:
+      - "127.0.0.1:${NOTIFICACAO_DB_PORT:-21434}:5432"
+    volumes:
+      - postgres_notificacao_data:/var/lib/postgresql
+      - ./infra/postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+      - certificados:/certs:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${NOTIFICACAO_DB_USER:-notificacao} -d ${NOTIFICACAO_DB_NAME:-notificacao}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── Aplicação central ─────────────────────────────────────────────────────
+  backend:
+    build:
+      # Contexto na raiz, e não em infnethub-core/: o módulo precisa do pom pai
+      # para resolver versões e o BOM do Spring Cloud.
+      context: .
+      dockerfile: infnethub-core/Dockerfile
+    container_name: infnethub-tp5-backend
+    hostname: backend
+    mem_limit: 512m
+    environment:
+      <<: [*java-com-tls, *amqp]
+      SPRING_PROFILES_ACTIVE: dev,tls
+      SERVER_PORT: "21081"
+      # verify-full: cifra E confere que o servidor é quem diz ser — o
+      # certificado contra a autoridade, e o nome "postgres" contra o
+      # certificado. sslmode=require cifraria sem conferir nada.
+      DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-infnethub}?sslmode=verify-full&sslrootcert=/certs/ca.crt
+      DB_USER: ${DB_USER:-infnethub}
+      DB_PASS: ${DB_PASS:-infnethub}
+      # Prazo da saga de expurgo encurtado para caber numa demonstração — o
+      # padrão da aplicação é um dia. Ver o cenário 9 do roteiro.
+      APP_EXPURGO_PRAZO: ${EXPURGO_PRAZO:-PT1M}
+      APP_EXPURGO_VERIFICACAO_MS: "5000"
+    volumes:
+      - certificados:/certs:ro
+    depends_on:
+      alloy:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      eureka:
+        condition: service_healthy
+      # Não é obrigatório para o core funcionar — com o broker fora, os eventos
+      # esperam no outbox. Esperar aqui só evita um minuto de avisos no log.
+      rabbitmq-1:
+        condition: service_healthy
+      rabbitmq-2:
+        condition: service_healthy
+      rabbitmq-3:
+        condition: service_healthy
+    healthcheck:
+      # O grupo `readiness`, e não a saúde agregada: com o RabbitMQ fora do ar
+      # a agregada responde DOWN, e o contêiner seria reiniciado justamente
+      # quando a caixa de saída está fazendo o seu trabalho.
+      test: ["CMD-SHELL", "SSL_CERT_FILE=/certs/ca.crt wget --spider -q https://localhost:21081/actuator/health/readiness || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ── Desempenho acadêmico ──────────────────────────────────────────────────
+  boletim:
+    build:
+      context: .
+      dockerfile: boletim-service/Dockerfile
+    container_name: infnethub-tp5-boletim
+    hostname: boletim
+    mem_limit: 512m
+    environment:
+      <<: [*java-com-tls, *amqp]
+      SPRING_PROFILES_ACTIVE: dev,tls
+      SERVER_PORT: "21082"
+      DB_URL: jdbc:postgresql://postgres-boletim:5432/${BOLETIM_DB_NAME:-boletim}?sslmode=verify-full&sslrootcert=/certs/ca.crt
+      DB_USER: ${BOLETIM_DB_USER:-boletim}
+      DB_PASS: ${BOLETIM_DB_PASS:-boletim}
+    volumes:
+      - certificados:/certs:ro
+    depends_on:
+      alloy:
+        condition: service_started
+      postgres-boletim:
+        condition: service_healthy
+      eureka:
+        condition: service_healthy
+      # O boletim não depende do core — nem para subir, nem para responder.
+      # Depende do broker, de onde vêm os dados dos alunos.
+      rabbitmq-1:
+        condition: service_healthy
+      rabbitmq-2:
+        condition: service_healthy
+      rabbitmq-3:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "SSL_CERT_FILE=/certs/ca.crt wget --spider -q https://localhost:21082/actuator/health/readiness || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ── Notificações — o serviço feito para escalar ───────────────────────────
+  # Sem container_name e sem porta no host: é o que permite
+  #   docker compose up -d --scale notificacao=3
+  # Cada instância se registra no Eureka com o próprio IP; o gateway reparte as
+  # requisições entre elas, e a fila notificacao.eventos reparte as mensagens.
+  notificacao:
+    build:
+      context: .
+      dockerfile: notificacao-service/Dockerfile
+    mem_limit: 512m
+    environment:
+      <<: [*java-com-tls, *amqp]
+      SPRING_PROFILES_ACTIVE: dev,tls
+      SERVER_PORT: "21083"
+      DB_URL: jdbc:postgresql://postgres-notificacao:5432/${NOTIFICACAO_DB_NAME:-notificacao}?sslmode=verify-full&sslrootcert=/certs/ca.crt
+      DB_USER: ${NOTIFICACAO_DB_USER:-notificacao}
+      DB_PASS: ${NOTIFICACAO_DB_PASS:-notificacao}
+    volumes:
+      - certificados:/certs:ro
+    depends_on:
+      alloy:
+        condition: service_started
+      postgres-notificacao:
+        condition: service_healthy
+      eureka:
+        condition: service_healthy
+      rabbitmq-1:
+        condition: service_healthy
+      rabbitmq-2:
+        condition: service_healthy
+      rabbitmq-3:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "SSL_CERT_FILE=/certs/ca.crt wget --spider -q https://localhost:21083/actuator/health/readiness || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ── Ponto único de entrada ────────────────────────────────────────────────
+  # Porta principal (21443) só HTTPS, para a rede interna: front-end do lado do
+  # servidor, Prometheus, healthcheck. Porta do navegador (21080) em HTTP,
+  # publicada só no 127.0.0.1 — ver PortaDoNavegador.
+  gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    container_name: infnethub-tp5-gateway
+    hostname: gateway
+    ports:
+      - "127.0.0.1:${GATEWAY_PORT:-21080}:21080"
+    mem_limit: 512m
+    environment:
+      <<: *java-com-tls
+      SPRING_PROFILES_ACTIVE: tls
+      SERVER_PORT: "21443"
+      PORTA_DO_NAVEGADOR: "21080"
+      # Para onde o navegador volta depois de entrar e de sair.
+      FRONTEND_URL: http://localhost:${FRONTEND_PORT:-21000}
+      KEYCLOAK_BFF_SECRET: ${KEYCLOAK_BFF_SECRET:-bff-segredo-de-desenvolvimento}
+    volumes:
+      - certificados:/certs:ro
+    depends_on:
+      alloy:
+        condition: service_started
+      backend:
+        condition: service_healthy
+      boletim:
+        condition: service_healthy
+      notificacao:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "SSL_CERT_FILE=/certs/ca.crt wget --spider -q https://localhost:21443/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # NEXT_PUBLIC_* entra no bundle do cliente em tempo de BUILD — precisa
+        # ser build-arg. URL resolvida pelo NAVEGADOR: localhost e a porta do
+        # navegador no gateway.
+        - NEXT_PUBLIC_API_URL=http://localhost:${GATEWAY_PORT:-21080}/api/v1
+        # Destino do rewrite /api/* do next.config.ts, resolvido pelo SERVIDOR
+        # do Next, dentro da rede do Docker: a porta principal do gateway, em
+        # HTTPS. Build-arg porque os rewrites são resolvidos durante o build.
+        - API_PROXY_TARGET=https://gateway:21443
+    container_name: infnethub-tp5-frontend
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-21000}:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:${GATEWAY_PORT:-21080}/api/v1
+      # O Node confia na autoridade de desenvolvimento além das públicas.
+      - NODE_EXTRA_CA_CERTS=/certs/ca.crt
+    volumes:
+      - certificados:/certs:ro
+    depends_on:
+      gateway:
+        condition: service_healthy
+
+  # ── Operação: métricas e painel ───────────────────────────────────────────
+  # O Prometheus coleta de cada instância de cada serviço e dos três nós do
+  # broker (infra/prometheus/prometheus.yml); o Grafana mostra o painel
+  # "Infnet Hub — operação" (infra/grafana/paineis/infnethub.json): filas,
+  # consumidores, taxas, caixa de saída, sagas e tempo de resposta.
+  prometheus:
+    image: prom/prometheus:v3.14.0
+    container_name: infnethub-tp5-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.config.file=/etc/prometheus/web.yml
+      - --storage.tsdb.retention.time=7d
+      # TP5: o Tempo grava aqui as métricas que deriva dos spans (mapa de
+      # serviços, taxa e duração por operação)...
+      - --web.enable-remote-write-receiver
+      # ...e o histograma de tempo de resposta guarda exemplares: o traceId
+      # de uma requisição em cada faixa, para o gráfico levar ao trace.
+      - --enable-feature=exemplar-storage
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/prometheus/regras.yml:/etc/prometheus/regras.yml:ro
+      - ./infra/prometheus/web.yml:/etc/prometheus/web.yml:ro
+      - certificados:/certs:ro
+      - prometheus_data:/prometheus
+    depends_on:
+      certificados:
+        condition: service_completed_successfully
+
+  grafana:
+    image: grafana/grafana:13.2.2
+    container_name: infnethub-tp5-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASS:-admin}
+      GF_SERVER_ROOT_URL: http://localhost:${GRAFANA_PORT:-21300}
+      # Login pelo Keycloak, o mesmo da plataforma, e só para o suporte de TI.
+      # Sem entrada anônima e sem o formulário próprio do Grafana: quem abre o
+      # endereço vai direto para a tela de login do Infnet Hub. Na volta, o
+      # papel é conferido no token — SUPORTE_TI vira administrador do painel;
+      # qualquer outro papel é RECUSADO (role_attribute_strict), e não apenas
+      # rebaixado a leitor. Esconder o link no front-end não bastaria: quem
+      # soubesse o endereço entraria.
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_AUTH_GENERIC_OAUTH_AUTO_LOGIN: "true"
+      GF_AUTH_GENERIC_OAUTH_ENABLED: "true"
+      GF_AUTH_GENERIC_OAUTH_NAME: Infnet Hub
+      GF_AUTH_GENERIC_OAUTH_CLIENT_ID: infnethub-grafana
+      GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET: ${GRAFANA_OIDC_SECRET:-grafana-segredo-de-desenvolvimento}
+      GF_AUTH_GENERIC_OAUTH_SCOPES: openid profile email
+      GF_AUTH_GENERIC_OAUTH_USE_PKCE: "true"
+      # O navegador vai ao endereço público do Keycloak; o Grafana troca o
+      # código pelo token no interno, por HTTPS, conferindo o certificado.
+      # Login único: quem já entrou na plataforma não digita a senha de novo —
+      # a tela de login tem um botão do painel de operação que usa o mesmo
+      # login e, confirmado o papel SUPORTE_TI, abre o Grafana, que aproveita
+      # a sessão do Keycloak. Quem não é do suporte nem chega aqui por esse
+      # botão; quem digitar o endereço direto é recusado pelo papel (ROLE_
+      # ATTRIBUTE_STRICT) e troca de conta saindo da plataforma, que encerra a
+      # sessão no Keycloak.
+      GF_AUTH_GENERIC_OAUTH_AUTH_URL: http://localhost:${KEYCLOAK_PORT:-21180}/realms/${KEYCLOAK_REALM:-infnethub}/protocol/openid-connect/auth
+      GF_AUTH_GENERIC_OAUTH_TOKEN_URL: https://keycloak:8443/realms/${KEYCLOAK_REALM:-infnethub}/protocol/openid-connect/token
+      GF_AUTH_GENERIC_OAUTH_API_URL: https://keycloak:8443/realms/${KEYCLOAK_REALM:-infnethub}/protocol/openid-connect/userinfo
+      GF_AUTH_GENERIC_OAUTH_TLS_CLIENT_CA: /certs/ca.crt
+      GF_AUTH_GENERIC_OAUTH_LOGIN_ATTRIBUTE_PATH: preferred_username
+      GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH: "contains(realm_access.roles[*], 'SUPORTE_TI') && 'Admin'"
+      GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_STRICT: "true"
+      # Sair do Grafana encerra a sessão no Keycloak e volta à entrada da
+      # plataforma (?saiu=1), que encerra também a sessão do gateway: a tela de
+      # login é uma só, e a saída também.
+      GF_AUTH_SIGNOUT_REDIRECT_URL: http://localhost:${KEYCLOAK_PORT:-21180}/realms/${KEYCLOAK_REALM:-infnethub}/protocol/openid-connect/logout?client_id=infnethub-grafana&post_logout_redirect_uri=http%3A%2F%2Flocalhost%3A${FRONTEND_PORT:-21000}%2Flogin%3Fsaiu%3D1
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/paineis/infnethub.json
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-21300}:3000"
+    volumes:
+      - ./infra/grafana/provisionamento:/etc/grafana/provisioning:ro
+      - ./infra/grafana/paineis:/var/lib/grafana/paineis:ro
+      - certificados:/certs:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      prometheus:
+        condition: service_started
+      loki:
+        condition: service_started
+      tempo:
+        condition: service_started
+      keycloak:
+        condition: service_healthy
+
+  # ── Observabilidade: logs e rastreamento (TP5) ────────────────────────────
+  # O caminho de um log: serviço → saída padrão (JSON) → Docker → Alloy → Loki.
+  # O caminho de um span: serviço → OTLP → Alloy → Tempo.
+  # O Grafana consulta os três — Prometheus, Loki e Tempo — e liga um ao outro:
+  # do pico de latência ao trace, do trace aos logs, do log ao trace.
+  loki:
+    image: grafana/loki:3.7.8
+    container_name: infnethub-tp5-loki
+    command: ["-config.file=/etc/loki/loki.yml"]
+    mem_limit: 384m
+    volumes:
+      - ./infra/loki/loki.yml:/etc/loki/loki.yml:ro
+      - certificados:/certs:ro
+      - loki_data:/loki
+    depends_on:
+      certificados:
+        condition: service_completed_successfully
+
+  tempo:
+    image: grafana/tempo:3.0.3
+    container_name: infnethub-tp5-tempo
+    command: ["-target=all", "-config.file=/etc/tempo/tempo.yml"]
+    mem_limit: 768m
+    volumes:
+      - ./infra/tempo/tempo.yml:/etc/tempo/tempo.yml:ro
+      - certificados:/certs:ro
+      - tempo_data:/var/tempo
+    depends_on:
+      certificados:
+        condition: service_completed_successfully
+
+  # O coletor. Lê os logs pelo socket do Docker — somente leitura, e só os
+  # contêineres deste projeto (o filtro está no config.alloy) — e recebe os
+  # spans por OTLP/HTTPS na 4318, dentro da rede do Compose.
+  alloy:
+    image: grafana/alloy:v1.19.2
+    container_name: infnethub-tp5-alloy
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --storage.path=/var/lib/alloy/data
+      - --server.http.listen-addr=0.0.0.0:12345
+    mem_limit: 256m
+    volumes:
+      - ./infra/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - certificados:/certs:ro
+      - alloy_data:/var/lib/alloy/data
+    depends_on:
+      loki:
+        condition: service_started
+      tempo:
+        condition: service_started
+
+volumes:
+  certificados:
+  keycloak_data:
+  postgres_data:
+  postgres_boletim_data:
+  postgres_notificacao_data:
+  rabbitmq_1_data:
+  rabbitmq_2_data:
+  rabbitmq_3_data:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+  tempo_data:
+  alloy_data:

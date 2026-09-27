@@ -1,0 +1,65 @@
+# =========================================================================
+# Loki — agregação de logs do Infnet Hub (TP5).
+#
+# Os serviços escrevem logs em JSON na saída padrão, como manda o Twelve-Factor
+# App; quem os recolhe é o Grafana Alloy (infra/alloy/config.alloy), que os
+# envia para cá. Nenhum serviço conhece o Loki — trocar o destino dos logs não
+# exige novo build de nada.
+#
+# Modo monolítico, com armazenamento em disco: um processo, um volume. É o
+# desenho para um ambiente de demonstração; em escala, o mesmo binário roda
+# separado em leitura, escrita e backend, com armazenamento em objeto (S3).
+#
+# O que vira rótulo e o que não vira: rótulo é índice, e cada combinação de
+# valores é um fluxo separado no Loki. Por isso só o serviço, o contêiner e o
+# nível são rótulos. O traceId — um valor novo a cada requisição — vai como
+# metadado estruturado: pesquisável, sem multiplicar os fluxos.
+# =========================================================================
+
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9095
+  log_level: warn
+  # A API por HTTPS, como todo o resto do Compose: é por ela que o Alloy envia
+  # e o Grafana consulta.
+  http_tls_config:
+    cert_file: /certs/loki/servidor.crt
+    key_file: /certs/loki/servidor.key
+
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    - from: 2026-01-01
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+limits_config:
+  # Sete dias, o mesmo prazo do Prometheus: logs de operação, não arquivo.
+  retention_period: 168h
+  allow_structured_metadata: true
+  volume_enabled: true
+
+compactor:
+  working_directory: /loki/compactor
+  retention_enabled: true
+  delete_request_store: filesystem
+
+analytics:
+  reporting_enabled: false

@@ -1,0 +1,26 @@
+# O Loki como fonte de dados (TP5), por TLS.
+#
+# O campo derivado liga cada linha de log ao trace da requisição que a
+# escreveu: o traceId chega como metadado estruturado (ver
+# infra/alloy/config.alloy), e o Grafana o transforma num botão para o Tempo.
+apiVersion: 1
+datasources:
+  - name: Loki
+    uid: loki
+    type: loki
+    access: proxy
+    url: https://loki:3100
+    editable: false
+    jsonData:
+      tlsAuthWithCACert: true
+      serverName: loki
+      maxLines: 1000
+      derivedFields:
+        - name: traceId
+          matcherType: label
+          matcherRegex: traceId
+          datasourceUid: tempo
+          url: "$${__value.raw}"
+          urlDisplayLabel: Ver o trace
+    secureJsonData:
+      tlsCACert: $__file{/certs/ca.crt}

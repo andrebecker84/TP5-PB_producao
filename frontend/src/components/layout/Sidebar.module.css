@@ -1,0 +1,503 @@
+/* ── Fixed mini sidebar — always visible ── */
+.sidebar {
+  position: fixed;
+  left: 14px; top: 14px; bottom: 14px;
+  z-index: 150;
+  /* largura segue o mesmo token que a margem do conteúdo (AppLayout) — uma
+     única fonte de verdade, sem risco de dessincronizar com a classe local */
+  width: var(--sidebar-w, var(--sidebar-mini));
+  overflow: hidden;
+  /* painel solto em vidro líquido — flutua na página, cantos arredondados */
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 22px;
+  backdrop-filter: var(--glass-blur);
+  box-shadow:
+    0 20px 50px -14px rgba(0,0,0,.55),
+    inset 0 1px 0 rgba(255,255,255,.08);
+  display: flex; flex-direction: column;
+  transition: width .24s cubic-bezier(.4,0,.2,1);
+}
+/* em telas estreitas, a sidebar expandida vira overlay com sombra reforçada */
+@media (max-width: 760px) {
+  .sidebar.expanded { box-shadow: 0 20px 50px -8px rgba(0,0,0,.6); }
+}
+
+/* ── Labels: hidden by max-width:0 when mini ── */
+.lbl {
+  max-width: 0; overflow: hidden; white-space: nowrap;
+  opacity: 0; font-size: .9rem; font-weight: 500; color: inherit;
+  transition: max-width .22s ease, opacity .18s ease;
+  pointer-events: none; flex-shrink: 0;
+}
+.sidebar.expanded .lbl {
+  max-width: 180px; opacity: 1; pointer-events: auto;
+}
+
+/* ── Sidebar top ──
+   compacta: marca centralizada, recolher abaixo (centralizado)
+   expandida: marca à esquerda, recolher encostado na direita */
+.sidebarTop {
+  display: flex; flex-direction: column; align-items: center;
+  gap: .4rem; padding: .6rem .5rem;
+  flex-shrink: 0;
+}
+.sidebar.expanded .sidebarTop {
+  flex-direction: row; align-items: center; justify-content: space-between;
+  padding: .6rem .5rem .6rem .75rem;
+}
+
+/* linha em branco de respiro entre seções, sem rótulo nem traço */
+.secGap { height: .15rem; flex-shrink: 0; }
+
+/* divisória fina — some as bordas ficam suaves no modo compacto também */
+.divider {
+  height: 1px; flex-shrink: 0;
+  background: var(--border-2);
+  margin: .55rem .7rem;
+}
+/* dividers do topo alinham a MESMA largura do de baixo (o rodapé tem +.5rem de
+   padding, então esses ganham +.5rem de margem lateral para igualar) */
+.dividerNav { margin-left: 1.2rem; margin-right: 1.2rem; }
+
+.hamburger {
+  width: 34px; height: 34px; border-radius: var(--radius);
+  background: none; color: var(--primary); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: background .15s, color .15s;
+}
+.hamburger:hover { background: var(--surface-2); color: var(--accent); }
+
+/* a marca fica sempre visível; só o texto colapsa no modo mini.
+   SEM overflow:hidden aqui — ele recortava o glow (drop-shadow) do SVG no
+   retângulo do wrapper, criando o quadrado marcado atrás da logo. O recorte
+   do texto foi movido para o próprio .sidebarLogoText. */
+.sidebarLogo {
+  display: flex; align-items: center; gap: .7rem;
+}
+/* compacta: marca centralizada de verdade (sem o gap empurrando para a esquerda) */
+.sidebar:not(.expanded) .sidebarLogo { width: 100%; justify-content: center; gap: 0; }
+.sidebarLogoText {
+  /* a mesma proporção da marca do fundo da página e da entrada */
+  font-size: 1.3rem; font-weight: 300; letter-spacing: .18em; white-space: nowrap; line-height: 1;
+  color: var(--text-dim);
+  max-width: 0; opacity: 0; overflow: hidden;
+  transition: max-width .24s ease, opacity .2s ease;
+}
+.sidebar.expanded .sidebarLogoText { max-width: 180px; opacity: 1; }
+.sidebarLogoText b { font-weight: 600; color: var(--text); }
+/* no tema claro o texto branco-azulado some no fundo — escurece e engrossa */
+:global([data-theme="light"]) .sidebarLogoText { color: #16386e; font-weight: 400; }
+:global([data-theme="light"]) .sidebarLogoText b { color: #0a66c2; font-weight: 700; }
+
+/* ── Profile ── */
+.profile {
+  display: flex; align-items: center; gap: 0;
+  padding: .875rem .75rem;
+  flex-shrink: 0; overflow: hidden;
+  justify-content: center;
+}
+.sidebar.expanded .profile { justify-content: flex-start; gap: .875rem; }
+.avatar {
+  width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .8125rem; font-weight: 700; color: #fff;
+  box-shadow: 0 0 0 2.5px rgba(59,142,245,.5);
+  z-index: 1;
+}
+.profileInfo {
+  display: flex; flex-direction: column; gap: .2rem;
+  max-width: 0; overflow: hidden; opacity: 0;
+  transition: max-width .22s ease, opacity .18s ease;
+  pointer-events: none;
+}
+.sidebar.expanded .profileInfo {
+  max-width: 200px; opacity: 1; pointer-events: auto;
+}
+.profileName  { font-size: .9rem; font-weight: 700; color: var(--text); white-space: nowrap; }
+.papelBadge {
+  display: inline-flex; align-items: center;
+  font-size: .78rem; font-weight: 700;
+  padding: .22rem .7rem; border-radius: 99px; width: fit-content;
+  white-space: nowrap;
+}
+.profileEscola { font-size: .76rem; color: var(--text-muted); white-space: nowrap; }
+
+/* ── Navigation ── */
+.nav {
+  display: flex; flex-direction: column;
+  padding: .5rem .5rem; gap: .1rem;
+}
+
+.navItem {
+  display: flex; align-items: center; gap: 0;
+  padding: .6rem .625rem;
+  border-radius: var(--radius);
+  background: none; text-align: left; width: 100%;
+  color: var(--text-dim);
+  overflow: hidden; transition: background .15s, color .15s;
+  cursor: pointer;
+  justify-content: center;
+}
+.sidebar.expanded .navItem { justify-content: flex-start; gap: .8rem; }
+.navItem:hover { background: var(--surface-2); color: var(--text); }
+.navItem:hover .ico { color: var(--primary); }
+.active { background: var(--primary-dim) !important; color: var(--primary) !important; }
+.active .ico { color: var(--primary) !important; }
+
+.ico { flex-shrink: 0; color: var(--text-muted); transition: color .15s; }
+.icoWrap { position: relative; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+/* contador no canto do ícone — só no modo compacto */
+.navBadgeDot {
+  position: absolute; top: -5px; right: -6px;
+  min-width: 15px; height: 15px; padding: 0 3px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--primary); color: #fff;
+  font-size: .58rem; font-weight: 700; border-radius: 99px;
+  box-shadow: 0 0 6px rgba(59,142,245,.6);
+}
+.sidebar.expanded .navBadgeDot { display: none; }
+/* contador na ponta da linha — só expandido */
+.navBadge {
+  margin-left: auto;
+  min-width: 18px; height: 18px; padding: 0 .35rem;
+  display: none; align-items: center; justify-content: center;
+  background: var(--primary); color: #fff;
+  font-size: .62rem; font-weight: 700; border-radius: 99px;
+  box-shadow: 0 0 6px rgba(59,142,245,.5);
+}
+.sidebar.expanded .navBadge { display: inline-flex; }
+/* ícones da Plataforma em destaque (azul da marca); institucionais ficam discretos */
+.navItem .ico { color: var(--primary); }
+.navItem:hover .ico { color: var(--accent); }
+.navItem:hover .ico,
+.linkItem:hover .ico,
+.hamburger:hover svg { animation: icoSalta .5s cubic-bezier(.34,1.56,.64,1); }
+.sairBtn:hover .ico  { animation: icoSai .45s ease; }
+
+/* salto com mola dos ícones — dispara uma vez a cada hover */
+@keyframes icoSalta {
+  0%   { transform: none; }
+  35%  { transform: translateY(-4px) scale(1.25); }
+  70%  { transform: translateY(1px)  scale(1.05); }
+  100% { transform: none; }
+}
+/* o Sair aponta a saída: desliza para fora e volta */
+@keyframes icoSai {
+  0%   { transform: none; }
+  45%  { transform: translateX(4px); }
+  100% { transform: none; }
+}
+
+/* ── Section divider ── */
+.secDivider {
+  display: flex; align-items: center; gap: .375rem;
+  padding: .625rem .75rem .25rem;
+  flex-shrink: 0;
+}
+.secLine { height: 1px; background: var(--border-2); flex: 1; }
+/* a primeira seção não leva linha nenhuma — só o rótulo. O segundo seletor
+   inclui .secDivider.secFirst para superar em especificidade a regra
+   .sidebar.expanded .secDivider .secLine:last-child que reexibe a linha. */
+.secFirst .secLine,
+.sidebar.expanded .secDivider.secFirst .secLine:last-child { display: none; }
+.secDivider .secLine:last-child { display: none; }
+.sidebar.expanded .secDivider .secLine:last-child { display: block; }
+.secTxt {
+  font-size: .7rem; font-weight: 800; letter-spacing: .08em;
+  color: var(--accent); text-transform: uppercase; white-space: nowrap;
+  max-width: 0; overflow: hidden; opacity: 0;
+  transition: max-width .22s ease, opacity .18s ease, padding .18s ease;
+}
+.sidebar.expanded .secTxt { max-width: 120px; opacity: 1; padding: 0 .3rem; }
+
+/* ── Institutional links ── */
+.linkList {
+  display: flex; flex-direction: column;
+  padding: 0 .5rem; gap: .1rem;
+}
+.linkItem {
+  display: flex; align-items: center; gap: 0;
+  padding: .6rem .625rem; border-radius: var(--radius);
+  color: var(--text-muted); text-decoration: none; overflow: hidden;
+  transition: background .15s, color .15s;
+  justify-content: center;
+  background: none; border: none; cursor: pointer; width: 100%;
+}
+.sidebar.expanded .linkItem { justify-content: flex-start; gap: .8rem; }
+.linkItem:hover { background: var(--surface-2); color: var(--text); text-decoration: none; }
+.linkItem:hover .ico { color: var(--primary); }
+
+/* ── Footer ── */
+.sidebarFooter {
+  margin-top: auto;
+  padding: .5rem;
+  flex-shrink: 0;
+  display: flex; flex-direction: column; gap: .35rem;
+}
+
+/* toggle de tema — expandido: linha "ícone + Tema de Cores + switch à direita",
+   no mesmo espírito das linhas de ação das mensagens */
+.temaRow {
+  display: flex; align-items: center; gap: .6rem;
+  width: 100%; padding: .5rem .7rem; border-radius: var(--radius);
+  background: none; color: var(--text-dim); cursor: pointer;
+  transition: background .15s;
+}
+.temaRow:hover { background: var(--surface-2); }
+.temaRowIco { color: var(--primary); flex-shrink: 0; }
+.temaRowLabel { flex: 1; text-align: left; font-size: .82rem; font-weight: 600; color: var(--text); white-space: nowrap; }
+
+/* switch pequeno à direita: track escuro recuado + knob azul deslizante */
+.temaSwitch {
+  position: relative; flex-shrink: 0;
+  width: 46px; height: 24px; border-radius: 99px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,.28);
+  transition: box-shadow .25s, border-color .25s;
+}
+.temaRow:hover .temaSwitch {
+  border-color: rgba(59,142,245,.45);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,.28), 0 0 10px rgba(59,142,245,.2);
+}
+.temaKnob {
+  position: absolute; top: 2px; left: 2px;
+  width: 18px; height: 18px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff;
+  background: linear-gradient(145deg, #5a9bf0, #3768c9);
+  border: 1px solid rgba(150,185,245,.6);
+  box-shadow: 0 2px 6px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.45), 0 0 8px rgba(59,142,245,.55);
+  transition: transform .35s cubic-bezier(.34,1.56,.64,1);
+}
+.temaKnobDir { transform: translateX(22px); }
+:global([data-theme="light"]) .temaSwitch {
+  background: var(--surface-3); border-color: var(--border-2);
+  box-shadow: inset 0 1px 3px rgba(10,20,60,.14);
+}
+:global([data-theme="light"]) .temaKnob {
+  background: linear-gradient(145deg, #ffffff, #e8ecf5);
+  border-color: rgba(255,255,255,.95);
+  box-shadow: 0 2px 6px rgba(10,20,60,.22), inset 0 1px 0 #fff;
+  color: #f59e0b;
+}
+
+/* compacto: só o astro, como os demais ícones do menu */
+.temaIconBtn {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; padding: .6rem .625rem; border-radius: var(--radius);
+  background: none; color: #4d9bff; cursor: pointer;
+  transition: background .15s;
+}
+.temaIconBtn:hover { background: var(--surface-2); }
+:global([data-theme="light"]) .temaIconBtn { color: #f59e0b; }
+
+.temaIcon {
+  display: flex; align-items: center; justify-content: center;
+  animation: temaSpin .5s cubic-bezier(.34,1.56,.64,1);
+}
+.temaIcon svg { filter: drop-shadow(0 0 4px currentColor) drop-shadow(0 0 8px currentColor); }
+@keyframes temaSpin {
+  from { transform: rotate(-150deg) scale(.3); opacity: 0; }
+  to   { transform: rotate(0) scale(1); opacity: 1; }
+}
+
+/* ── Efeito de fecho da transição de tema (portal em body) ── */
+.flashDusk, .flashFlare {
+  position: fixed; inset: 0; z-index: 9998; pointer-events: none;
+}
+.flashDusk {
+  background: radial-gradient(120% 90% at 72% 12%, rgba(96,116,214,.18), rgba(10,14,34,.2) 60%, transparent 85%);
+  animation: duskMist 1s ease forwards;
+}
+.flashFlare {
+  background: radial-gradient(90% 70% at 80% 6%, rgba(255,241,196,.5), rgba(255,213,140,.2) 45%, transparent 76%);
+  animation: sunFlare 1s ease forwards;
+}
+@keyframes duskMist { 0% { opacity: 0; } 25% { opacity: .8; } 100% { opacity: 0; } }
+@keyframes sunFlare { 0% { opacity: 0; transform: scale(1.12); } 28% { opacity: 1; } 100% { opacity: 0; transform: scale(1); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .temaKnob, .temaIcon { animation: none !important; }
+  .flashDusk, .flashFlare { display: none; }
+}
+
+/* ── Conta no rodapé — contorno no mesmo padrão do toggle de tema ── */
+.contaBtn {
+  display: flex; align-items: center; gap: .6rem;
+  width: 100%; padding: .45rem .55rem; border-radius: var(--pill);
+  cursor: pointer; overflow: hidden;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,.22);
+  transition: box-shadow .25s ease, border-color .25s ease;
+}
+.contaBtn:hover {
+  border-color: rgba(59,142,245,.45);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,.22), 0 0 12px rgba(59,142,245,.22);
+}
+/* compacto: sem contorno, só o avatar centralizado (alinhado com a lua).
+   o bloco de info some por completo (display:none) — assim o gap não desloca
+   o avatar do centro */
+.sidebar:not(.expanded) .contaBtn {
+  justify-content: center; gap: 0; padding: .5rem 0; border-radius: var(--radius);
+  background: none; border: none; box-shadow: none; backdrop-filter: none;
+}
+.sidebar:not(.expanded) .contaInfo { display: none; }
+.sidebar:not(.expanded) .contaBtn:hover { background: var(--surface-2); box-shadow: none; }
+:global([data-theme="light"]) .contaBtn {
+  background: var(--surface-2);
+  border-color: var(--border-2);
+  box-shadow: inset 0 1px 3px rgba(10,20,60,.1);
+}
+
+.contaAvatarWrap { position: relative; flex-shrink: 0; display: flex; }
+.contaAvatar {
+  width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .72rem; font-weight: 700; color: #fff;
+  box-shadow: 0 0 0 2px rgba(59,142,245,.35);
+}
+/* status online no avatar */
+/* a cor vem do status escolhido (useStatus) — igual ao da tab bar e do dock */
+.contaStatus {
+  position: absolute; bottom: 0; right: 0;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 0 2px var(--surface);
+  transition: background .25s;
+}
+.contaStatus[data-status="online"]   { animation: contaPulso 2.2s ease-in-out infinite; }
+.contaStatus[data-status="ausente"],
+.contaStatus[data-status="dormindo"] { animation: contaRespira 3.2s ease-in-out infinite; }
+.contaStatus[data-status="ocupado"]  { animation: contaBatida 2s ease-out infinite; }
+.contaStatus[data-status="offline"]  { opacity: .75; }
+@keyframes contaPulso {
+  0%, 100% { box-shadow: 0 0 0 2px var(--surface); }
+  15%      { box-shadow: 0 0 0 2px var(--surface), 0 0 9px 1px currentColor; }
+}
+@keyframes contaRespira { 0%, 100% { opacity: .6; } 50% { opacity: 1; } }
+@keyframes contaBatida {
+  0%, 42%, 100% { transform: scale(1); }
+  10%           { transform: scale(1.35); }
+  30%           { transform: scale(1.22); }
+}
+
+/* seletor de status no menu da conta */
+.contaMenuStatus { margin-top: .5rem; display: flex; justify-content: center; }
+.contaInfo {
+  display: flex; flex-direction: column; align-items: flex-start; min-width: 0;
+  max-width: 0; opacity: 0; overflow: hidden;
+  transition: max-width .22s ease, opacity .18s ease;
+}
+.sidebar.expanded .contaInfo { max-width: 170px; opacity: 1; }
+.contaNome {
+  font-size: .8rem; font-weight: 600; color: var(--text);
+  max-width: 168px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.contaEmail {
+  font-size: .68rem; color: var(--text-muted);
+  max-width: 168px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* dropdown da conta (portal) — estilo da tab bar */
+.contaMenu {
+  position: fixed; z-index: 9500;
+  width: 236px; overflow: hidden;
+  background:
+    linear-gradient(160deg, rgba(255,255,255,.06), rgba(255,255,255,0) 45%),
+    color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(24px) saturate(1.4);
+  border: 1px solid var(--border-2); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  animation: contaIn .14s ease;
+}
+@keyframes contaIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.contaMenuHeader {
+  display: flex; flex-direction: column; align-items: center; gap: .28rem;
+  padding: 1.1rem 1rem .9rem; text-align: center;
+}
+.contaAvatarBig {
+  width: 52px; height: 52px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.05rem; font-weight: 700; color: #fff;
+  box-shadow: 0 0 0 3px rgba(59,142,245,.35);
+}
+.contaMenuNome { font-size: .95rem; font-weight: 700; color: var(--text); }
+.contaMenuPapel { font-size: .72rem; font-weight: 600; color: var(--primary); }
+.contaMenuEmail { font-size: .74rem; color: var(--text-muted); word-break: break-all; }
+.contaSair {
+  display: flex; align-items: center; justify-content: center; gap: .45rem;
+  width: 100%; padding: .75rem; cursor: pointer;
+  font-size: .82rem; font-weight: 600; color: var(--danger);
+  background: none; border-top: 1px solid var(--border);
+  transition: background .15s;
+}
+.contaSair:hover { background: rgba(248,113,113,.1); }
+
+/* ── Modal institucional ── */
+.modalOverlay {
+  position: fixed; inset: 0; z-index: 9000;
+  background: rgba(4, 12, 26, 0.72);
+  backdrop-filter: blur(10px);
+  display: flex; align-items: center; justify-content: center;
+  animation: overlayIn .2s ease;
+}
+@keyframes overlayIn { from{opacity:0} to{opacity:1} }
+
+.modalBox {
+  width: 92vw; max-width: 1140px; height: 88vh;
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 24px 80px rgba(0,0,0,.55), var(--glow);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  animation: modalIn .22s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes modalIn { from{opacity:0;transform:scale(.96) translateY(12px)} to{opacity:1;transform:none} }
+
+.modalHeader {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .875rem 1.25rem; flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.modalTitle { font-size: .9375rem; font-weight: 700; color: var(--text); }
+.modalActions { display: flex; align-items: center; gap: .5rem; }
+.modalExtBtn {
+  display: inline-flex; align-items: center; gap: .3rem;
+  font-size: .8rem; font-weight: 600; color: var(--primary);
+  background: var(--primary-dim); border-radius: var(--pill);
+  padding: .3rem .75rem; text-decoration: none;
+  transition: opacity .15s;
+}
+.modalExtBtn:hover { opacity: .8; text-decoration: none; }
+.modalClose {
+  width: 30px; height: 30px; border-radius: 50%; background: none;
+  color: var(--text-muted); display: flex; align-items: center; justify-content: center;
+  transition: background .15s, color .15s;
+}
+.modalClose:hover { background: var(--surface-3); color: var(--text); }
+.modalFrame { flex: 1; width: 100%; border: none; background: var(--surface); }
+
+.modalBlocked {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 1rem;
+  color: var(--text-muted); padding: 2rem;
+}
+.modalBlockedIcon { color: var(--border-2); }
+.modalBlocked p { font-size: .9375rem; }
+.modalBlockedBtn {
+  display: inline-flex; align-items: center; gap: .4rem;
+  padding: .625rem 1.5rem; border-radius: var(--pill);
+  background: var(--gradient); color: #fff; font-weight: 600;
+  text-decoration: none; font-size: .875rem;
+  box-shadow: 0 2px 12px var(--primary-glow);
+}
+.modalBlockedBtn:hover { opacity: .9; text-decoration: none; }
+
+/* ── Impressão: a sidebar não sai no papel ── */
+@media print {
+  .sidebar { display: none !important; }
+}

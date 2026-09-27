@@ -1,0 +1,535 @@
+/* Tela de login do provedor de identidade com a cara do Infnet Hub. As
+   medidas e cores repetem as da tela de entrada da plataforma
+   (frontend/src/app/entrando e components/ui); os elementos com prefixo ih-
+   são montados por js/infnethub.js. */
+:root {
+  --ih-bg:        #030a16;
+  --ih-surface:   #091526;
+  --ih-surface-2: #0d1e35;
+  --ih-border:    rgba(90,120,200,0.14);
+  --ih-border-2:  rgba(90,120,200,0.26);
+  --ih-primary:   #3b8ef5;
+  --ih-primary-h: #2f7ae0;
+  --ih-text:      #eef2ff;
+  --ih-dim:       #94a3b8;
+  --ih-muted:     #4a5f80;
+  --ih-success:   #34d399;
+  --ih-warning:   #fbbf24;
+  --ih-danger:    #f87171;
+}
+
+/* ── Fundo: o escuro da plataforma, o meio-tom animado (canvas .ih-fundo) e
+      um foco de luz azul atrás do cartão ── */
+.login-pf {
+  --pf-v5-global--FontFamily--text: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --pf-v5-global--FontFamily--heading: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+.login-pf body { background: linear-gradient(180deg, #071630 0%, var(--ih-bg) 55%, #02060e 100%) fixed !important; }
+/* a meia-lua de luz no topo: o centro fica acima da borda */
+.login-pf body::after {
+  content: ""; position: fixed; left: 50%; top: -560px; width: max(1400px, 130vw); height: 1000px;
+  transform: translateX(-50%); pointer-events: none; z-index: 0;
+  background: radial-gradient(ellipse at 50% 50%, rgba(59,142,245,.2), rgba(59,142,245,.06) 45%, transparent 70%);
+}
+.ih-fundo { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+/* sem barra de rolagem: a coluna cabe na altura da tela, e o PatternFly não
+   soma o próprio espaçamento por fora dela */
+.login-pf body { margin: 0; overflow-x: hidden; }
+.pf-v5-c-login { position: relative; z-index: 1; background: transparent !important; min-height: 100vh; padding: 0 !important; display: block !important; }
+.pf-v5-c-login__container {
+  grid-template-columns: min(400px, calc(100vw - 2rem));
+  /* o cabeçalho foi para o canto (fixo); a coluna fica só com cartão e nota,
+     centralizada na altura, sem esticar o cartão */
+  grid-template-areas: "main" "nota";
+  grid-template-rows: auto auto;
+  align-content: center; min-height: 100vh; box-sizing: border-box; padding-block: 1rem; margin: 0 auto;
+  /* a coluna ocupa a altura exata da tela: entra só com opacidade — um
+     deslocamento aqui passaria da borda e criaria uma barra de rolagem */
+  animation: ih-aparece-coluna .5s ease-out;
+}
+@keyframes ih-aparece-coluna { from { opacity: 0; } }
+@keyframes ih-entra { from { opacity: 0; transform: translateY(12px); } }
+
+/* ── Marca no canto inferior direito ── */
+#kc-header {
+  position: fixed; right: 1.5rem; bottom: 1.5rem; z-index: 2; margin: 0; padding: 0;
+  width: max-content; max-width: none; white-space: nowrap; /* a marca inteira, sem cortar o "Hub" */
+  animation: ih-entra .6s cubic-bezier(.22,1,.36,1) .2s both;
+}
+#kc-header-wrapper {
+  /* sem a margem de 48 px que o PatternFly dá à marca: ela empurrava a logo
+     para cima, longe da base */
+  margin: 0 !important; line-height: 1 !important;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.3rem !important; font-weight: 300; letter-spacing: .18em !important;
+  text-transform: none !important; color: var(--ih-dim) !important;
+}
+#kc-header-wrapper::before {
+  content: ""; width: 48px; height: 48px; flex-shrink: 0; margin-right: .7rem;
+  background: url("../img/logo.svg") center / contain no-repeat;
+  filter: drop-shadow(0 0 8px rgba(34,211,238,.35));
+}
+#kc-header-wrapper b, #kc-header-wrapper strong { font-weight: 600; color: var(--ih-text); }
+
+/* ── Cartão ── */
+.pf-v5-c-login__main {
+  /* acima da nota que vem logo abaixo: as dicas dos botões passam por cima dela */
+  grid-area: main; align-self: start; position: relative; z-index: 2;
+  animation: ih-entra .5s cubic-bezier(.22,1,.36,1);
+  /* vidro: reflexo claro, borda iluminada e o pontilhado do fundo aparecendo através */
+  background:
+    linear-gradient(145deg, rgba(255,255,255,.055), rgba(255,255,255,.01) 55%),
+    rgba(10,22,44,.06) !important;
+  -webkit-backdrop-filter: blur(1.5px) saturate(170%);
+          backdrop-filter: blur(1.5px) saturate(170%);
+  border: 1px solid rgba(255,255,255,.09);
+  border-top-color: rgba(255,255,255,.18);
+  border-left-color: rgba(255,255,255,.13);
+  border-radius: 16px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 24px 60px -28px rgba(0,0,0,.75);
+  padding: 1.75rem 1.75rem 1.5rem;
+}
+.pf-v5-c-login__main-header {
+  border-top: 0 !important; padding: 0 !important;
+  display: flex !important; flex-direction: column; align-items: center; text-align: center; gap: .9rem;
+}
+.pf-v5-c-login__main-body { padding: 1rem 0 0 !important; }
+.pf-v5-c-login__main-footer { padding: 0 !important; }
+#kc-page-title {
+  font-size: 1.5rem !important; font-weight: 700; letter-spacing: -.02em; line-height: 1.1;
+  color: var(--ih-text) !important;
+}
+
+/* ── A digital holográfica (as animações de traço estão no próprio SVG) ── */
+.ih-digital { perspective: 560px; animation: ih-surge 1s cubic-bezier(.16,1,.3,1) both; }
+@keyframes ih-surge {
+  from { opacity: 0; transform: translateY(10px) scale(.7); filter: blur(8px) hue-rotate(60deg); }
+}
+.ih-palco {
+  position: relative; width: 96px; height: 96px; display: grid; place-items: center;
+  transform: rotateX(14deg);
+  animation: ih-oscila 7s ease-in-out infinite, ih-cintila 5.3s steps(1) infinite;
+}
+.ih-palco img { width: 92px; height: 92px; filter: drop-shadow(0 0 2px rgba(59,130,246,.9)); }
+@keyframes ih-oscila {
+  0%, 100% { transform: rotateX(14deg) rotateY(-14deg); }
+  50%      { transform: rotateX(8deg)  rotateY(14deg); }
+}
+@keyframes ih-cintila { 0%, 100% { opacity: 1; } 61% { opacity: .82; } 62% { opacity: 1; } 88% { opacity: .9; } 89% { opacity: 1; } }
+
+/* o scanner: só depois de clicar em "Entrar", enquanto a senha é conferida */
+.ih-scanner {
+  position: absolute; left: 6%; right: 6%; top: 6%; height: 2px; border-radius: 2px; display: none;
+  background: linear-gradient(90deg, transparent, #93c5fd 20%, #fff 50%, #93c5fd 80%, transparent);
+  box-shadow: 0 0 8px 1px #3b82f6, 0 0 18px 2px rgba(59,130,246,.45);
+  mix-blend-mode: screen;
+}
+.ih-lendo .ih-scanner { display: block; animation: ih-escaneia .45s ease-in-out infinite alternate; }
+@keyframes ih-escaneia { to { top: 92%; } }
+
+/* rótulo da leitura */
+.ih-leitura {
+  margin: -.15rem 0 -.5rem; line-height: 1.2; text-align: center;
+  font-size: .75rem; font-weight: 700; letter-spacing: .22em; text-transform: uppercase;
+  color: transparent;
+}
+.ih-lendo .ih-leitura { color: #93c5fd; animation: ih-pisca .6s ease-in-out infinite alternate; }
+@keyframes ih-pisca { to { opacity: .45; } }
+
+/* ── Abertura: no centro da página, antes do cartão. O feixe de luz e as
+      mensagens da conexão; o cartão e a nota só aparecem depois ── */
+.ih-conectando-ativo .pf-v5-c-login__container { visibility: hidden; animation: none; }
+.ih-conectando-ativo .pf-v5-c-login__main { animation: none; }
+.ih-abertura {
+  position: fixed; inset: 0; z-index: 3; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .35rem;
+  animation: ih-aparece .4s ease-out both;
+}
+.ih-abertura.ih-saindo { animation: ih-some .45s ease-in forwards; }
+/* depois da explosão, o cartão se abre a partir do centro, saindo do desfoque */
+.ih-revelado .pf-v5-c-login__main { animation: ih-revela .7s cubic-bezier(.16,1,.3,1) both; }
+.ih-revelado .ih-senha { animation: ih-aparece .5s ease-out .25s both; }
+@keyframes ih-revela {
+  from { opacity: 0; transform: scale(.86); filter: blur(12px) brightness(1.8); }
+  60%  { filter: blur(0) brightness(1.15); }
+}
+@keyframes ih-aparece { from { opacity: 0; } }
+@keyframes ih-some { to { opacity: 0; transform: translateY(-6px); } }
+/* o palco do feixe: a pílula de progresso por baixo, o cometa por cima */
+.ih-palco-feixe { position: relative; width: min(520px, 86vw); height: 144px; margin: -40px 0; }
+.ih-pill {
+  position: absolute; left: 6%; right: 6%; top: 50%; height: 8px; transform: translateY(-50%);
+  border-radius: 99px; overflow: hidden;
+  background: rgba(255,255,255,.04);
+  /* contorno fino e claro, com a sombra interna do trilho */
+  border: 1px solid rgba(147,197,253,.28);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.55), 0 0 6px -1px rgba(59,142,245,.35);
+}
+.ih-pill-cheia {
+  display: block; height: 100%; width: calc(var(--p, 0) * 100%); min-width: 8px; border-radius: 99px;
+  background: linear-gradient(90deg, rgba(129,140,248,.18), rgba(129,140,248,.55) 60%, rgba(165,243,252,.9));
+  box-shadow: 0 0 10px rgba(165,243,252,.45);
+}
+.ih-feixe { position: relative; display: block; width: 100%; height: 100%; pointer-events: none;
+  -webkit-mask: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+          mask: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); }
+.ih-conectando {
+  display: inline-flex; align-items: center; gap: .45rem; margin: 0;
+  font-size: .8125rem; letter-spacing: .06em; color: rgba(203,213,225,.72);
+  animation: ih-respira 2.1s ease-in-out infinite;
+}
+.ih-conectando span { transition: opacity .2s ease; }
+.ih-conectando span.ih-trocando { opacity: 0; }
+@keyframes ih-respira { 50% { opacity: .45; } }
+
+/* ── Campos ── */
+.pf-v5-c-form { gap: 1rem; }
+.pf-v5-c-form__label-text { color: var(--ih-dim); font-size: .8125rem; font-weight: 600; }
+.pf-v5-c-form-control {
+  /* vidro rebaixado: fundo translúcido e sombra interna, como um sulco no cartão */
+  --pf-v5-c-form-control--BackgroundColor: rgba(148,180,230,.07);
+  --pf-v5-c-form-control--after--BorderBottomColor: transparent;
+  --pf-v5-c-form-control--before--BorderColor: rgba(148,180,230,.2);
+  box-shadow: inset 0 2px 5px rgba(0,0,0,.4), inset 0 -1px 0 rgba(255,255,255,.05);
+  --pf-v5-c-form-control--hover--after--BorderBottomColor: var(--ih-primary);
+  --pf-v5-c-form-control--focus--after--BorderBottomColor: var(--ih-primary);
+  border-radius: 10px !important;
+  color: var(--ih-text);
+}
+.pf-v5-c-form-control::before, .pf-v5-c-form-control::after { border-radius: 10px; }
+.pf-v5-c-form-control:focus-within { box-shadow: inset 0 2px 6px rgba(0,0,0,.45), 0 0 0 1px rgba(96,165,250,.55), 0 0 14px -2px rgba(59,142,245,.55); }
+/* o anel de foco é o azul acima; o contorno branco padrão do navegador sai */
+.pf-v5-c-form-control input:focus, .pf-v5-c-form-control input:focus-visible { outline: none; }
+.pf-v5-c-form-control:focus-within { --pf-v5-c-form-control--before--BorderColor: #60a5fa; }
+
+/* o olho de revelar a senha dentro do campo, e não ao lado */
+.pf-v5-c-input-group { position: relative; gap: 0; }
+.pf-v5-c-input-group > .pf-v5-c-input-group__item:last-child:has(.pf-m-control) {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%); z-index: 2;
+  border: 0 !important; /* sem o separador do PatternFly entre campo e botão */
+}
+.pf-v5-c-input-group:has(.pf-m-control) .pf-v5-c-form-control input { padding-right: 2.6rem; }
+.pf-v5-c-button.pf-m-control {
+  --pf-v5-c-button--m-control--BackgroundColor: transparent;
+  --pf-v5-c-button--m-control--hover--BackgroundColor: transparent;
+  --pf-v5-c-button--m-control--after--BorderColor: transparent;
+  --pf-v5-c-button--m-control--hover--after--BorderBottomColor: transparent;
+  --pf-v5-c-button--m-control--focus--after--BorderBottomColor: transparent;
+  border-radius: 8px !important; color: var(--ih-dim); padding: .35rem .55rem;
+}
+.pf-v5-c-button.pf-m-control::after { border: 0 !important; }
+/* o ícone do olho na família da plataforma (Lucide), no lugar do Font Awesome
+   do Keycloak; as classes fa-eye / fa-eye-slash continuam trocadas pelo
+   script do próprio Keycloak, só o desenho muda */
+.pf-m-control i.fas {
+  display: inline-block; width: 18px; height: 18px; vertical-align: middle;
+  background-color: currentColor;
+  -webkit-mask: url("../img/olho.svg") center / contain no-repeat;
+          mask: url("../img/olho.svg") center / contain no-repeat;
+}
+.pf-m-control i.fas.fa-eye-slash {
+  -webkit-mask-image: url("../img/olho-fechado.svg"); mask-image: url("../img/olho-fechado.svg");
+}
+.pf-m-control i.fas::before { content: none !important; }
+/* sem contorno em nenhum estado: o botão é só o ícone, e o estado aparece na
+   cor — cinza com a senha oculta, azul com a senha à mostra */
+.pf-v5-c-button.pf-m-control,
+.pf-v5-c-button.pf-m-control:hover,
+.pf-v5-c-button.pf-m-control:focus,
+.pf-v5-c-button.pf-m-control:focus-visible,
+.pf-v5-c-button.pf-m-control:active {
+  outline: none !important; box-shadow: none !important; border: 0 !important;
+  background: transparent !important;
+  transition: color .15s;
+}
+.pf-v5-c-button.pf-m-control::before { content: none !important; }
+.pf-v5-c-button.pf-m-control:hover,
+.pf-v5-c-button.pf-m-control:focus-visible { color: var(--ih-text); }
+.pf-v5-c-button.pf-m-control:has(.fa-eye-slash) { color: var(--ih-primary); }
+.pf-v5-c-button.pf-m-control:has(.fa-eye-slash):hover { color: #7cb4ff; }
+
+/* ── Botão principal: o da plataforma, com a seta ── */
+.pf-v5-c-form__actions { margin-top: .25rem; }
+.pf-v5-c-button.pf-m-primary {
+  --pf-v5-c-button--m-primary--BackgroundColor: var(--ih-primary);
+  --pf-v5-c-button--m-primary--hover--BackgroundColor: var(--ih-primary-h);
+  --pf-v5-c-button--m-primary--focus--BackgroundColor: var(--ih-primary-h);
+  --pf-v5-c-button--m-primary--active--BackgroundColor: var(--ih-primary-h);
+  display: flex; align-items: center; justify-content: center; gap: .4rem;
+  border-radius: 10px !important; padding: .7rem 1rem !important;
+  font-size: .9375rem; font-weight: 600;
+}
+/* os botões também são vidro: o azul do "Entrar" translúcido, com brilho na aresta */
+#kc-login:not(:disabled) {
+  background: linear-gradient(180deg, rgba(96,165,250,.62), rgba(59,142,245,.4)) !important;
+  border: 1px solid rgba(147,197,253,.38);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.24), 0 8px 20px -10px rgba(59,142,245,.7);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  transition: background .15s, box-shadow .15s;
+}
+#kc-login:not(:disabled):hover {
+  background: linear-gradient(180deg, rgba(96,165,250,.75), rgba(59,142,245,.52)) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 10px 24px -10px rgba(59,142,245,.85);
+}
+.ih-seta { font-weight: 400; transition: transform .18s cubic-bezier(.34,1.4,.64,1); }
+#kc-login:hover:not(:disabled) .ih-seta { transform: translateX(3px); }
+#kc-login:disabled {
+  --pf-v5-c-button--m-primary--BackgroundColor: var(--ih-surface-2);
+  color: var(--ih-dim); box-shadow: inset 0 1px 0 0 var(--ih-border), inset 0 0 0 1px var(--ih-border);
+}
+
+/* ── Dois destinos, um login: "Entrar" (o feed) e o painel de operação ── */
+/* os dois botões lado a lado, com a mesma largura: duas colunas iguais */
+.ih-acoes-duplas { display: grid !important; grid-template-columns: 1fr 1fr; gap: .5rem; align-items: stretch; margin: .25rem 0 0 !important; }
+.ih-acoes-duplas #kc-login, .ih-acoes-duplas .ih-grafana-btn { width: 100% !important; min-width: 0; margin: 0 !important; }
+.ih-grafana-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .45rem;
+  padding: 0 .8rem; border-radius: 10px; cursor: pointer;
+  color: #f46800;
+  background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.02));
+  border: 1px solid rgba(255,255,255,.1); border-top-color: rgba(255,255,255,.17);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  transition: border-color .15s, background .15s, color .15s;
+}
+.ih-grafana-btn > svg { width: 18px; height: 18px; }
+.ih-grafana-nome { font: 600 .875rem/1 Inter, system-ui, sans-serif; color: #f46800; }
+
+/* dicas dos dois botões: aparecem acima, no passar do mouse ou no foco —
+   um selo com ícone (azul para o feed, vermelho para o acesso restrito) e
+   uma linha de explicação */
+#kc-login, .ih-grafana-btn { position: relative; }
+/* a dica abre abaixo do botão: acima, ficaria sob o ícone que gerenciadores
+   de senha põem no campo (eles usam o maior z-index possível) */
+.ih-dica {
+  position: absolute; top: calc(100% + 10px); left: 50%; z-index: 5;
+  display: flex; flex-direction: column; align-items: center; gap: .4rem;
+  width: max-content; max-width: 250px; padding: .6rem .75rem; border-radius: 12px;
+  /* o mesmo acabamento do aviso de ambiente, sem a faixa colorida */
+  background: rgba(9,21,38,.94); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  border: 1px solid var(--ih-border-2);
+  box-shadow: 0 14px 36px -16px rgba(0,0,0,.75);
+  opacity: 0; pointer-events: none; transform: translate(-50%, -4px);
+  transition: opacity .15s, transform .15s;
+  white-space: normal; text-align: center;
+}
+.ih-grafana-btn .ih-dica { left: auto; right: 0; transform: translateY(-4px); }
+/* a setinha: um quadrado girado, com a mesma borda da dica, apontando para o botão */
+.ih-dica::before {
+  content: ""; position: absolute; top: -6px; left: calc(50% - 5px);
+  width: 10px; height: 10px; transform: rotate(45deg);
+  background: rgb(9,21,38); border: 1px solid var(--ih-border-2);
+  border-right: 0; border-bottom: 0; border-top-left-radius: 2px;
+}
+/* no botão do Grafana a dica se alinha à direita: a seta fica no meio do botão */
+.ih-grafana-btn .ih-dica::before { left: auto; right: calc(min(400px, 100vw - 2rem) / 4 - 21px); }
+#kc-login:hover .ih-dica, #kc-login:focus-visible .ih-dica { opacity: 1; transform: translate(-50%, 0); }
+.ih-grafana-btn:hover .ih-dica, .ih-grafana-btn:focus-visible .ih-dica { opacity: 1; transform: translateY(0); }
+#kc-login:disabled .ih-dica, .ih-grafana-btn:disabled .ih-dica { display: none; }
+.ih-selo {
+  display: inline-flex; align-items: center; gap: .35rem; padding: .2rem .55rem; border-radius: 99px;
+  font: 700 .6875rem/1.2 Inter, system-ui, sans-serif; letter-spacing: .02em;
+}
+.ih-selo-restrito { color: #fecaca; background: rgba(239,68,68,.18); border: 1px solid rgba(248,113,113,.55); }
+.ih-selo-feed     { color: #bfdbfe; background: rgba(59,142,245,.18); border: 1px solid rgba(96,165,250,.55); }
+.ih-dica-txt { font: 400 .75rem/1.45 Inter, system-ui, sans-serif; color: var(--ih-dim); }
+.ih-grafana-btn:hover:not(:disabled) { border-color: rgba(244,104,0,.6); background: rgba(244,104,0,.08); }
+.ih-grafana-btn:focus-visible { outline: 2px solid #f46800; outline-offset: 2px; }
+.ih-grafana-btn:disabled { opacity: .45; cursor: default; }
+
+/* ── Nota sobre a senha: em amarelo, para chamar a atenção ── */
+.ih-senha {
+  grid-area: nota;
+  display: flex; align-items: center; gap: .65rem; margin: 1rem 0 0;
+  padding: .7rem .85rem; border-radius: 10px;
+  font-size: .8125rem; line-height: 1.45; color: var(--ih-dim);
+  background: rgba(251,191,36,.035);
+  border: 1px solid rgba(251,191,36,.16);
+}
+.ih-senha-ico { flex-shrink: 0; display: inline-flex; color: rgba(251,191,36,.7); }
+
+/* ── Aviso de ambiente: desce no canto superior direito ── */
+.ih-aviso {
+  position: fixed; top: 1rem; right: 1rem; z-index: 5;
+  display: none; align-items: center; gap: .65rem;
+  width: max-content; max-width: calc(100vw - 2rem);
+  padding: .6rem .5rem .6rem .85rem;
+  background: rgba(9,21,38,.88); backdrop-filter: blur(10px);
+  border: 1px solid var(--ih-border); border-left: 3px solid var(--ih-warning);
+  border-radius: 12px; box-shadow: 0 14px 36px -16px rgba(0,0,0,.65);
+}
+.ih-aviso.ih-aberto { display: flex; animation: ih-desce .55s cubic-bezier(.22,1,.36,1); }
+.ih-aviso.ih-saindo { animation: ih-sobe .32s ease-in forwards; }
+@keyframes ih-desce { from { opacity: 0; transform: translateY(-140%); filter: blur(4px); } }
+@keyframes ih-sobe  { to   { opacity: 0; transform: translateY(-60%); filter: blur(4px); } }
+.ih-aviso-ico { display: inline-flex; color: var(--ih-warning); }
+.ih-aviso-txt { display: flex; flex-direction: column; gap: .1rem; font-size: .8125rem; line-height: 1.35; }
+.ih-aviso-txt strong { font-weight: 600; color: var(--ih-text); white-space: nowrap; }
+.ih-aviso-txt span { font-size: .75rem; color: var(--ih-muted); }
+.ih-aviso-fechar {
+  display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px;
+  color: var(--ih-muted); background: transparent; border: 0; cursor: pointer;
+}
+.ih-aviso-fechar:hover { color: var(--ih-text); background: var(--ih-surface-2); }
+
+/* ── Links e mensagens de erro ── */
+.pf-v5-c-button.pf-m-link, #kc-form-options a, .pf-v5-c-login__main-footer-band a {
+  color: var(--ih-primary) !important; text-decoration: none !important;
+}
+.pf-v5-c-alert {
+  --pf-v5-c-alert--BackgroundColor: rgba(248,113,113,.09);
+  border: 1px solid rgba(248,113,113,.24); border-radius: 10px; box-shadow: none;
+}
+.pf-v5-c-alert__title { color: var(--ih-danger); }
+.pf-v5-c-helper-text__item-text.pf-m-error, .kc-feedback-text { color: var(--ih-danger); }
+
+@media (max-width: 420px) {
+  .pf-v5-c-login__main { padding: 1.4rem 1.2rem; }
+  #kc-header { right: 1rem; bottom: 1rem; }
+  .ih-aviso-txt strong { white-space: normal; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pf-v5-c-login__container, .pf-v5-c-login__main, #kc-header, .ih-digital, .ih-palco, .ih-aviso,
+  .ih-leitura, .pf-v5-c-login__main-body { animation: none !important; }
+}
+
+/* ── Aviso de cookies (LGPD) — o mesmo desenho do da plataforma
+      (frontend/src/components/ui/AvisoDeCookies.module.css) ── */
+.ih-ck-banner[hidden], .ih-ck-fundo[hidden], .ih-ck-flutuante[hidden], .ih-ck-lista[hidden] { display: none !important; }
+.ih-ck-banner {
+  position: fixed; left: 1rem; bottom: 1rem; z-index: 60;
+  width: min(440px, calc(100vw - 2rem));
+  display: flex; flex-direction: column; gap: .7rem;
+  padding: 1rem 1.1rem;
+  background: rgba(9,21,38,.94); backdrop-filter: blur(12px);
+  border: 1px solid var(--ih-border-2); border-radius: 14px;
+  box-shadow: 0 18px 44px -18px rgba(0,0,0,.7);
+  animation: ih-ck-sobe .5s cubic-bezier(.22,1,.36,1);
+}
+@keyframes ih-ck-sobe { from { opacity: 0; transform: translateY(16px); } }
+.ih-ck-topo { display: flex; align-items: center; gap: .5rem; font-size: .9375rem; color: var(--ih-text); }
+.ih-ck-topo strong { flex: 1; }
+.ih-ck-topo .ih-ck-fechar { margin: -.3rem -.4rem -.3rem 0; }
+.ih-ck-banner p { margin: 0; font-size: .8125rem; line-height: 1.5; color: var(--ih-dim); }
+.ih-ck-banner b { color: var(--ih-text); font-weight: 600; }
+.ih-ck-ico { display: inline-flex; color: var(--ih-warning); flex-shrink: 0; }
+
+.ih-ck-acoes { display: flex; gap: .5rem; flex-wrap: wrap; justify-content: flex-end; }
+.ih-ck-pri, .ih-ck-sec {
+  flex: 1 1 auto; padding: .55rem .9rem; border-radius: 9px; cursor: pointer;
+  font: 600 .8125rem/1.2 Inter, system-ui, sans-serif; white-space: nowrap;
+  transition: background .15s, border-color .15s;
+}
+/* aceitar e rejeitar com o mesmo peso: a escolha tem de ser livre */
+.ih-ck-pri { color: #fff; background: var(--ih-primary); border: 1px solid var(--ih-primary); }
+.ih-ck-pri:hover { background: var(--ih-primary-h); }
+.ih-ck-sec { color: var(--ih-text); background: var(--ih-surface-2); border: 1px solid var(--ih-border-2); }
+.ih-ck-sec:hover { border-color: var(--ih-primary); }
+
+/* "Personalizar" expande o próprio aviso, no mesmo canto — sem janela no meio da tela */
+.ih-ck-fundo { position: fixed; left: 1rem; bottom: 1rem; z-index: 70; }
+.ih-ck-painel {
+  width: min(440px, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); overflow-y: auto;
+  display: flex; flex-direction: column; gap: .8rem; padding: 1rem 1.1rem;
+  background: rgba(9,21,38,.94); backdrop-filter: blur(12px);
+  border: 1px solid var(--ih-border-2); border-radius: 14px;
+  box-shadow: 0 18px 44px -18px rgba(0,0,0,.7);
+  animation: ih-ck-expande .35s cubic-bezier(.22,1,.36,1);
+}
+@keyframes ih-ck-expande { from { clip-path: inset(62% 0 0 0 round 14px); } to { clip-path: inset(0 0 0 0 round 14px); } }
+.ih-ck-painel-topo { display: flex; align-items: center; gap: .55rem; }
+.ih-ck-painel-topo h2 { flex: 1; margin: 0; font-size: .9375rem; font-weight: 700; color: var(--ih-text); }
+.ih-ck-fechar {
+  display: grid; place-items: center; width: 28px; height: 28px; border-radius: 7px; border: 0;
+  background: transparent; color: var(--ih-muted); cursor: pointer;
+}
+.ih-ck-fechar:hover { color: var(--ih-text); background: var(--ih-surface-2); }
+.ih-ck-intro { margin: 0; font-size: .8125rem; line-height: 1.5; color: var(--ih-dim); }
+
+.ih-ck-cat { border: 1px solid var(--ih-border); border-radius: 12px; background: var(--ih-surface-2); }
+.ih-ck-cat-topo { display: flex; align-items: center; gap: .6rem; padding: .7rem .8rem; }
+.ih-ck-expandir {
+  flex: 1; display: flex; align-items: center; gap: .5rem; text-align: left;
+  border: 0; background: transparent; padding: 0; color: var(--ih-text); cursor: pointer;
+}
+.ih-ck-expandir:disabled { cursor: default; }
+.ih-ck-expandir > span:last-child { display: flex; flex-direction: column; gap: .1rem; }
+.ih-ck-expandir strong { font-size: .875rem; font-weight: 600; }
+.ih-ck-expandir small { font-size: .75rem; color: var(--ih-muted); }
+.ih-ck-seta { display: inline-flex; color: var(--ih-muted); transition: transform .2s; }
+.ih-ck-expandir[aria-expanded="true"] .ih-ck-seta { transform: rotate(180deg); }
+.ih-ck-sempre, .ih-ck-nenhum { font-size: .6875rem; font-weight: 600; padding: .15rem .55rem; border-radius: 99px; white-space: nowrap; }
+.ih-ck-sempre { color: var(--ih-success); background: rgba(52,211,153,.12); }
+.ih-ck-nenhum { color: var(--ih-muted); background: #122545; }
+.ih-ck-itens { list-style: none; margin: 0; display: flex; flex-direction: column; gap: .55rem; padding: 0 .8rem .8rem 2.1rem; }
+.ih-ck-itens li { display: flex; flex-direction: column; gap: .15rem; font-size: .75rem; color: var(--ih-dim); }
+.ih-ck-itens code { font-size: .72rem; color: #22d3ee; background: none; word-break: break-all; }
+.ih-ck-itens small { color: var(--ih-muted); }
+
+.ih-ck-chave { position: relative; display: inline-flex; flex-shrink: 0; cursor: pointer; }
+.ih-ck-chave input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.ih-ck-chave span {
+  width: 38px; height: 22px; border-radius: 99px; background: #122545;
+  border: 1px solid var(--ih-border-2); position: relative; transition: background .2s, border-color .2s;
+}
+.ih-ck-chave span::after {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--ih-dim); transition: transform .2s, background .2s;
+}
+.ih-ck-chave input:checked + span { background: var(--ih-primary); border-color: var(--ih-primary); }
+.ih-ck-chave input:checked + span::after { transform: translateX(16px); background: #fff; }
+.ih-ck-chave input:focus-visible + span { outline: 2px solid var(--ih-primary); outline-offset: 2px; }
+.ih-ck-oculto { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+.ih-ck-dados { display: flex; flex-direction: column; gap: .5rem; }
+.ih-ck-dados strong { font-size: .8125rem; color: var(--ih-text); }
+.ih-ck-perigo {
+  display: inline-flex; align-items: center; gap: .4rem; padding: .45rem .75rem; border-radius: 8px; cursor: pointer;
+  font: 600 .75rem/1.2 Inter, system-ui, sans-serif; color: var(--ih-danger);
+  border: 1px solid rgba(248,113,113,.35); background: rgba(248,113,113,.07);
+}
+.ih-ck-perigo:hover { background: rgba(248,113,113,.14); }
+
+.ih-ck-flutuante {
+  position: fixed; left: 1rem; bottom: 1rem; z-index: 55;
+  display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; cursor: pointer;
+  color: var(--ih-dim); background: rgba(9,21,38,.9); backdrop-filter: blur(8px);
+  border: 1px solid var(--ih-border-2); transition: color .15s, border-color .15s;
+}
+.ih-ck-flutuante:hover { color: var(--ih-warning); border-color: rgba(251,191,36,.5); }
+@media (max-width: 480px) { .ih-ck-acoes { flex-direction: column-reverse; } }
+@media (prefers-reduced-motion: reduce) { .ih-ck-banner, .ih-ck-painel { animation: none; } }
+
+/* o anel girando dentro do botão, enquanto a senha é conferida */
+.ih-anel {
+  display: inline-block; width: 14px; height: 14px; margin-right: .5rem; vertical-align: -2px;
+  border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%;
+  animation: ih-gira .7s linear infinite;
+}
+@keyframes ih-gira { to { transform: rotate(360deg); } }
+
+/* ── Página de erro do provedor ── */
+.ih-erro .pf-v5-c-login__main-header { gap: .6rem; }
+.ih-erro-ico {
+  display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%;
+  color: var(--ih-warning); background: rgba(251,191,36,.08);
+  box-shadow: inset 0 0 0 1px rgba(251,191,36,.22), 0 0 24px -6px rgba(251,191,36,.35);
+}
+.ih-erro #kc-page-title { font-size: 1.25rem !important; }
+.ih-erro .pf-v5-c-login__main-body { display: flex; flex-direction: column; align-items: center; gap: .75rem; text-align: center; }
+.ih-erro #kc-error-message, .ih-erro #kc-error-message p { margin: 0; color: var(--ih-text); font-size: .9375rem; }
+.ih-erro-dica { margin: 0; max-width: 42ch; font-size: .8125rem; line-height: 1.5; color: var(--ih-dim); }
+.ih-erro-voltar {
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem; width: 100%;
+  margin-top: .5rem; padding: .7rem 1rem; border-radius: 10px; text-decoration: none;
+  font: 600 .9375rem/1.2 Inter, system-ui, sans-serif; color: #fff;
+  background: linear-gradient(180deg, rgba(96,165,250,.62), rgba(59,142,245,.4));
+  border: 1px solid rgba(147,197,253,.38);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.24), 0 8px 20px -10px rgba(59,142,245,.7);
+  transition: background .15s, box-shadow .15s;
+}
+.ih-erro-voltar:hover {
+  color: #fff; text-decoration: none;
+  background: linear-gradient(180deg, rgba(96,165,250,.75), rgba(59,142,245,.52));
+}
+.ih-erro-voltar:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
