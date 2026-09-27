@@ -1,0 +1,231 @@
+# =========================================================================
+# Integração contínua — cada push nas branches do fluxo e cada pull request.
+#
+#   testes-backend    os testes de todos os módulos Maven, com Testcontainers
+#                     (PostgreSQL e RabbitMQ de verdade), e a cobertura (JaCoCo)
+#   frontend          lint, verificação de tipos e build do Next.js
+#   configuracao      Compose, manifestos do Kubernetes, regras de alerta e o
+#                     coletor: tudo o que não é código, mas quebra a entrega
+#   imagens           as seis imagens, construídas sempre; publicadas no
+#                     GitHub Container Registry só a partir da main e das tags
+#   publicacao        numa tag v*, a release no GitHub com as notas do CHANGELOG
+#
+# As imagens só são construídas depois de os testes passarem: uma imagem
+# publicada é uma promessa de que aquele código funciona.
+#
+# Fluxo de branches (Git Flow): main = o que está em produção, com as tags;
+# develop = integração; feature/* e fix/* entram em develop por pull request;
+# release/* e hotfix/* entram na main por pull request. Todas passam por aqui.
+#
+# A entrega contínua (implantação num cluster e testes contra ele) está em
+# cd.yml, disparado quando esta pipeline termina bem na main.
+# =========================================================================
+name: CI
+
+on:
+  push:
+    branches: [main, develop, "release/**", "hotfix/**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+# Um push novo na mesma branch cancela a execução anterior, que já não
+# interessa a ninguém.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  REGISTRO: ghcr.io/${{ github.repository_owner }}/tp5-pb_producao
+
+jobs:
+
+  testes-backend:
+    name: Testes do back-end
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+
+      # verify = testes + relatório de cobertura (plugin JaCoCo no pom pai).
+      # Os testes de mensageria e de migração sobem contêineres pelo
+      # Testcontainers: o executor do GitHub já tem Docker.
+      - name: Testes e cobertura
+        run: ./mvnw -B -ntp verify
+
+      - name: Resumo dos testes
+        if: always()
+        run: python3 .github/scripts/resumo_dos_testes.py >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Relatórios dos testes e da cobertura
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: relatorios-backend
+          path: |
+            */target/surefire-reports/
+            */target/site/jacoco/
+          retention-days: 14
+          if-no-files-found: ignore
+
+  frontend:
+    name: Front-end
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Tipos
+        run: npx tsc --noEmit
+      - name: Build
+        run: npm run build
+
+  configuracao:
+    name: Configuração de implantação
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: docker-compose.yml
+        run: docker compose config -q
+
+      # Os dois overlays montados de verdade — um caminho de arquivo errado ou
+      # um patch que não encontra o alvo falham aqui, e não no cluster.
+      - name: Manifestos do Kubernetes (kustomize)
+        run: |
+          mkdir -p target/k8s
+          kubectl kustomize --load-restrictor LoadRestrictionsNone k8s/overlays/local > target/k8s/local.yaml
+          cp k8s/overlays/producao/segredos.env.exemplo k8s/overlays/producao/segredos.env
+          kubectl kustomize --load-restrictor LoadRestrictionsNone k8s/overlays/producao > target/k8s/producao.yaml
+          grep -c '^kind:' target/k8s/local.yaml target/k8s/producao.yaml
+
+      # Cada objeto conferido contra o esquema da API do Kubernetes: campo
+      # inexistente, tipo errado, apiVersion aposentada.
+      - name: Manifestos contra o esquema da API (kubeconform)
+        run: |
+          docker run --rm -v "$PWD/target/k8s:/k8s:ro" ghcr.io/yannh/kubeconform:v0.8.0 \
+            -strict -summary -ignore-missing-schemas /k8s/local.yaml /k8s/producao.yaml
+
+      - name: Regras de alerta do Prometheus
+        run: |
+          docker run --rm -v "$PWD/infra/prometheus:/p:ro" --entrypoint promtool \
+            prom/prometheus:v3.14.0 check rules /p/regras.yml
+
+      - name: Configuração do Alloy (Compose e Kubernetes)
+        run: |
+          for arquivo in infra/alloy/config.alloy k8s/base/observabilidade/config/config.alloy; do
+            docker run --rm -v "$PWD/$arquivo:/c/config.alloy:ro" grafana/alloy:v1.19.2 fmt /c/config.alloy > /dev/null
+            echo "ok: $arquivo"
+          done
+
+      - name: Workflows do GitHub Actions (actionlint)
+        run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 -color
+
+  imagens:
+    name: Imagem ${{ matrix.servico }}
+    needs: [testes-backend, frontend, configuracao]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { servico: backend, dockerfile: infnethub-core/Dockerfile, contexto: . }
+          - { servico: boletim, dockerfile: boletim-service/Dockerfile, contexto: . }
+          - { servico: notificacao, dockerfile: notificacao-service/Dockerfile, contexto: . }
+          - { servico: gateway, dockerfile: api-gateway/Dockerfile, contexto: . }
+          - { servico: eureka, dockerfile: eureka-server/Dockerfile, contexto: . }
+          - { servico: frontend, dockerfile: frontend/Dockerfile, contexto: frontend }
+    env:
+      # Publica só o que vai para produção: a main e as tags de versão. Nas
+      # outras branches e nos PRs a imagem é construída e descartada.
+      PUBLICAR: ${{ github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Login no GitHub Container Registry
+        if: env.PUBLICAR == 'true'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Tags: o SHA do commit sempre (é a que o CD implanta — imutável, aponta
+      # para exatamente um código); "main" e "latest" na branch principal; a
+      # versão semântica nas tags v*.
+      - name: Tags e rótulos da imagem
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.REGISTRO }}/${{ matrix.servico }}
+          tags: |
+            type=sha,format=long,prefix=
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build${{ env.PUBLICAR == 'true' && ' e publicação' || '' }}
+        uses: docker/build-push-action@v7
+        with:
+          context: ${{ matrix.contexto }}
+          file: ${{ matrix.dockerfile }}
+          push: ${{ env.PUBLICAR == 'true' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSAO=${{ steps.meta.outputs.version }}
+            REVISAO=${{ github.sha }}
+            NEXT_PUBLIC_API_URL=http://localhost:21080/api/v1
+            API_PROXY_TARGET=https://gateway:21443
+          # Cache das camadas entre execuções, separado por serviço.
+          cache-from: type=gha,scope=${{ matrix.servico }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.servico }}
+
+  publicacao:
+    name: Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [imagens]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      # As notas da versão são a seção dela no CHANGELOG.md — escrito à mão,
+      # para gente ler, e não gerado da lista de commits.
+      - name: Release com as notas do CHANGELOG
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSAO: ${{ github.ref_name }}
+        run: |
+          python3 .github/scripts/notas_da_versao.py "${VERSAO#v}" > notas.md
+          gh release create "$VERSAO" --title "$VERSAO" --notes-file notas.md --verify-tag

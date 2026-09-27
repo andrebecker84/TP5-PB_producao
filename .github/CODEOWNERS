@@ -1,0 +1,6 @@
+# Quem responde por cada área: o GitHub o marca como revisor de todo pull
+# request que a toca. Com a proteção da main, o merge só acontece por pull
+# request e com o CI verde.
+*                   @andrebecker84
+/k8s/               @andrebecker84
+/.github/workflows/ @andrebecker84

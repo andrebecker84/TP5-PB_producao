@@ -1,0 +1,139 @@
+# =========================================================================
+# Entrega contínua — implantação num cluster Kubernetes e testes contra ele.
+#
+# Dispara quando a CI termina com sucesso na main (as imagens do commit já
+# estão no GitHub Container Registry), ou à mão.
+#
+#   1. cria um cluster kind no próprio executor — o "ambiente de produção
+#      simulado", descartado no fim
+#   2. implanta as imagens DAQUELE commit, pela tag do SHA, com os mesmos
+#      manifestos da máquina local (k8s/overlays/local)
+#   3. espera cada serviço ficar pronto — sondas de readiness passando
+#   4. roda contra o cluster a coleção HTTP inteira (107 requisições, com as
+#      asserções de cada uma): login no Keycloak, gateway, serviços, eventos
+#      atravessando o RabbitMQ, a saga de expurgo dando a volta
+#   5. um teste de carga curto (k6), com limites de latência e de erro
+#
+# Um commit que passa na CI mas não sobe num cluster, ou sobe e não responde,
+# para aqui — antes de alguém implantá-lo num ambiente de verdade.
+# =========================================================================
+name: CD
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: cd
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: read
+
+env:
+  REGISTRO: ghcr.io/${{ github.repository_owner }}/tp5-pb_producao
+  KIND_VERSAO: v0.33.0
+
+jobs:
+  implantacao:
+    name: Implantação e testes no cluster
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      # O commit que a CI testou e cujas imagens publicou.
+      REVISAO: ${{ github.event.workflow_run.head_sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.REVISAO }}
+
+      - name: kind
+        run: |
+          curl -sSLo kind "https://kind.sigs.k8s.io/dl/${KIND_VERSAO}/kind-linux-amd64"
+          chmod +x kind && sudo mv kind /usr/local/bin/kind
+          kind create cluster --config k8s/kind-ci.yaml --wait 120s
+          kubectl cluster-info
+
+      - name: Login no GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # As imagens do commit, baixadas uma vez e carregadas no nó — o cluster
+      # não precisa de credencial para o registro.
+      - name: Imagens do commit ${{ env.REVISAO }}
+        run: |
+          for s in backend boletim notificacao gateway frontend; do
+            docker pull -q "$REGISTRO/$s:$REVISAO"
+            kind load docker-image "$REGISTRO/$s:$REVISAO" --name infnethub
+          done
+
+      # O overlay local, com uma camada a mais só para trocar as imagens pelas
+      # deste commit. O overlay versionado não é tocado.
+      - name: Implantação
+        run: |
+          kubectl apply -k k8s/complementos/metrics-server
+          mkdir -p target/k8s-cd
+          {
+            echo "resources: [../../k8s/overlays/local]"
+            echo "images:"
+            for s in backend boletim notificacao gateway frontend; do
+              echo "  - { name: infnethub-tp5-$s, newName: $REGISTRO/$s, newTag: \"$REVISAO\" }"
+            done
+          } > target/k8s-cd/kustomization.yaml
+          kubectl kustomize --load-restrictor LoadRestrictionsNone target/k8s-cd | kubectl apply -f -
+
+      - name: Rollout
+        run: |
+          kubectl -n infnethub rollout status statefulset/postgres statefulset/postgres-boletim \
+            statefulset/postgres-notificacao statefulset/rabbitmq --timeout=300s
+          kubectl -n infnethub rollout status deployment/keycloak --timeout=300s
+          for d in backend boletim notificacao gateway frontend; do
+            kubectl -n infnethub rollout status "deployment/$d" --timeout=420s
+          done
+          kubectl -n infnethub get pods -o wide
+
+      # O gateway e o Keycloak nas mesmas portas da máquina local: a coleção
+      # HTTP roda sem uma linha alterada.
+      - name: Acesso ao cluster
+        run: |
+          kubectl -n infnethub port-forward svc/gateway-navegador 21080:21080 > /tmp/pf-gateway.log 2>&1 &
+          kubectl -n infnethub port-forward svc/keycloak 21180:8080 > /tmp/pf-keycloak.log 2>&1 &
+          for _ in $(seq 1 30); do
+            curl -sf -o /dev/null http://localhost:21080/actuator/health && break
+            sleep 2
+          done
+          curl -sf http://localhost:21080/actuator/health
+
+      - name: Testes de ponta a ponta (coleção HTTP)
+        run: ./testes/e2e.sh
+
+      - name: Teste de carga (k6)
+        run: |
+          docker run --rm --network host -v "$PWD/testes/carga:/carga:ro" \
+            -e PERFIL=fumaca grafana/k6:2.3.0 run /carga/infnethub.js
+
+      - name: Relatórios dos testes
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: relatorios-cd
+          path: target/http-reports/
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Diagnóstico
+        if: failure()
+        run: |
+          kubectl -n infnethub get pods,svc,hpa -o wide || true
+          kubectl -n infnethub get events --sort-by=.lastTimestamp | tail -40 || true
+          for d in backend boletim notificacao gateway keycloak; do
+            echo "── $d"; kubectl -n infnethub logs "deployment/$d" --tail=80 || true
+          done
