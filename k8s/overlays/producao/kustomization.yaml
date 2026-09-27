@@ -1,0 +1,69 @@
+# =========================================================================
+# Overlay "producao" — o ponto de partida para um cluster de verdade.
+#
+# O que muda em relação ao ambiente local:
+#   imagens   as publicadas pelo pipeline no GitHub Container Registry, com a
+#             tag da versão (o pipeline de CD a grava aqui a cada entrega)
+#   segredos  lidos de segredos.env, que NÃO é versionado. O modelo, sem
+#             valor nenhum, é segredos.env.exemplo. Num cluster gerenciado,
+#             o passo seguinte é um gerenciador de segredos (External Secrets,
+#             Sealed Secrets) no lugar do arquivo
+#   JVM       compilação completa (C2) e G1, em vez dos ajustes de memória
+#             pensados para um notebook
+#   réplicas  duas de cada serviço sem estado desde a partida
+#   entrada   Ingress com TLS no lugar dos NodePort
+#
+# Pontos de ajuste por instalação, documentados no relatório: o domínio
+# (Ingress, KEYCLOAK_URL_PUBLICA, CORS_ORIGINS, FRONTEND_URL) e os endereços
+# de retorno do login no realm do Keycloak.
+#
+#   cp k8s/overlays/producao/segredos.env.exemplo k8s/overlays/producao/segredos.env
+#   (preencher)
+#   kubectl kustomize --load-restrictor LoadRestrictionsNone k8s/overlays/producao | kubectl apply -f -
+# =========================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - entrada.yaml
+
+images:
+  - { name: infnethub/backend, newName: ghcr.io/andrebecker84/tp5-pb_producao/backend, newTag: 1.0.0 }
+  - { name: infnethub/boletim, newName: ghcr.io/andrebecker84/tp5-pb_producao/boletim, newTag: 1.0.0 }
+  - { name: infnethub/notificacao, newName: ghcr.io/andrebecker84/tp5-pb_producao/notificacao, newTag: 1.0.0 }
+  - { name: infnethub/gateway, newName: ghcr.io/andrebecker84/tp5-pb_producao/gateway, newTag: 1.0.0 }
+  - { name: infnethub/frontend, newName: ghcr.io/andrebecker84/tp5-pb_producao/frontend, newTag: 1.0.0 }
+
+secretGenerator:
+  - name: infnethub-segredos
+    namespace: infnethub
+    envs:
+      - segredos.env
+
+replicas:
+  - { name: frontend, count: 2 }
+  - { name: gateway, count: 2 }
+  - { name: notificacao, count: 3 }
+
+patches:
+  - target: { kind: ConfigMap, name: infnethub-ambiente }
+    patch: |-
+      - op: replace
+        path: /data/JAVA_TOOL_OPTIONS
+        value: "-XX:MaxRAMPercentage=75 -XX:+UseG1GC -XX:+ExitOnOutOfMemoryError"
+      - op: replace
+        path: /data/SPRING_PROFILES_ACTIVE
+        value: prod,k8s
+      - op: replace
+        path: /data/TRACING_AMOSTRAGEM
+        value: "0.1"
+      - op: replace
+        path: /data/KEYCLOAK_URL_PUBLICA
+        value: https://login.infnethub.exemplo.com.br
+      - op: replace
+        path: /data/CORS_ORIGINS
+        value: https://infnethub.exemplo.com.br
+      - op: replace
+        path: /data/FRONTEND_URL
+        value: https://infnethub.exemplo.com.br

@@ -1,0 +1,166 @@
+# =========================================================================
+# RabbitMQ — três nós, filas quorum replicadas, como no Compose.
+#
+# StatefulSet: cada nó tem nome estável (rabbitmq-0, -1, -2), volume próprio e
+# um endereço DNS fixo pelo Service sem IP (rabbitmq-headless). O RabbitMQ
+# guarda os dados sob o nome do nó; um nome novo a cada pod abandonaria o
+# volume.
+#
+# A formação do cluster usa o plugin de descoberta do Kubernetes. Desde o
+# RabbitMQ 4.1 ele não consulta a API do cluster: o nó de ordinal 0 é a
+# semente, e os demais se juntam a ele — por isso não há ServiceAccount nem
+# permissão de leitura de pods aqui.
+#
+# A topologia (exchanges, filas, ligações) e o usuário vêm do mesmo
+# infra/rabbitmq/definitions.json do Compose, carregado na subida.
+# =========================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rabbitmq-config
+data:
+  enabled_plugins: |
+    [rabbitmq_management,rabbitmq_prometheus,rabbitmq_peer_discovery_k8s].
+  20-infnethub.conf: |
+    load_definitions = /etc/rabbitmq/definitions.json
+
+    # Descoberta pelo nome do pod: rabbitmq-0 forma o cluster, os outros entram.
+    cluster_formation.peer_discovery_backend = k8s
+
+    # Partição de rede: o lado minoritário pausa em vez de aceitar escritas que
+    # o outro lado não verá. Com três nós, dois continuam atendendo.
+    cluster_partition_handling = pause_minority
+
+    # Réplicas das filas quorum repostas sozinhas até três — ver o comentário
+    # equivalente em infra/rabbitmq/20-infnethub.conf.
+    quorum_queue.continuous_membership_reconciliation.enabled = true
+    quorum_queue.continuous_membership_reconciliation.target_group_size = 3
+    quorum_queue.continuous_membership_reconciliation.interval = 10000
+
+    # Dentro do cluster, AMQP simples na 5672: a cifragem entre pods é tarefa
+    # da malha de serviço, não do broker (ver o relatório, seção 7.4). As
+    # políticas de rede (rede.yaml) limitam quem chega a esta porta.
+    listeners.tcp.default = 5672
+    management.tcp.port = 15672
+    prometheus.tcp.port = 15692
+---
+# O endereço de cada nó, para os nós se acharem entre si. publishNotReadyAddresses:
+# um nó precisa ser encontrado pelos outros ANTES de estar pronto — é juntando-se
+# ao cluster que ele fica pronto.
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq-headless
+  labels: { app.kubernetes.io/name: rabbitmq }
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector: { app.kubernetes.io/name: rabbitmq }
+  ports:
+    - { name: epmd, port: 4369 }
+    - { name: cluster, port: 25672 }
+    - { name: amqp, port: 5672 }
+---
+# O endereço dos clientes: uma conexão cai em qualquer nó pronto.
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+  labels: { app.kubernetes.io/name: rabbitmq }
+spec:
+  selector: { app.kubernetes.io/name: rabbitmq }
+  ports:
+    - { name: amqp, port: 5672, targetPort: amqp }
+    - { name: prometheus, port: 15692, targetPort: prometheus }
+---
+# O painel de gestão, à parte: é o único trecho do broker que um navegador abre.
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq-painel
+  labels: { app.kubernetes.io/name: rabbitmq }
+spec:
+  selector: { app.kubernetes.io/name: rabbitmq }
+  ports:
+    - { name: painel, port: 15672, targetPort: painel }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: rabbitmq
+  labels: { app.kubernetes.io/name: rabbitmq, app.kubernetes.io/component: broker }
+spec:
+  serviceName: rabbitmq-headless
+  replicas: 3
+  # Os três sobem juntos: o plugin de descoberta cuida de quem entra em quem.
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels: { app.kubernetes.io/name: rabbitmq }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: rabbitmq, app.kubernetes.io/component: broker }
+    spec:
+      terminationGracePeriodSeconds: 60
+      # Um nó por máquina, quando houver máquinas para isso: três réplicas de
+      # uma fila no mesmo nó do cluster cairiam juntas.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: { app.kubernetes.io/name: rabbitmq }
+      containers:
+        - name: rabbitmq
+          image: rabbitmq:4.3-management-alpine
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POD_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            - name: POD_NAMESPACE
+              valueFrom: { fieldRef: { fieldPath: metadata.namespace } }
+            - { name: RABBITMQ_USE_LONGNAME, value: "true" }
+            - name: RABBITMQ_NODENAME
+              value: rabbit@$(POD_NAME).rabbitmq-headless.$(POD_NAMESPACE).svc.cluster.local
+            - name: RABBIT_COOKIE
+              valueFrom: { secretKeyRef: { name: infnethub-segredos, key: RABBIT_COOKIE } }
+            # O segredo compartilhado do cluster, para o servidor e para as
+            # ferramentas de linha de comando (usadas pelas sondas).
+            - { name: RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS, value: "-setcookie $(RABBIT_COOKIE)" }
+            - { name: RABBITMQ_CTL_ERL_ARGS, value: "-setcookie $(RABBIT_COOKIE)" }
+          ports:
+            - { name: amqp, containerPort: 5672 }
+            - { name: painel, containerPort: 15672 }
+            - { name: prometheus, containerPort: 15692 }
+            - { name: epmd, containerPort: 4369 }
+            - { name: cluster, containerPort: 25672 }
+          readinessProbe:
+            exec: { command: ["rabbitmq-diagnostics", "-q", "check_port_connectivity"] }
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 15
+          livenessProbe:
+            exec: { command: ["rabbitmq-diagnostics", "-q", "ping"] }
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 15
+            failureThreshold: 4
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { memory: 640Mi }
+          volumeMounts:
+            - { name: dados, mountPath: /var/lib/rabbitmq }
+            - { name: config, mountPath: /etc/rabbitmq/conf.d/20-infnethub.conf, subPath: 20-infnethub.conf }
+            - { name: config, mountPath: /etc/rabbitmq/enabled_plugins, subPath: enabled_plugins }
+            - { name: definicoes, mountPath: /etc/rabbitmq/definitions.json, subPath: definitions.json }
+      volumes:
+        - name: config
+          configMap: { name: rabbitmq-config }
+        - name: definicoes
+          configMap: { name: rabbitmq-definicoes }
+  volumeClaimTemplates:
+    - metadata:
+        name: dados
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests: { storage: 1Gi }

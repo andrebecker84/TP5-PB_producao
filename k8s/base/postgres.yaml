@@ -1,0 +1,172 @@
+# =========================================================================
+# Três PostgreSQL, um por serviço — Database per Service, como no Compose.
+#
+# StatefulSet, e não Deployment: cada banco tem identidade estável e o seu
+# próprio volume (volumeClaimTemplates), que sobrevive ao pod. Um pod de banco
+# recriado reencontra os mesmos dados; um Deployment com volume compartilhado
+# arriscaria dois processos escrevendo no mesmo diretório.
+#
+# Os três só diferem em nome, banco e usuário. O kustomize não tem laços, e
+# três blocos explícitos são mais fáceis de conferir que um gerador.
+# =========================================================================
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  labels: { app.kubernetes.io/name: postgres, app.kubernetes.io/component: banco }
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: postgres }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: postgres, app.kubernetes.io/component: banco }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:18-alpine
+          env:
+            - { name: POSTGRES_DB, value: infnethub }
+            - { name: POSTGRES_USER, value: infnethub }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: infnethub-segredos, key: DB_PASS_CORE } }
+          ports:
+            - { name: postgres, containerPort: 5432 }
+          readinessProbe:
+            exec: { command: ["pg_isready", "-U", "infnethub", "-d", "infnethub"] }
+            periodSeconds: 5
+          livenessProbe:
+            exec: { command: ["pg_isready", "-U", "infnethub", "-d", "infnethub"] }
+            periodSeconds: 20
+            failureThreshold: 6
+          resources:
+            requests: { cpu: 50m, memory: 96Mi }
+            limits: { memory: 384Mi }
+          volumeMounts:
+            - { name: dados, mountPath: /var/lib/postgresql }
+  volumeClaimTemplates:
+    - metadata:
+        name: dados
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests: { storage: 1Gi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  labels: { app.kubernetes.io/name: postgres }
+spec:
+  selector: { app.kubernetes.io/name: postgres }
+  ports:
+    - { name: postgres, port: 5432, targetPort: postgres }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-boletim
+  labels: { app.kubernetes.io/name: postgres-boletim, app.kubernetes.io/component: banco }
+spec:
+  serviceName: postgres-boletim
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: postgres-boletim }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: postgres-boletim, app.kubernetes.io/component: banco }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:18-alpine
+          env:
+            - { name: POSTGRES_DB, value: boletim }
+            - { name: POSTGRES_USER, value: boletim }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: infnethub-segredos, key: DB_PASS_BOLETIM } }
+          ports:
+            - { name: postgres, containerPort: 5432 }
+          readinessProbe:
+            exec: { command: ["pg_isready", "-U", "boletim", "-d", "boletim"] }
+            periodSeconds: 5
+          livenessProbe:
+            exec: { command: ["pg_isready", "-U", "boletim", "-d", "boletim"] }
+            periodSeconds: 20
+            failureThreshold: 6
+          resources:
+            requests: { cpu: 50m, memory: 96Mi }
+            limits: { memory: 384Mi }
+          volumeMounts:
+            - { name: dados, mountPath: /var/lib/postgresql }
+  volumeClaimTemplates:
+    - metadata:
+        name: dados
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests: { storage: 1Gi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-boletim
+  labels: { app.kubernetes.io/name: postgres-boletim }
+spec:
+  selector: { app.kubernetes.io/name: postgres-boletim }
+  ports:
+    - { name: postgres, port: 5432, targetPort: postgres }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-notificacao
+  labels: { app.kubernetes.io/name: postgres-notificacao, app.kubernetes.io/component: banco }
+spec:
+  serviceName: postgres-notificacao
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: postgres-notificacao }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: postgres-notificacao, app.kubernetes.io/component: banco }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:18-alpine
+          env:
+            - { name: POSTGRES_DB, value: notificacao }
+            - { name: POSTGRES_USER, value: notificacao }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: infnethub-segredos, key: DB_PASS_NOTIFICACAO } }
+          ports:
+            - { name: postgres, containerPort: 5432 }
+          readinessProbe:
+            exec: { command: ["pg_isready", "-U", "notificacao", "-d", "notificacao"] }
+            periodSeconds: 5
+          livenessProbe:
+            exec: { command: ["pg_isready", "-U", "notificacao", "-d", "notificacao"] }
+            periodSeconds: 20
+            failureThreshold: 6
+          resources:
+            requests: { cpu: 50m, memory: 96Mi }
+            limits: { memory: 384Mi }
+          volumeMounts:
+            - { name: dados, mountPath: /var/lib/postgresql }
+  volumeClaimTemplates:
+    - metadata:
+        name: dados
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests: { storage: 1Gi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-notificacao
+  labels: { app.kubernetes.io/name: postgres-notificacao }
+spec:
+  selector: { app.kubernetes.io/name: postgres-notificacao }
+  ports:
+    - { name: postgres, port: 5432, targetPort: postgres }

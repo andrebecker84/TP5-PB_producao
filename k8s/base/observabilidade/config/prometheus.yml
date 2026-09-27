@@ -1,0 +1,55 @@
+# =========================================================================
+# Prometheus no Kubernetes — o que coletar, e de onde.
+#
+# No Compose os alvos vêm do DNS do Docker; aqui vêm da API do cluster
+# (kubernetes_sd_configs): cada pod com o rótulo infnethub.io/job é um alvo, e o
+# valor do rótulo é o nome do job. Os nomes são os mesmos do Compose — o mesmo
+# painel e as mesmas regras de alerta (infra/prometheus/regras.yml) valem nos
+# dois ambientes. Uma réplica criada pelo autoescalonamento vira alvo sozinha,
+# sem ninguém editar este arquivo.
+# =========================================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/regras/regras.yml
+
+scrape_configs:
+
+  # Os serviços Spring: todos na porta chamada "http", em /actuator/prometheus.
+  - job_name: servicos
+    metrics_path: /actuator/prometheus
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces: { own_namespace: true }
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_infnethub_io_job]
+        regex: .+
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_container_port_name]
+        regex: http
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_label_infnethub_io_job]
+        target_label: job
+      - source_labels: [__meta_kubernetes_pod_name]
+        target_label: instance
+      - source_labels: [__meta_kubernetes_pod_node_name]
+        target_label: node
+
+  # Os três nós do broker, com as medidas por fila.
+  - job_name: rabbitmq
+    metrics_path: /metrics/per-object
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces: { own_namespace: true }
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+        regex: rabbitmq
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_container_port_name]
+        regex: prometheus
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_name]
+        target_label: instance

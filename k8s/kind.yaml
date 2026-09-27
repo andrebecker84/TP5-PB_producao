@@ -1,0 +1,32 @@
+# =========================================================================
+# O cluster da produção simulada: kind (Kubernetes in Docker).
+#
+# Um nó de controle e dois de trabalho — o suficiente para o que um cluster de
+# um nó só não mostra: réplicas espalhadas por nós diferentes (antiafinidade),
+# um nó esvaziado para manutenção sem derrubar o serviço (PodDisruptionBudget)
+# e o escalonador escolhendo onde cada pod cabe.
+#
+# As portas publicadas são as mesmas do Compose, e presas ao 127.0.0.1: nada
+# disto é alcançável por outro computador da rede. Serem as MESMAS portas é o
+# que permite ao realm do Keycloak — endereços de retorno do login — valer para
+# os dois ambientes sem alteração. Por isso Compose e cluster não sobem juntos.
+#
+#   kind create cluster --config k8s/kind.yaml
+#
+# No pipeline de CI o cluster é criado com k8s/kind-ci.yaml: um nó só, sem
+# portas publicadas, o que cabe num executor do GitHub Actions.
+# =========================================================================
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: infnethub
+nodes:
+  - role: control-plane
+    # NodePort (30000–32767) do cluster → porta do navegador na máquina.
+    extraPortMappings:
+      - { containerPort: 30000, hostPort: 21000, listenAddress: "127.0.0.1" }   # front-end
+      - { containerPort: 30080, hostPort: 21080, listenAddress: "127.0.0.1" }   # gateway (API)
+      - { containerPort: 30180, hostPort: 21180, listenAddress: "127.0.0.1" }   # Keycloak (login)
+      - { containerPort: 30300, hostPort: 21300, listenAddress: "127.0.0.1" }   # Grafana
+      - { containerPort: 30673, hostPort: 21673, listenAddress: "127.0.0.1" }   # painel do RabbitMQ
+  - role: worker
+  - role: worker

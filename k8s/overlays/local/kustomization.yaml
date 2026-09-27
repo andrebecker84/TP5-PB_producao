@@ -1,0 +1,43 @@
+# =========================================================================
+# Overlay "local" — a produção simulada num cluster kind (k8s/kind.yaml).
+#
+# Três diferenças em relação à base, e só três:
+#   imagens   as construídas na própria máquina (docker compose build) e
+#             carregadas no cluster com "kind load" — nenhum registro envolvido
+#   segredos  os valores de desenvolvimento, os mesmos do Compose. Não são
+#             segredo de verdade: são os que o realm do Keycloak e o
+#             definitions.json do RabbitMQ já trazem
+#   acesso    NodePort nas portas que o kind publica no 127.0.0.1
+#
+# O pipeline de CD usa este mesmo overlay, trocando só as imagens pelas que
+# acabou de construir (kustomize edit set image).
+# =========================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+images:
+  - { name: infnethub/backend, newName: infnethub-tp5-backend, newTag: latest }
+  - { name: infnethub/boletim, newName: infnethub-tp5-boletim, newTag: latest }
+  - { name: infnethub/notificacao, newName: infnethub-tp5-notificacao, newTag: latest }
+  - { name: infnethub/gateway, newName: infnethub-tp5-gateway, newTag: latest }
+  - { name: infnethub/frontend, newName: infnethub-tp5-frontend, newTag: latest }
+
+secretGenerator:
+  - name: infnethub-segredos
+    namespace: infnethub
+    literals:
+      - DB_PASS_CORE=infnethub
+      - DB_PASS_BOLETIM=boletim
+      - DB_PASS_NOTIFICACAO=notificacao
+      - RABBIT_PASS=infnethub
+      - RABBIT_COOKIE=infnethub-cluster-dev
+      - KEYCLOAK_ADMIN_PASS=admin
+      - KEYCLOAK_BFF_SECRET=bff-segredo-de-desenvolvimento
+      - GRAFANA_ADMIN_PASS=admin
+      - GRAFANA_OIDC_SECRET=grafana-segredo-de-desenvolvimento
+
+patches:
+  - path: acesso.yaml

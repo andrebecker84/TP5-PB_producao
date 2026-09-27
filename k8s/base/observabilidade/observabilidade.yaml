@@ -1,0 +1,361 @@
+# =========================================================================
+# Observabilidade no cluster: métricas, logs e traces.
+#
+#   Prometheus  coleta as métricas de cada pod (descoberta pela API do cluster)
+#   Alloy       recolhe os logs de todos os pods e recebe os spans (OTLP)
+#   Loki        guarda os logs          Tempo  guarda os traces
+#   Grafana     mostra os três, ligados entre si, com os mesmos painéis do
+#               Compose (infra/grafana/paineis/)
+#
+# Prometheus e Alloy leem a API do Kubernetes; cada um tem a sua conta de
+# serviço, com permissão de LEITURA e só no que precisa.
+# =========================================================================
+
+# ── Prometheus ──────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: prometheus
+rules:
+  - apiGroups: [""]
+    resources: [pods, services, endpoints]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: prometheus
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: prometheus }
+subjects:
+  - { kind: ServiceAccount, name: prometheus }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  labels: { app.kubernetes.io/name: prometheus, app.kubernetes.io/component: observabilidade }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app.kubernetes.io/name: prometheus }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: prometheus, app.kubernetes.io/component: observabilidade }
+    spec:
+      serviceAccountName: prometheus
+      securityContext: { runAsNonRoot: true, runAsUser: 65534, fsGroup: 65534 }
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v3.14.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - --config.file=/etc/prometheus/prometheus.yml
+            - --storage.tsdb.path=/prometheus
+            - --storage.tsdb.retention.time=2d
+            - --web.enable-remote-write-receiver
+            - --enable-feature=exemplar-storage
+          ports:
+            - { name: http, containerPort: 9090 }
+          readinessProbe:
+            httpGet: { path: /-/ready, port: http }
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { memory: 768Mi }
+          volumeMounts:
+            - { name: config, mountPath: /etc/prometheus }
+            - { name: regras, mountPath: /etc/prometheus/regras }
+            - { name: dados, mountPath: /prometheus }
+      volumes:
+        - name: config
+          configMap: { name: prometheus-config }
+        - name: regras
+          configMap: { name: prometheus-regras }
+        - name: dados
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  labels: { app.kubernetes.io/name: prometheus }
+spec:
+  selector: { app.kubernetes.io/name: prometheus }
+  ports:
+    - { name: http, port: 9090, targetPort: http }
+
+# ── Loki ────────────────────────────────────────────────────────────────────
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: loki
+  labels: { app.kubernetes.io/name: loki, app.kubernetes.io/component: observabilidade }
+spec:
+  serviceName: loki
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: loki }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: loki, app.kubernetes.io/component: observabilidade }
+    spec:
+      securityContext: { runAsNonRoot: true, runAsUser: 10001, fsGroup: 10001 }
+      containers:
+        - name: loki
+          image: grafana/loki:3.7.8
+          imagePullPolicy: IfNotPresent
+          args: ["-config.file=/etc/loki/loki.yml"]
+          ports:
+            - { name: http, containerPort: 3100 }
+          readinessProbe:
+            httpGet: { path: /ready, port: http }
+            initialDelaySeconds: 15
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { memory: 512Mi }
+          volumeMounts:
+            - { name: config, mountPath: /etc/loki }
+            - { name: dados, mountPath: /loki }
+      volumes:
+        - name: config
+          configMap: { name: loki-config }
+  volumeClaimTemplates:
+    - metadata:
+        name: dados
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests: { storage: 2Gi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: loki
+  labels: { app.kubernetes.io/name: loki }
+spec:
+  selector: { app.kubernetes.io/name: loki }
+  ports:
+    - { name: http, port: 3100, targetPort: http }
+
+# ── Tempo ───────────────────────────────────────────────────────────────────
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: tempo
+  labels: { app.kubernetes.io/name: tempo, app.kubernetes.io/component: observabilidade }
+spec:
+  serviceName: tempo
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: tempo }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: tempo, app.kubernetes.io/component: observabilidade }
+    spec:
+      securityContext: { runAsNonRoot: true, runAsUser: 10001, fsGroup: 10001 }
+      containers:
+        - name: tempo
+          image: grafana/tempo:3.0.3
+          imagePullPolicy: IfNotPresent
+          args: ["-target=all", "-config.file=/etc/tempo/tempo.yml"]
+          ports:
+            - { name: http, containerPort: 3200 }
+            - { name: otlp-grpc, containerPort: 4317 }
+          readinessProbe:
+            httpGet: { path: /ready, port: http }
+            initialDelaySeconds: 15
+          resources:
+            requests: { cpu: 50m, memory: 256Mi }
+            limits: { memory: 1Gi }
+          volumeMounts:
+            - { name: config, mountPath: /etc/tempo }
+            - { name: dados, mountPath: /var/tempo }
+      volumes:
+        - name: config
+          configMap: { name: tempo-config }
+  volumeClaimTemplates:
+    - metadata:
+        name: dados
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests: { storage: 2Gi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tempo
+  labels: { app.kubernetes.io/name: tempo }
+spec:
+  selector: { app.kubernetes.io/name: tempo }
+  ports:
+    - { name: http, port: 3200, targetPort: http }
+    - { name: otlp-grpc, port: 4317, targetPort: otlp-grpc }
+
+# ── Alloy ───────────────────────────────────────────────────────────────────
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: alloy
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: alloy
+rules:
+  - apiGroups: [""]
+    resources: [pods, pods/log]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: alloy
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: alloy }
+subjects:
+  - { kind: ServiceAccount, name: alloy }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alloy
+  labels: { app.kubernetes.io/name: alloy, app.kubernetes.io/component: observabilidade }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: alloy }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: alloy, app.kubernetes.io/component: observabilidade }
+    spec:
+      serviceAccountName: alloy
+      containers:
+        - name: alloy
+          image: grafana/alloy:v1.19.2
+          imagePullPolicy: IfNotPresent
+          args:
+            - run
+            - /etc/alloy/config.alloy
+            - --storage.path=/var/lib/alloy/data
+            - --server.http.listen-addr=0.0.0.0:12345
+          ports:
+            - { name: otlp-http, containerPort: 4318 }
+            - { name: ui, containerPort: 12345 }
+          readinessProbe:
+            httpGet: { path: /-/ready, port: ui }
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { memory: 384Mi }
+          volumeMounts:
+            - { name: config, mountPath: /etc/alloy }
+            - { name: dados, mountPath: /var/lib/alloy/data }
+      volumes:
+        - name: config
+          configMap: { name: alloy-config }
+        - name: dados
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alloy
+  labels: { app.kubernetes.io/name: alloy }
+spec:
+  selector: { app.kubernetes.io/name: alloy }
+  ports:
+    - { name: otlp-http, port: 4318, targetPort: otlp-http }
+
+# ── Grafana ─────────────────────────────────────────────────────────────────
+# Login pelo Keycloak, só para o papel SUPORTE_TI, como no Compose — ver o
+# comentário completo no docker-compose.yml.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  labels: { app.kubernetes.io/name: grafana, app.kubernetes.io/component: observabilidade }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: grafana }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: grafana, app.kubernetes.io/component: observabilidade }
+    spec:
+      securityContext: { runAsNonRoot: true, runAsUser: 472, fsGroup: 472 }
+      containers:
+        - name: grafana
+          image: grafana/grafana:13.2.2
+          imagePullPolicy: IfNotPresent
+          env:
+            - { name: GF_SECURITY_ADMIN_USER, value: admin }
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom: { secretKeyRef: { name: infnethub-segredos, key: GRAFANA_ADMIN_PASS } }
+            - { name: GF_SERVER_ROOT_URL, value: "http://localhost:21300" }
+            - { name: GF_AUTH_ANONYMOUS_ENABLED, value: "false" }
+            - { name: GF_AUTH_DISABLE_LOGIN_FORM, value: "true" }
+            - { name: GF_AUTH_GENERIC_OAUTH_AUTO_LOGIN, value: "true" }
+            - { name: GF_AUTH_GENERIC_OAUTH_ENABLED, value: "true" }
+            - { name: GF_AUTH_GENERIC_OAUTH_NAME, value: "Infnet Hub" }
+            - { name: GF_AUTH_GENERIC_OAUTH_CLIENT_ID, value: infnethub-grafana }
+            - name: GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET
+              valueFrom: { secretKeyRef: { name: infnethub-segredos, key: GRAFANA_OIDC_SECRET } }
+            - { name: GF_AUTH_GENERIC_OAUTH_SCOPES, value: "openid profile email" }
+            - { name: GF_AUTH_GENERIC_OAUTH_USE_PKCE, value: "true" }
+            - { name: GF_AUTH_GENERIC_OAUTH_AUTH_URL, value: "http://localhost:21180/realms/infnethub/protocol/openid-connect/auth" }
+            - { name: GF_AUTH_GENERIC_OAUTH_TOKEN_URL, value: "http://keycloak:8080/realms/infnethub/protocol/openid-connect/token" }
+            - { name: GF_AUTH_GENERIC_OAUTH_API_URL, value: "http://keycloak:8080/realms/infnethub/protocol/openid-connect/userinfo" }
+            - { name: GF_AUTH_GENERIC_OAUTH_LOGIN_ATTRIBUTE_PATH, value: preferred_username }
+            - { name: GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH, value: "contains(realm_access.roles[*], 'SUPORTE_TI') && 'Admin'" }
+            - { name: GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_STRICT, value: "true" }
+            - { name: GF_AUTH_SIGNOUT_REDIRECT_URL, value: "http://localhost:21180/realms/infnethub/protocol/openid-connect/logout?client_id=infnethub-grafana&post_logout_redirect_uri=http%3A%2F%2Flocalhost%3A21000%2Flogin%3Fsaiu%3D1" }
+            - { name: GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH, value: /var/lib/grafana/paineis/infnethub.json }
+            - { name: GF_ANALYTICS_REPORTING_ENABLED, value: "false" }
+            - { name: GF_ANALYTICS_CHECK_FOR_UPDATES, value: "false" }
+            - { name: GF_NEWS_NEWS_FEED_ENABLED, value: "false" }
+            # O Grafana é um programa Go: sem teto próprio, o coletor de lixo só
+            # age tarde, e um painel pesado aberto sob carga passa do limite do
+            # contêiner. Com GOMEMLIMIT abaixo dele, a coleta chega antes.
+            - { name: GOMEMLIMIT, value: 800MiB }
+          ports:
+            - { name: http, containerPort: 3000 }
+          readinessProbe:
+            httpGet: { path: /api/health, port: http }
+          resources:
+            requests: { cpu: 50m, memory: 256Mi }
+            limits: { memory: 1Gi }
+          volumeMounts:
+            - { name: fontes, mountPath: /etc/grafana/provisioning/datasources }
+            - { name: provedor, mountPath: /etc/grafana/provisioning/dashboards }
+            - { name: alertas, mountPath: /etc/grafana/provisioning/alerting }
+            - { name: paineis, mountPath: /var/lib/grafana/paineis }
+            - { name: dados, mountPath: /var/lib/grafana }
+      volumes:
+        - name: fontes
+          configMap: { name: grafana-fontes }
+        - name: provedor
+          configMap: { name: grafana-provedor }
+        - name: alertas
+          configMap: { name: grafana-alertas }
+        - name: paineis
+          configMap: { name: grafana-paineis }
+        - name: dados
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  labels: { app.kubernetes.io/name: grafana }
+spec:
+  selector: { app.kubernetes.io/name: grafana }
+  ports:
+    - { name: http, port: 3000, targetPort: http }

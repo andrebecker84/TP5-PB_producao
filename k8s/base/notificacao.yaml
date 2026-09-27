@@ -1,0 +1,122 @@
+# =========================================================================
+# notificacao-service — o serviço feito para escalar.
+#
+# Duas réplicas desde a partida, e até cinco com o autoescalonamento: cada
+# réplica é mais um consumidor na fila notificacao.eventos (competing
+# consumers), e a exchange fanout garante que a notificação ao vivo chegue à
+# réplica que segura a conexão SSE de quem deve recebê-la.
+# =========================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notificacao
+  labels: { app.kubernetes.io/name: notificacao, app.kubernetes.io/component: servico }
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  # Atualização gradual sem perder capacidade: um pod novo sobe e fica pronto
+  # antes de um antigo sair (maxUnavailable 0).
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  selector:
+    matchLabels: { app.kubernetes.io/name: notificacao }
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: notificacao
+        app.kubernetes.io/component: servico
+        # Lido pelo Prometheus (observabilidade/config/prometheus.yml): o nome do
+        # job é o mesmo do Compose, e o mesmo painel e as mesmas regras de
+        # alerta valem nos dois ambientes.
+        infnethub.io/job: notificacao-service
+    spec:
+      terminationGracePeriodSeconds: 40
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 0
+        seccompProfile: { type: RuntimeDefault }
+      # Réplicas espalhadas pelos nós: um nó que cai não leva todas.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: { app.kubernetes.io/name: notificacao }
+      # Espera o próprio banco aceitar conexões. Sem isto a aplicação sobe,
+      # falha no Flyway e é reiniciada até o banco ficar pronto: funciona, mas
+      # enche o histórico de reinícios e confunde quem olha o cluster. O -U é
+      # obrigatório: sem ele o pg_isready infere o usuário do sistema, e o UID
+      # sem nome deste contêiner o faz desistir sem tentar ("no attempt").
+      initContainers:
+        - name: aguardar-banco
+          image: postgres:18-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "until pg_isready -q -h postgres-notificacao -U sonda -t 2; do echo aguardando postgres-notificacao; sleep 2; done"]
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { memory: 64Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+      containers:
+        - name: notificacao
+          image: infnethub/notificacao
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { name: http, containerPort: 21083 }
+          envFrom:
+            - configMapRef: { name: infnethub-ambiente }
+          env:
+            - { name: SERVER_PORT, value: "21083" }
+            - { name: DB_URL, value: "jdbc:postgresql://postgres-notificacao:5432/notificacao" }
+            - { name: DB_USER, value: notificacao }
+            - name: DB_PASS
+              valueFrom: { secretKeyRef: { name: infnethub-segredos, key: DB_PASS_NOTIFICACAO } }
+            - name: RABBIT_PASS
+              valueFrom: { secretKeyRef: { name: infnethub-segredos, key: RABBIT_PASS } }
+          # startup: até 3 min para a primeira subida (Flyway, carga de
+          # demonstração) sem a liveness matar o pod no meio do caminho.
+          startupProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: http }
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 10
+            failureThreshold: 3
+          # Na saída, alguns segundos antes do SIGTERM: o tempo de o Service
+          # tirar o pod da lista de destinos, para nenhuma requisição nova
+          # chegar a um processo que já está encerrando.
+          lifecycle:
+            preStop:
+              sleep: { seconds: 5 }
+          resources:
+            requests: { cpu: 200m, memory: 448Mi }
+            limits: { cpu: 1500m, memory: 640Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        # Sistema de arquivos só de leitura; o Tomcat e a JVM escrevem aqui.
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notificacao
+  labels: { app.kubernetes.io/name: notificacao }
+spec:
+  selector: { app.kubernetes.io/name: notificacao }
+  ports:
+    - { name: http, port: 21083, targetPort: http }

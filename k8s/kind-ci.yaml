@@ -1,0 +1,8 @@
+# Cluster kind do pipeline de CD (.github/workflows/cd.yml): um nó só e nenhuma
+# porta publicada — o teste de fumaça fala com o gateway por port-forward. O
+# cluster da máquina local, com três nós, está em k8s/kind.yaml.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: infnethub
+nodes:
+  - role: control-plane
