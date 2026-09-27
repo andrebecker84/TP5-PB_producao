@@ -1,0 +1,48 @@
+# Atualização de dependências: o Dependabot abre um pull request por grupo, e o
+# pipeline de CI testa cada um antes de alguém decidir aceitá-lo. Uma
+# dependência vulnerável deixa de depender de alguém lembrar de conferir.
+#
+# Agrupadas por ecossistema e semanais: um PR por biblioteca a cada dia viraria
+# ruído, e ruído é ignorado. Os PRs miram a develop, como qualquer mudança do
+# fluxo; chegam à main na próxima release.
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /
+    target-branch: develop
+    schedule: { interval: weekly, day: monday }
+    groups:
+      maven:
+        patterns: ["*"]
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: npm
+    directory: /frontend
+    target-branch: develop
+    schedule: { interval: weekly, day: monday }
+    groups:
+      npm:
+        patterns: ["*"]
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: docker
+    directories:
+      - /infnethub-core
+      - /boletim-service
+      - /notificacao-service
+      - /api-gateway
+      - /eureka-server
+      - /frontend
+    target-branch: develop
+    schedule: { interval: weekly, day: monday }
+    groups:
+      imagens-base:
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: develop
+    schedule: { interval: weekly, day: monday }
+    groups:
+      actions:
+        patterns: ["*"]

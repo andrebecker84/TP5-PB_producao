@@ -1,0 +1,24 @@
+name: Melhoria
+description: Uma funcionalidade nova ou uma mudança no que existe
+labels: [melhoria]
+body:
+  - type: textarea
+    id: problema
+    attributes:
+      label: Qual problema resolve
+      description: Para quem, e em que situação.
+    validations:
+      required: true
+  - type: textarea
+    id: proposta
+    attributes:
+      label: Proposta
+  - type: checkboxes
+    id: alcance
+    attributes:
+      label: O que a mudança toca
+      options:
+        - label: Contrato de mensagem (módulo contratos, AsyncAPI)
+        - label: Schema de banco (migration Flyway)
+        - label: Implantação (Compose, Kubernetes, pipeline)
+        - label: Observabilidade (painel, alerta, log)
