@@ -1,0 +1,51 @@
+# O que o navegador abre, como NodePort. O kind publica essas portas do nó na
+# máquina, só no 127.0.0.1 (k8s/kind.yaml): 30000 → 21000, e assim por diante.
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: infnethub
+spec:
+  type: NodePort
+  ports:
+    - { name: http, port: 3000, targetPort: http, nodePort: 30000 }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway-navegador
+  namespace: infnethub
+spec:
+  type: NodePort
+  ports:
+    - { name: navegador, port: 21080, targetPort: navegador, nodePort: 30080 }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+  namespace: infnethub
+spec:
+  type: NodePort
+  ports:
+    - { name: http, port: 8080, targetPort: http, nodePort: 30180 }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: infnethub
+spec:
+  type: NodePort
+  ports:
+    - { name: http, port: 3000, targetPort: http, nodePort: 30300 }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq-painel
+  namespace: infnethub
+spec:
+  type: NodePort
+  ports:
+    - { name: painel, port: 15672, targetPort: painel, nodePort: 30673 }

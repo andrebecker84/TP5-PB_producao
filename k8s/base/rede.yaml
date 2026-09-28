@@ -1,0 +1,156 @@
+# =========================================================================
+# Políticas de rede — quem pode falar com quem dentro do cluster.
+#
+# No Compose, a proteção dos serviços internos era não publicar porta nenhuma
+# no host. No Kubernetes, qualquer pod alcança qualquer outro por padrão: um
+# contêiner comprometido no front-end conversaria direto com o banco do core.
+# Estas políticas desfazem isso. Tudo o que chega a um pod é negado, e cada
+# política abre só o caminho que a arquitetura usa:
+#
+#   navegador  → frontend, gateway (porta do navegador), Keycloak, Grafana,
+#                painel do RabbitMQ
+#   gateway    → core, boletim, notificação
+#   serviço    → o próprio banco, e só ele; o broker
+#   todos      → Alloy (spans)
+#   Prometheus → alvos de métrica      Grafana → Prometheus, Loki, Tempo
+#
+# Só entrada (Ingress): a saída continua livre, o que mantém o DNS e as
+# chamadas ao Keycloak sem regra extra.
+# =========================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: negar-entrada-por-padrao
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+---
+# O que um navegador abre — alcançável de qualquer origem.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: borda
+spec:
+  podSelector:
+    matchExpressions:
+      - { key: app.kubernetes.io/name, operator: In, values: [frontend, keycloak, grafana] }
+  policyTypes: [Ingress]
+  ingress:
+    - {}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: gateway
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: gateway }
+  policyTypes: [Ingress]
+  ingress:
+    # A porta do navegador, de qualquer origem.
+    - ports: [{ port: 21080 }]
+    # A porta interna: Prometheus e os geradores de carga do teste (k6).
+    - from:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: prometheus } }
+        - podSelector: { matchLabels: { infnethub.io/carga: "true" } }
+      ports: [{ port: 21443 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: servicos
+spec:
+  podSelector:
+    matchExpressions:
+      - { key: app.kubernetes.io/name, operator: In, values: [backend, boletim, notificacao] }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }
+        - podSelector: { matchLabels: { app.kubernetes.io/name: prometheus } }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: postgres }
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{ podSelector: { matchLabels: { app.kubernetes.io/name: backend } } }]
+      ports: [{ port: 5432 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-boletim
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: postgres-boletim }
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{ podSelector: { matchLabels: { app.kubernetes.io/name: boletim } } }]
+      ports: [{ port: 5432 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-notificacao
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: postgres-notificacao }
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{ podSelector: { matchLabels: { app.kubernetes.io/name: notificacao } } }]
+      ports: [{ port: 5432 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: rabbitmq
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: rabbitmq }
+  policyTypes: [Ingress]
+  ingress:
+    # AMQP: só os três serviços de negócio.
+    - from:
+        - podSelector:
+            matchExpressions:
+              - { key: app.kubernetes.io/name, operator: In, values: [backend, boletim, notificacao] }
+      ports: [{ port: 5672 }]
+    # Entre os nós do cluster do broker.
+    - from: [{ podSelector: { matchLabels: { app.kubernetes.io/name: rabbitmq } } }]
+      ports: [{ port: 4369 }, { port: 25672 }]
+    - from: [{ podSelector: { matchLabels: { app.kubernetes.io/name: prometheus } } }]
+      ports: [{ port: 15692 }]
+    # O painel de gestão, para o navegador de quem opera.
+    - ports: [{ port: 15672 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: coletores
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: alloy }
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{ podSelector: {} }]
+      ports: [{ port: 4318 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: armazenamento-de-observabilidade
+spec:
+  podSelector:
+    matchExpressions:
+      - { key: app.kubernetes.io/name, operator: In, values: [loki, tempo, prometheus] }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - { key: app.kubernetes.io/name, operator: In, values: [alloy, grafana, tempo] }

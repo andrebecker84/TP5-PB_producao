@@ -1,0 +1,107 @@
+# =========================================================================
+# Escalabilidade e disponibilidade.
+#
+# HorizontalPodAutoscaler: o número de réplicas acompanha a CPU. A meta é 70%
+# do que cada pod pede (requests), medida pelo metrics-server. Acima disso por
+# alguns segundos, o cluster cria réplicas; abaixo por um minuto, remove —
+# devagar para baixo, depressa para cima, para não oscilar.
+#
+# PodDisruptionBudget: quantas réplicas podem faltar numa interrupção
+# PLANEJADA — um nó esvaziado para manutenção, uma atualização do cluster. O
+# cluster recusa tirar o último pod de pé; a queda de uma máquina não pede
+# licença a ninguém, e é para isso que existem as réplicas.
+# =========================================================================
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: notificacao
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: notificacao }
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies: [{ type: Pods, value: 2, periodSeconds: 30 }]
+    scaleDown:
+      stabilizationWindowSeconds: 60
+      policies: [{ type: Pods, value: 1, periodSeconds: 30 }]
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: gateway
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: gateway }
+  minReplicas: 2
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies: [{ type: Pods, value: 2, periodSeconds: 30 }]
+    scaleDown:
+      stabilizationWindowSeconds: 60
+      policies: [{ type: Pods, value: 1, periodSeconds: 30 }]
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: backend
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: backend }
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies: [{ type: Pods, value: 1, periodSeconds: 30 }]
+    scaleDown:
+      stabilizationWindowSeconds: 60
+      policies: [{ type: Pods, value: 1, periodSeconds: 30 }]
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: gateway
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: gateway }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: notificacao
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: notificacao }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: frontend
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: frontend }
+---
+# Dois de três nós mantêm as filas quorum aceitando mensagens; o terceiro pode
+# sair para manutenção, nunca dois ao mesmo tempo.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: rabbitmq
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: rabbitmq }

@@ -1,0 +1,38 @@
+name: Defeito
+description: Algo que não funciona como deveria
+labels: [defeito]
+body:
+  - type: textarea
+    id: o-que
+    attributes:
+      label: O que aconteceu
+      description: E o que se esperava que acontecesse.
+    validations:
+      required: true
+  - type: textarea
+    id: como
+    attributes:
+      label: Como reproduzir
+      placeholder: |
+        1. Subir com ./k8s/implantar.sh
+        2. Entrar como lucas.mendonca
+        3. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: ambiente
+    attributes:
+      label: Ambiente
+      options: [Kubernetes (kind), Docker Compose, Serviço pela IDE, Pipeline de CI/CD]
+    validations:
+      required: true
+  - type: input
+    id: trace
+    attributes:
+      label: traceId
+      description: Se houver — está no log (campo traceId) e no Grafana. Com ele, o caminho inteiro da requisição é recuperado no Tempo.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      render: text

@@ -1,0 +1,58 @@
+# As fontes de dados do Grafana no Kubernetes: as mesmas três do Compose
+# (infra/grafana/provisionamento/datasources/), com os mesmos uid — é por eles
+# que os painéis as encontram — e as mesmas ligações entre si, sem o TLS.
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: 15s
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: tempo
+          urlDisplayLabel: Ver o trace
+
+  - name: Loki
+    uid: loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    editable: false
+    jsonData:
+      maxLines: 1000
+      derivedFields:
+        - name: traceId
+          matcherType: label
+          matcherRegex: traceId
+          datasourceUid: tempo
+          url: "$${__value.raw}"
+          urlDisplayLabel: Ver o trace
+
+  - name: Tempo
+    uid: tempo
+    type: tempo
+    access: proxy
+    url: http://tempo:3200
+    editable: false
+    jsonData:
+      tracesToLogsV2:
+        datasourceUid: loki
+        spanStartTimeShift: -2m
+        spanEndTimeShift: 2m
+        customQuery: true
+        query: '{servico=~".+"} | traceId="$${__trace.traceId}"'
+      tracesToMetrics:
+        datasourceUid: prometheus
+      serviceMap:
+        datasourceUid: prometheus
+      nodeGraph:
+        enabled: true
+      search:
+        hide: false
+      streamingEnabled:
+        search: true
