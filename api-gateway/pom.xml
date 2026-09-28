@@ -6,7 +6,7 @@
 	<parent>
 		<groupId>com.andre</groupId>
 		<artifactId>infnethub</artifactId>
-		<version>1.0.0</version>
+		<version>1.0.1</version>
 	</parent>
 
 	<artifactId>api-gateway</artifactId>
@@ -78,6 +78,19 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+		</dependency>
+
+		<!-- A sessão no Redis, no cluster: qualquer réplica atende qualquer
+		     navegador, e reiniciar uma réplica não desloga ninguém. Ligada só
+		     no perfil k8s (SessaoCompartilhada); no Compose o gateway é um só,
+		     e a sessão continua na memória. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-redis</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.session</groupId>
+			<artifactId>spring-session-data-redis</artifactId>
 		</dependency>
 
 		<dependency>

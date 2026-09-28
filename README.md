@@ -13,16 +13,16 @@ quinta e última entrega do Projeto de Bloco: Engenharia de Softwares Escalávei
 
 [![CI](https://github.com/andrebecker84/TP5-PB_producao/actions/workflows/ci.yml/badge.svg)](https://github.com/andrebecker84/TP5-PB_producao/actions/workflows/ci.yml)
 [![CD](https://github.com/andrebecker84/TP5-PB_producao/actions/workflows/cd.yml/badge.svg)](https://github.com/andrebecker84/TP5-PB_producao/actions/workflows/cd.yml)
-[![Testes](https://img.shields.io/badge/Testes-246_passando-success)](#testes)
+[![Testes](https://img.shields.io/badge/Testes-250_passando-success)](#testes)
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-1.37_·_kind-326CE5?logo=kubernetes&logoColor=white)](#kubernetes)
-[![Versão](https://img.shields.io/badge/Versão-1.0.0-blue)](CHANGELOG.md)
+[![Versão](https://img.shields.io/badge/Versão-1.0.1-blue)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/Licen%C3%A7a-Uso%20Restrito%20%C2%B7%20N%C3%A3o%20Comercial-red)](LICENSE)
 
 <img src="doc/screenshots/login.png" alt="Tela única de login do Infnet Hub" width="820" />
 
 <br/><br/>
 
-<img src="doc/images/numeros.svg" alt="20 pods no cluster · 3 nós Kubernetes · 246 testes automatizados · 0 falhas em 70.190 requisições sob carga · 3 pilares de observabilidade (logs, métricas e traces) · 8 cenários de demonstração" width="100%" />
+<img src="doc/images/numeros.svg" alt="21 pods no cluster · 3 nós Kubernetes · 250 testes automatizados · 0 falhas em 70.190 requisições sob carga · 3 pilares de observabilidade (logs, métricas e traces) · 8 cenários de demonstração" width="100%" />
 
 </div>
 
@@ -63,7 +63,7 @@ métricas ligados entre si; e um pipeline constrói, testa, publica e implanta c
 | 📜 **Agregação de logs** | JSON (ECS) → Grafana Alloy → Loki, com o `traceId` em cada linha |
 | 🚨 **Alertas** | Sete regras no Prometheus: serviço fora ou sem instâncias, erro, latência, mensagem morta, outbox parada, nó do broker |
 | 🔁 **CI/CD** | GitHub Actions: testes, validação da configuração, imagens no GHCR, implantação num cluster e testes contra ele |
-| 🧪 **Testes** | 246 automatizados + coleção HTTP de ponta a ponta + teste de carga k6 com limites |
+| 🧪 **Testes** | 250 automatizados + coleção HTTP de ponta a ponta + teste de carga k6 com limites |
 
 > [!IMPORTANT]
 > O que a entrega prova não é que o sistema *sobe* num cluster, mas que ele **aguenta operar**:
@@ -188,9 +188,10 @@ k8s/overlays/producao/    imagens do GHCR, segredos fora do repositório, Ingres
 |---|---|
 | **Deployment** | serviços sem estado; `RollingUpdate` com `maxUnavailable: 0`; espalhados entre nós |
 | **StatefulSet** | PostgreSQL ×3, RabbitMQ ×3 (cluster formado pelo ordinal do pod), Loki, Tempo |
+| **Sessão compartilhada** | Redis com as sessões de login do gateway: qualquer réplica atende qualquer navegador, e reiniciar uma não desloga ninguém |
 | **HorizontalPodAutoscaler** | gateway 2–4, core 1–3, notificação 2–5, por CPU (meta 70%) |
 | **PodDisruptionBudget** | nunca o último pod do gateway, do front-end, da notificação; um nó do broker por vez |
-| **Sondas** | *startup* (subida longa), *readiness* (inclui o banco), *liveness* (só o processo) |
+| **Sondas** | *startup* (subida longa), *readiness* (inclui o banco), *liveness* (só o processo), com prazo de resposta de 3 e 5 s |
 | **NetworkPolicy** | entrada negada por padrão; cada banco aceita só o seu serviço — verificado: o front-end não alcança o PostgreSQL |
 | **securityContext** | sem root, sem escalada, raiz só leitura, sem *capabilities*, seccomp |
 | **ConfigMap / Secret** | configuração no ambiente (12-factor); segredos gerados pelo overlay |
@@ -280,9 +281,9 @@ imagens identificadas pelo SHA do commit, imutáveis.
 
 | Nível | O que prova | Onde | Volume |
 |---|---|---|---|
-| **Unidade** | regras de domínio, contratos, filtros, rastreamento | `*/src/test` | 246 testes JUnit, somando os três níveis |
-| **Fatia** | JPA, web, segurança | `@DataJpaTest`, `@WebMvcTest` | incluídos nos 246 |
-| **Integração** | PostgreSQL e **RabbitMQ reais** (Testcontainers): outbox, confirmação, DLQ, saga, trace pelo broker | `*IntegracaoTest` | incluídos nos 246 |
+| **Unidade** | regras de domínio, contratos, filtros, rastreamento | `*/src/test` | 250 testes JUnit, somando os três níveis |
+| **Fatia** | JPA, web, segurança | `@DataJpaTest`, `@WebMvcTest` | incluídos nos 250 |
+| **Integração** | PostgreSQL e **RabbitMQ reais** (Testcontainers): outbox, confirmação, DLQ, saga, trace pelo broker | `*IntegracaoTest` | incluídos nos 250 |
 | **Ponta a ponta** | o sistema montado, no Compose ou no cluster | [`testes/e2e.sh`](testes/e2e.sh) | 107 requisições |
 | **Carga** | latência e erro sob concorrência | [`testes/carga/`](testes/carga/) (k6) | 2 perfis |
 | **Pós-implantação** | cada commit da `main`, num cluster novo | [`cd.yml`](.github/workflows/cd.yml) | a cada entrega |
@@ -295,9 +296,14 @@ imagens identificadas pelo SHA do commit, imutáveis.
 
 Medido no cluster local, perfil `escala`:
 
-| Requisições | Falhas | p50 | p95 | p99 | Réplicas no pico |
-|---:|---:|---:|---:|---:|---|
-| 70.190 | **0** | 16 ms | 47 ms | 90 ms | gateway 4 · core 3 · notificação 5 (o máximo de cada HPA) |
+| Versão | Requisições | Falhas | p50 | p95 | p99 | Réplicas no pico |
+|---|---:|---:|---:|---:|---:|---|
+| 1.0.0 | 70.190 | **0** | 16 ms | 47 ms | 90 ms | gateway 4 · core 3 · notificação 5 (o máximo de cada HPA) |
+| 1.0.1 | 64.705 | **0** | 20 ms | 135 ms | 495 ms | gateway 4 · core 3 · notificação 3, sem nenhum reinício |
+
+Na 1.0.1 cada resposta do feed carrega as curtidas e os comentários de todos os posts, e por isso
+pesa mais: o p95 subiu. Na tela, o saldo é o contrário, porque abrir o feed passou de 17
+requisições para uma.
 
 <p align="right"><a href="#índice">⬆ voltar ao índice</a></p>
 
@@ -310,7 +316,7 @@ Medido no cluster local, perfil `escala`:
 
 | # | Cenário | O que prova |
 |:---:|---|---|
-| 1 | **A implantação** | 20 pods em 3 nós, HPA e PDB configurados |
+| 1 | **A implantação** | 21 pods em 3 nós, HPA e PDB configurados |
 | 2 | **Autocura** | um pod removido é reposto; nenhuma requisição falha |
 | 3 | **Autoescalonamento** | sob carga k6, o HPA cria réplicas e depois as remove |
 | 4 | **Atualização sem interrupção** | *rolling update* com tráfego, e `rollout undo` |

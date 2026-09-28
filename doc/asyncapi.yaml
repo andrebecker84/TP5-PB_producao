@@ -20,7 +20,7 @@ asyncapi: 3.0.0
 
 info:
   title: Infnet Hub — canais de integração
-  version: 1.0.0
+  version: 1.0.1
   description: |
     Eventos, comandos e consultas trocados entre `infnethub-core`,
     `boletim-service` e `notificacao-service` através do RabbitMQ.
@@ -122,6 +122,8 @@ channels:
         $ref: '#/components/messages/PostCurtidoV1'
       PostComentadoV1:
         $ref: '#/components/messages/PostComentadoV1'
+      PostRemovidoV1:
+        $ref: '#/components/messages/PostRemovidoV1'
       VagaPublicadaV1:
         $ref: '#/components/messages/VagaPublicadaV1'
 
@@ -558,6 +560,25 @@ components:
           comentadoPorId: { type: integer, format: int64 }
           comentadoPorNome: { type: string }
           trechoDoComentario: { type: string }
+
+    PostRemovidoV1:
+      name: PostRemovidoV1
+      title: Uma publicação foi apagada
+      summary: |
+        Só o id, como na remoção de usuário. O serviço de notificação apaga as
+        notificações de curtida e de comentário daquele post, avisa as abas
+        abertas e guarda uma lápide, para que uma curtida atrasada não as
+        recrie (1.0.1).
+      contentType: application/json
+      headers:
+        $ref: '#/components/schemas/CabecalhosPadrao'
+      payload:
+        type: object
+        required: [mensagemId, ocorridoEm, postId]
+        properties:
+          mensagemId: { type: string, format: uuid }
+          ocorridoEm: { type: string, format: date-time }
+          postId: { type: integer, format: int64 }
 
     VagaPublicadaV1:
       name: VagaPublicadaV1

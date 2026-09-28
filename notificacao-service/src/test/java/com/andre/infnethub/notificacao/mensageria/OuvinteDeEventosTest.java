@@ -2,6 +2,7 @@ package com.andre.infnethub.notificacao.mensageria;
 
 import com.andre.infnethub.contratos.feed.PostComentadoV1;
 import com.andre.infnethub.contratos.feed.PostCurtidoV1;
+import com.andre.infnethub.contratos.feed.PostRemovidoV1;
 import com.andre.infnethub.contratos.usuario.UsuarioAtualizadoV1;
 import com.andre.infnethub.contratos.usuario.UsuarioCadastradoV1;
 import com.andre.infnethub.contratos.usuario.UsuarioRemovidoV1;
@@ -97,6 +98,40 @@ class OuvinteDeEventosTest {
 
         assertThat(de(autor)).singleElement().extracting(NotificacaoDTO::texto)
                 .isEqualTo("Prof. Carlos Oliveira comentou em \"Dúvida no TP4\": Olhe a fila de mensagens mortas");
+    }
+
+    @Test
+    @DisplayName("apagar o post apaga as notificações de curtida e de comentário sobre ele, e só essas")
+    void postRemovidoLevaAsNotificacoes() {
+        long autor = novoId();
+        long apagado = novoId();
+        long mantido = novoId();
+        ouvinte.cadastrado(cadastro(autor, "Autora do Post", "ALUNO"));
+        ouvinte.curtido(new PostCurtidoV1(UUID.randomUUID(), Instant.now(), apagado, "Vai sumir",
+                autor, novoId(), "Prof. Carlos Oliveira"));
+        ouvinte.comentado(new PostComentadoV1(UUID.randomUUID(), Instant.now(), apagado, "Vai sumir",
+                autor, 1L, novoId(), "Prof. Carlos Oliveira", "Boa!"));
+        ouvinte.curtido(new PostCurtidoV1(UUID.randomUUID(), Instant.now(), mantido, "Fica",
+                autor, novoId(), "Prof. Carlos Oliveira"));
+        assertThat(de(autor)).hasSize(4);
+
+        ouvinte.postRemovido(new PostRemovidoV1(UUID.randomUUID(), Instant.now(), apagado));
+
+        assertThat(de(autor)).extracting(NotificacaoDTO::link)
+                .containsExactlyInAnyOrder("/perfil", "/feed#post-" + mantido);
+    }
+
+    @Test
+    @DisplayName("curtida que chega depois da remoção do post não recria a notificação")
+    void curtidaAtrasadaDepoisDaRemocao() {
+        long autor = novoId();
+        long post = novoId();
+
+        ouvinte.postRemovido(new PostRemovidoV1(UUID.randomUUID(), Instant.now(), post));
+        ouvinte.curtido(new PostCurtidoV1(UUID.randomUUID(), Instant.now(), post, "Já era",
+                autor, novoId(), "Mariana Ferreira"));
+
+        assertThat(de(autor)).isEmpty();
     }
 
     @Test

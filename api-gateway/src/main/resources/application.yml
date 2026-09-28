@@ -11,6 +11,13 @@ spring:
   application:
     name: api-gateway
 
+  # O cliente do Redis só é usado no cluster, onde guarda as sessões (ver
+  # SessaoCompartilhada). A instrumentação dele fica desligada em todo lugar:
+  # cada leitura e gravação de sessão viraria um span a mais em todo trace,
+  # entre o navegador e o serviço que de fato atende.
+  autoconfigure:
+    exclude: org.springframework.boot.data.redis.autoconfigure.observation.LettuceObservationAutoConfiguration
+
   security:
     oauth2:
       # Cliente: é o gateway quem faz o login no Keycloak (fluxo do navegador).
@@ -175,6 +182,11 @@ eureka:
     prefer-ip-address: true
 
 management:
+  # Fora do cluster não há Redis, e a saúde do gateway não pode depender dele.
+  # O perfil k8s liga de volta.
+  health:
+    redis:
+      enabled: false
   # ── Rastreamento distribuído (TP5) ────────────────────────────────────────
   # O gateway é onde o trace NASCE: a requisição do navegador chega sem
   # traceparent, ganha um aqui, e o repasse aos serviços leva o cabeçalho

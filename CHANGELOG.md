@@ -11,6 +11,49 @@ texto da sua seção (`.github/scripts/notas_da_versao.py`).
 
 ## [Não lançado]
 
+## [1.0.1] — 2026-09-28
+
+Correções de estabilidade e desempenho encontradas na operação da 1.0.0.
+
+### Corrigido
+
+- **Notificação de post apagado**: apagar um post deixava no sino as
+  notificações de curtida e de comentário, com link para um post que não
+  existia mais. O core publica `PostRemovidoV1`, e o serviço de notificação
+  apaga as notificações daquele post (`V3`, coluna `post_id`) e guarda uma
+  lápide, para que uma curtida atrasada não as recrie. As abas abertas tiram
+  as notificações da lista na hora, pela conexão ao vivo.
+- Curtir ou comentar um post apagado depois que o feed carregou mostrava
+  "Erro ao curtir. Tente novamente."; agora avisa que a publicação foi
+  removida e a tira do feed.
+- **Login "o pedido expirou"** e sessões perdidas: no cluster, a sessão do
+  gateway ficava na memória da réplica, e qualquer reinício dela deslogava
+  quem estava conectado e quebrava os logins em andamento. A sessão passa ao
+  **Redis** (Spring Session), compartilhada pelas réplicas.
+- **Número do sino sumindo sozinho**: fechar o popup dava baixa em todas as
+  notificações da lista, lidas ou não. Agora uma notificação só deixa de
+  contar quando é lida — ao clicar nela, no botão de lida ou em "Marcar todas
+  como lidas", novo no topo do popup.
+- A tela de login deixada aberta por mais de 30 minutos mostrava "Sua
+  tentativa de login expirou. O processo de login será reiniciado.", que
+  parecia defeito. É o prazo do Keycloak para concluir um login; o tema passa
+  a dizer isso, e que basta entrar de novo.
+- **Reinícios em cascata sob carga**: as sondas usavam o prazo padrão de 1
+  segundo, e um pod só ocupado era reiniciado pela liveness. As sondas dos
+  serviços Java passam a ter 3 s (readiness) e 5 s (liveness), e o
+  autoescalonamento espera 30 s de carga antes de criar réplicas, em vez de
+  reagir a picos de segundos.
+
+### Mudado
+
+- **Feed em uma requisição**: cada post chega com quem curtiu e os
+  comentários, montados pelo core em três consultas. Antes, cada card buscava
+  os seus: um feed de 8 posts fazia 17 requisições ao gateway; um de 30, 61.
+- Excluir notificações numa aba também as tira das outras abas abertas.
+- Dependabot mensal, com as regras do que não entra por PR automático no
+  próprio `dependabot.yml`: versão principal nova do TypeScript, do ESLint e
+  dos tipos do Node, e as imagens base do Maven e do Node.
+
 ## [1.0.0] — 2026-09-27
 
 Quinta entrega: **implantação e operação em produção**. O sistema passa a rodar
@@ -130,7 +173,8 @@ Segunda entrega: **persistência com PostgreSQL**
 Primeira entrega: **monólito em camadas com Spring Boot**
 ([TP1-PB_monolito](https://github.com/andrebecker84/TP1-PB_monolito)).
 
-[Não lançado]: https://github.com/andrebecker84/TP5-PB_producao/compare/v1.0.0...HEAD
+[Não lançado]: https://github.com/andrebecker84/TP5-PB_producao/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/andrebecker84/TP5-PB_producao/releases/tag/v1.0.1
 [1.0.0]: https://github.com/andrebecker84/TP5-PB_producao/releases/tag/v1.0.0
 [0.4.0]: https://github.com/andrebecker84/TP4-PB_eventos
 [0.3.0]: https://github.com/andrebecker84/TP3-PB_microsservicos

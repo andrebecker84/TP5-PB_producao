@@ -21,6 +21,13 @@ app:
 spring:
   lifecycle:
     timeout-per-shutdown-phase: 20s
+  # As sessões do login, compartilhadas entre as réplicas (SessaoCompartilhada).
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: 6379
+      password: ${REDIS_PASS}
+      timeout: 3s
   cloud:
     # ── Descoberta: o cluster é o registro ────────────────────────────────
     # As rotas continuam apontando para lb://<serviço>, exatamente como no
@@ -44,6 +51,9 @@ eureka:
     enabled: false
 
 management:
+  health:
+    redis:
+      enabled: true
   endpoint:
     health:
       probes:

@@ -75,6 +75,7 @@ public final class Canais {
 
     public static final String ROTA_POST_CURTIDO = "post.curtido";
     public static final String ROTA_POST_COMENTADO = "post.comentado";
+    public static final String ROTA_POST_REMOVIDO = "post.removido";
     public static final String ROTA_VAGA_PUBLICADA = "vaga.publicada";
 
     /**

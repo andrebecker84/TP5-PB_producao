@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -28,6 +29,10 @@ public interface CurtidaRepository extends JpaRepository<Curtida, Long> {
 
     @Query("SELECT c FROM Curtida c JOIN FETCH c.usuario WHERE c.post.id = :postId")
     List<Curtida> findByPostId(Long postId);
+
+    /** As curtidas de vários posts numa consulta só: o feed inteiro, de uma vez. */
+    @Query("SELECT c FROM Curtida c JOIN FETCH c.usuario WHERE c.post.id IN :postIds")
+    List<Curtida> findByPostIdIn(Collection<Long> postIds);
 
     long countByPostId(Long postId);
 

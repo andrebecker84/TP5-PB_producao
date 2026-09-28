@@ -30,9 +30,6 @@ export const postService = {
   listarCurtidas: (postId: number): Promise<{ usuarioId: number; usuarioNome: string }[]> =>
     api(`/posts/${postId}/curtidas`).then(r => ok(r)),
 
-  listarComentarios: (postId: number): Promise<Comentario[]> =>
-    api(`/posts/${postId}/comentarios`).then(r => ok<Comentario[]>(r)),
-
   criarComentario: (postId: number, conteudo: string): Promise<Comentario> =>
     api(`/posts/${postId}/comentarios`, {
       method: "POST", headers: headersEscrita(),

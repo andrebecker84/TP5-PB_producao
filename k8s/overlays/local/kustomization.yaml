@@ -38,6 +38,7 @@ secretGenerator:
       - KEYCLOAK_BFF_SECRET=bff-segredo-de-desenvolvimento
       - GRAFANA_ADMIN_PASS=admin
       - GRAFANA_OIDC_SECRET=grafana-segredo-de-desenvolvimento
+      - REDIS_PASS=redis-segredo-de-desenvolvimento
 
 patches:
   - path: acesso.yaml

@@ -1,5 +1,12 @@
+/** Erro de uma chamada à API, com o status HTTP para quem precisa distinguir o motivo. */
+export class ErroDaApi extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+  }
+}
+
 export async function ok<T>(r: Response): Promise<T> {
-  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).message || r.statusText);
+  if (!r.ok) throw new ErroDaApi((await r.json().catch(() => ({}))).message || r.statusText, r.status);
   if (r.status === 204) return undefined as T;
   return r.json();
 }

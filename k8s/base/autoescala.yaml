@@ -3,8 +3,13 @@
 #
 # HorizontalPodAutoscaler: o número de réplicas acompanha a CPU. A meta é 70%
 # do que cada pod pede (requests), medida pelo metrics-server. Acima disso por
-# alguns segundos, o cluster cria réplicas; abaixo por um minuto, remove —
-# devagar para baixo, depressa para cima, para não oscilar.
+# meio minuto, o cluster cria réplicas; abaixo por um minuto, remove.
+#
+# A janela de subida já foi zero, e isso custou caro: um pico de segundos —
+# o próprio carregamento do feed — pedia réplicas novas, e cada JVM subindo
+# disputava CPU com as que já atendiam. Numa máquina só, com os três nós do
+# kind dividindo o mesmo processador, a disputa deixava todas lentas, as
+# sondas falhavam e o ciclo recomeçava. Meio minuto separa o pico da carga.
 #
 # PodDisruptionBudget: quantas réplicas podem faltar numa interrupção
 # PLANEJADA — um nó esvaziado para manutenção, uma atualização do cluster. O
@@ -24,7 +29,7 @@ spec:
       resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
   behavior:
     scaleUp:
-      stabilizationWindowSeconds: 0
+      stabilizationWindowSeconds: 30
       policies: [{ type: Pods, value: 2, periodSeconds: 30 }]
     scaleDown:
       stabilizationWindowSeconds: 60
@@ -43,7 +48,7 @@ spec:
       resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
   behavior:
     scaleUp:
-      stabilizationWindowSeconds: 0
+      stabilizationWindowSeconds: 30
       policies: [{ type: Pods, value: 2, periodSeconds: 30 }]
     scaleDown:
       stabilizationWindowSeconds: 60
@@ -62,7 +67,7 @@ spec:
       resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
   behavior:
     scaleUp:
-      stabilizationWindowSeconds: 0
+      stabilizationWindowSeconds: 30
       policies: [{ type: Pods, value: 1, periodSeconds: 30 }]
     scaleDown:
       stabilizationWindowSeconds: 60

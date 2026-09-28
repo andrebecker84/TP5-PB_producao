@@ -283,27 +283,12 @@ export default function Header({ currentUser }: Props) {
     });
   };
 
-  // Dá baixa nas não lidas quando o popup FECHA, e não quando abre: assim o
-  // destaque de "nova" continua visível enquanto a pessoa lê a lista. As que
-  // a pessoa marcou como não lidas de propósito continuam não lidas.
-  const notifEstavaAberto = useRef(false);
-  const mantidasNaoLidas = useRef<Set<number>>(new Set());
-  useEffect(() => {
-    if (notifEstavaAberto.current && !notifOpen) {
-      notificacoes.marcarComoLidas(
-        notificacoes.itens.filter(n => !n.lida && !mantidasNaoLidas.current.has(n.id)).map(n => n.id));
-      mantidasNaoLidas.current = new Set();
-    }
-    notifEstavaAberto.current = notifOpen;
-  }, [notifOpen, notificacoes]);
-  const notifComoLidas = (ids: number[]) => {
-    ids.forEach(id => mantidasNaoLidas.current.delete(id));
-    notificacoes.marcarComoLidas(ids);
-  };
-  const notifComoNaoLidas = (ids: number[]) => {
-    ids.forEach(id => mantidasNaoLidas.current.add(id));
-    notificacoes.marcarComoNaoLidas(ids);
-  };
+  // Uma notificação deixa de contar no sino quando a pessoa a lê: ao clicar
+  // nela, no botão de lida ou em "marcar todas". Até a 1.0.0, fechar o popup
+  // dava baixa em tudo o que estava na lista, e o número sumia sem a pessoa
+  // ter lido nada — parecia instabilidade, e era regra.
+  const notifComoLidas = (ids: number[]) => notificacoes.marcarComoLidas(ids);
+  const notifComoNaoLidas = (ids: number[]) => notificacoes.marcarComoNaoLidas(ids);
 
   // ── Mensagens: estado local (marcar / excluir) ──
   const [msgs, setMsgs]         = useState(MESSAGES);
@@ -742,6 +727,12 @@ export default function Header({ currentUser }: Props) {
                       title={selNotif ? "Cancelar seleção" : "Selecionar"} onClick={toggleSelNotif}>
                       {selNotif ? <ListChecks size={15} /> : <CircleDashed size={15} />}
                     </button>
+                    {!selNotif && unreadNotif > 0 && (
+                      <button className={`${styles.popIco} ${styles.icoVerde}`}
+                        title="Marcar todas como lidas" onClick={notificacoes.marcarTodasComoLidas}>
+                        <CheckCheck size={15} />
+                      </button>
+                    )}
                     {selNotif && (
                       <>
                         <button className={`${styles.popIco} ${todasMarcadas ? styles.icoNeutro : styles.icoVerde}`}
