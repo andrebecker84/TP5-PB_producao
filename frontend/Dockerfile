@@ -2,7 +2,7 @@
 # desenvolvimento; execução só com a saída standalone, sem root.
 
 # Build stage
-FROM node:24-alpine AS builder
+FROM node:26-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
@@ -21,7 +21,7 @@ ENV API_PROXY_TARGET=${API_PROXY_TARGET}
 RUN npm run build
 
 # Runtime stage
-FROM node:24-alpine
+FROM node:26-alpine
 
 ARG VERSAO=dev
 ARG REVISAO=local
