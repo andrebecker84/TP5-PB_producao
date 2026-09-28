@@ -3,6 +3,7 @@ package com.andre.infnethub.notificacao.mensageria;
 import com.andre.infnethub.contratos.Canais;
 import com.andre.infnethub.contratos.feed.PostComentadoV1;
 import com.andre.infnethub.contratos.feed.PostCurtidoV1;
+import com.andre.infnethub.contratos.feed.PostRemovidoV1;
 import com.andre.infnethub.contratos.expurgo.ExpurgoSolicitadoV1;
 import com.andre.infnethub.contratos.usuario.UsuarioAtualizadoV1;
 import com.andre.infnethub.contratos.usuario.UsuarioCadastradoV1;
@@ -117,9 +118,9 @@ class OuvinteDeEventos {
         if (!duplicidade.primeiraVez(e) || Objects.equals(e.autorDoPostId(), e.curtidoPorId())) {
             return;
         }
-        central.notificar(e.autorDoPostId(), TipoNotificacao.CURTIDA,
+        central.notificarSobrePost(e.autorDoPostId(), TipoNotificacao.CURTIDA,
                 "%s curtiu sua publicação \"%s\"".formatted(e.curtidoPorNome(), e.resumoDoPost()),
-                "/feed#post-" + e.postId(), e.mensagemId());
+                e.postId(), e.mensagemId());
     }
 
     @RabbitHandler
@@ -128,9 +129,20 @@ class OuvinteDeEventos {
         if (!duplicidade.primeiraVez(e) || Objects.equals(e.autorDoPostId(), e.comentadoPorId())) {
             return;
         }
-        central.notificar(e.autorDoPostId(), TipoNotificacao.COMENTARIO,
+        central.notificarSobrePost(e.autorDoPostId(), TipoNotificacao.COMENTARIO,
                 "%s comentou em \"%s\": %s".formatted(e.comentadoPorNome(), e.resumoDoPost(), e.trechoDoComentario()),
-                "/feed#post-" + e.postId(), e.mensagemId());
+                e.postId(), e.mensagemId());
+    }
+
+    /** O post saiu do feed; as notificações sobre ele saem do sino. */
+    @RabbitHandler
+    @Transactional
+    void postRemovido(PostRemovidoV1 e) {
+        if (!duplicidade.primeiraVez(e)) {
+            return;
+        }
+        int apagadas = central.apagarDoPost(e.postId());
+        log.info("post {} removido: {} notificação(ões) apagada(s)", e.postId(), apagadas);
     }
 
     // ── Vagas ──────────────────────────────────────────────────────────────

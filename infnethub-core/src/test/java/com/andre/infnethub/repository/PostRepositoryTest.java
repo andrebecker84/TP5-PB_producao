@@ -2,6 +2,7 @@ package com.andre.infnethub.repository;
 
 import com.andre.infnethub.config.AuditoriaConfig;
 import com.andre.infnethub.model.Comentario;
+import com.andre.infnethub.model.Curtida;
 import com.andre.infnethub.model.Papel;
 import com.andre.infnethub.model.Post;
 import com.andre.infnethub.model.Usuario;
@@ -42,6 +43,8 @@ class PostRepositoryTest {
     private UsuarioRepository usuarioRepository;
     @Autowired
     private ComentarioRepository comentarioRepository;
+    @Autowired
+    private CurtidaRepository curtidaRepository;
 
     private Usuario autor;
 
@@ -93,8 +96,8 @@ class PostRepositoryTest {
     }
 
     @Test
-    @DisplayName("conta os comentários de vários posts em uma única consulta")
-    void contaComentariosAgregadoPorPost() {
+    @DisplayName("traz os comentários de vários posts em uma única consulta, em ordem de chegada")
+    void comentariosDeVariosPosts() {
         Post comTres = novoPost("Com três");
         Post comUm = novoPost("Com um");
         Post semNenhum = novoPost("Sem nenhum");
@@ -102,17 +105,31 @@ class PostRepositoryTest {
         comentar(comTres, 3);
         comentar(comUm, 1);
 
-        Map<Long, Long> contagens = postRepository
-                .contarComentariosPorPost(List.of(comTres.getId(), comUm.getId(), semNenhum.getId()))
+        Map<Long, List<String>> porPost = comentarioRepository
+                .findByPostIdIn(List.of(comTres.getId(), comUm.getId(), semNenhum.getId()))
                 .stream()
-                .collect(Collectors.toMap(
-                        PostRepository.ContagemPorPost::getPostId,
-                        PostRepository.ContagemPorPost::getTotal));
+                .collect(Collectors.groupingBy(c -> c.getPost().getId(),
+                        Collectors.mapping(Comentario::getConteudo, Collectors.toList())));
 
-        assertThat(contagens).containsEntry(comTres.getId(), 3L);
-        assertThat(contagens).containsEntry(comUm.getId(), 1L);
-        // Post sem comentários não aparece no GROUP BY — o serviço trata como zero.
-        assertThat(contagens).doesNotContainKey(semNenhum.getId());
+        assertThat(porPost.get(comTres.getId())).containsExactly("Comentário 0", "Comentário 1", "Comentário 2");
+        assertThat(porPost.get(comUm.getId())).containsExactly("Comentário 0");
+        // Post sem comentários não aparece — o serviço trata como lista vazia.
+        assertThat(porPost).doesNotContainKey(semNenhum.getId());
+    }
+
+    @Test
+    @DisplayName("traz as curtidas de vários posts em uma única consulta, com quem curtiu")
+    void curtidasDeVariosPosts() {
+        Post curtido = novoPost("Curtido");
+        Post esquecido = novoPost("Esquecido");
+        curtidaRepository.save(Curtida.builder().post(curtido).usuario(autor).build());
+
+        List<Curtida> curtidas = curtidaRepository.findByPostIdIn(List.of(curtido.getId(), esquecido.getId()));
+
+        assertThat(curtidas).singleElement().satisfies(c -> {
+            assertThat(c.getPost().getId()).isEqualTo(curtido.getId());
+            assertThat(c.getUsuario().getNome()).isEqualTo("Autor Teste");
+        });
     }
 
     @Test

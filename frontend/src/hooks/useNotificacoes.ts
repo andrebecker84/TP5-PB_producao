@@ -52,6 +52,13 @@ export function useNotificacoes() {
       setItens(atual => (atual.some(n => n.id === nova.id) ? atual : [nova, ...atual]));
     });
 
+    // Apagadas em outro lugar: o post de que falavam saiu do feed, ou a pessoa
+    // as excluiu em outra aba.
+    fonte.addEventListener("removidas", (e) => {
+      const ids: number[] = JSON.parse((e as MessageEvent).data);
+      setItens(atual => atual.filter(n => !ids.includes(n.id)));
+    });
+
     fonte.onerror = () => setDisponivel(false);
 
     return () => fonte.close();

@@ -77,10 +77,10 @@ passo "5/5 · aplicando os manifestos (k8s/overlays/local)"
 kubectl kustomize --load-restrictor LoadRestrictionsNone "$RAIZ/k8s/overlays/local" | kubectl apply -f -
 
 echo
-echo "Aguardando os bancos, o broker e o Keycloak…"
+echo "Aguardando os bancos, o broker, o Keycloak e o Redis…"
 kubectl -n "$NS" rollout status statefulset/postgres statefulset/postgres-boletim \
   statefulset/postgres-notificacao statefulset/rabbitmq --timeout=300s
-kubectl -n "$NS" rollout status deployment/keycloak --timeout=300s
+kubectl -n "$NS" rollout status deployment/keycloak deployment/redis --timeout=300s
 echo "Aguardando os serviços…"
 for d in backend boletim notificacao gateway frontend prometheus grafana alloy; do
   kubectl -n "$NS" rollout status "deployment/$d" --timeout=420s

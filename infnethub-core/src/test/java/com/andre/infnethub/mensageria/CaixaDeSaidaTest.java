@@ -2,11 +2,14 @@ package com.andre.infnethub.mensageria;
 
 import com.andre.infnethub.contratos.Canais;
 import com.andre.infnethub.contratos.usuario.UsuarioRemovidoV1;
+import com.andre.infnethub.dto.PostRequestDTO;
 import com.andre.infnethub.dto.UsuarioRequestDTO;
 import com.andre.infnethub.dto.UsuarioResponseDTO;
 import com.andre.infnethub.model.Post;
 import com.andre.infnethub.repository.PostRepository;
 import com.andre.infnethub.repository.UsuarioRepository;
+import com.andre.infnethub.seguranca.Solicitante;
+import com.andre.infnethub.service.PostService;
 import com.andre.infnethub.service.UsuarioService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -38,6 +41,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class CaixaDeSaidaTest {
 
     @Autowired private UsuarioService usuarioService;
+    @Autowired private PostService postService;
     @Autowired private UsuarioRepository usuarioRepository;
     @Autowired private PostRepository postRepository;
     @Autowired private OutboxRepository outbox;
@@ -135,6 +139,25 @@ class CaixaDeSaidaTest {
 
         assertThat(doUsuario(criado.id())).extracting(MensagemNoOutbox::getTipo)
                 .containsExactly("UsuarioCadastradoV1", "ExpurgoSolicitadoV1");
+    }
+
+    @Test
+    @DisplayName("apagar um post deposita PostRemovidoV1, para as notificações dele sumirem junto")
+    void remocaoDePost() {
+        UsuarioResponseDTO autor = novoUsuario("Autor que Apaga");
+        Solicitante solicitante = new Solicitante(autor.id(), false);
+        Long postId = postService.criar(new PostRequestDTO("Efêmero", "conteúdo", null), solicitante).id();
+
+        postService.deletar(postId, solicitante);
+
+        // A chave é o id do post, que pode coincidir com o de um usuário:
+        // filtra pelo tipo.
+        List<MensagemNoOutbox> removidos = outbox.findByChaveOrderByIdAsc(String.valueOf(postId)).stream()
+                .filter(m -> m.getTipo().equals("PostRemovidoV1"))
+                .toList();
+        assertThat(removidos).hasSize(1);
+        assertThat(removidos.getFirst().getRota()).isEqualTo(Canais.ROTA_POST_REMOVIDO);
+        assertThat(json.readTree(removidos.getFirst().getPayload()).get("postId").asLong()).isEqualTo(postId);
     }
 
     @Test

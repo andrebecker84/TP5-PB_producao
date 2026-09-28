@@ -1,9 +1,12 @@
 package com.andre.infnethub.service.impl;
 
+import com.andre.infnethub.dto.ComentarioResponseDTO;
+import com.andre.infnethub.dto.CurtidaResponseDTO;
 import com.andre.infnethub.dto.PostRequestDTO;
 import com.andre.infnethub.dto.PostResponseDTO;
 import com.andre.infnethub.dto.historico.PaginaDTO;
 import com.andre.infnethub.exception.ResourceNotFoundException;
+import com.andre.infnethub.mensageria.EventosDoFeed;
 import com.andre.infnethub.model.Post;
 import com.andre.infnethub.model.Usuario;
 import com.andre.infnethub.repository.ComentarioRepository;
@@ -20,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -30,50 +34,55 @@ public class PostServiceImpl implements PostService {
     private final UsuarioRepository    usuarioRepository;
     private final ComentarioRepository comentarioRepository;
     private final CurtidaRepository    curtidaRepository;
+    private final EventosDoFeed        eventos;
 
     @Override
     @Transactional(readOnly = true)
     public List<PostResponseDTO> listarTodos() {
-        // Duas consultas no total, independentemente do tamanho do feed: os posts
-        // (com o autor via JOIN FETCH) e as contagens de comentários agregadas.
-        List<Post> posts = postRepository.findAllWithAutorOrderByDataDesc();
-        Map<Long, Long> comentariosPorPost = contarComentarios(posts);
-
-        return posts.stream()
-                .map(p -> PostResponseDTO.fromEntity(p, comentariosPorPost.getOrDefault(p.getId(), 0L)))
-                .toList();
+        return montar(postRepository.findAllWithAutorOrderByDataDesc());
     }
 
     @Override
     @Transactional(readOnly = true)
     public PaginaDTO<PostResponseDTO> listarPaginado(Pageable pageable) {
         Page<Post> pagina = postRepository.findAllByOrderByCriadoEmDesc(pageable);
-        Map<Long, Long> comentariosPorPost = contarComentarios(pagina.getContent());
-        return PaginaDTO.de(pagina,
-                p -> PostResponseDTO.fromEntity(p, comentariosPorPost.getOrDefault(p.getId(), 0L)));
+        Map<Long, PostResponseDTO> montados = montar(pagina.getContent()).stream()
+                .collect(Collectors.toMap(PostResponseDTO::id, Function.identity()));
+        return PaginaDTO.de(pagina, p -> montados.get(p.getId()));
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<PostResponseDTO> listarPorAutor(Long autorId) {
-        List<Post> posts = postRepository.findByAutorId(autorId);
-        Map<Long, Long> comentariosPorPost = contarComentarios(posts);
-        return posts.stream()
-                .map(p -> PostResponseDTO.fromEntity(p, comentariosPorPost.getOrDefault(p.getId(), 0L)))
-                .toList();
+        return montar(postRepository.findByAutorId(autorId));
     }
 
-    /** Contagens de comentários de uma lista de posts em uma única consulta. */
-    private Map<Long, Long> contarComentarios(List<Post> posts) {
+    /**
+     * Os posts com quem curtiu e os comentários, em três consultas no total,
+     * independentemente do tamanho do feed: os posts (com o autor via JOIN
+     * FETCH), as curtidas de todos e os comentários de todos.
+     *
+     * <p>O TP1 chamava {@code countByPostId} dentro do laço que montava o feed —
+     * um SELECT por post, o problema N+1. A 1.0.0 resolveu isso no banco, mas a
+     * tela ainda buscava curtidas e comentários card a card. Aqui as duas coisas
+     * saem juntas.
+     */
+    private List<PostResponseDTO> montar(List<Post> posts) {
         if (posts.isEmpty()) {
-            return Map.of();
+            return List.of();
         }
-        return postRepository
-                .contarComentariosPorPost(posts.stream().map(Post::getId).toList())
-                .stream()
-                .collect(Collectors.toMap(
-                        PostRepository.ContagemPorPost::getPostId,
-                        PostRepository.ContagemPorPost::getTotal));
+        List<Long> ids = posts.stream().map(Post::getId).toList();
+        Map<Long, List<CurtidaResponseDTO>> curtidas = curtidaRepository.findByPostIdIn(ids).stream()
+                .collect(Collectors.groupingBy(c -> c.getPost().getId(),
+                        Collectors.mapping(CurtidaResponseDTO::fromEntity, Collectors.toList())));
+        Map<Long, List<ComentarioResponseDTO>> comentarios = comentarioRepository.findByPostIdIn(ids).stream()
+                .collect(Collectors.groupingBy(c -> c.getPost().getId(),
+                        Collectors.mapping(ComentarioResponseDTO::fromEntity, Collectors.toList())));
+        return posts.stream()
+                .map(p -> PostResponseDTO.fromEntity(p,
+                        curtidas.getOrDefault(p.getId(), List.of()),
+                        comentarios.getOrDefault(p.getId(), List.of())))
+                .toList();
     }
 
     @Override
@@ -81,7 +90,7 @@ public class PostServiceImpl implements PostService {
     public PostResponseDTO buscarPorId(Long id) {
         Post post = postRepository.findByIdWithAutor(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Post não encontrado com id: " + id));
-        return PostResponseDTO.fromEntity(post, comentarioRepository.countByPostId(id));
+        return montar(List.of(post)).getFirst();
     }
 
     @Override
@@ -99,7 +108,7 @@ public class PostServiceImpl implements PostService {
                 .build();
 
         Post saved = postRepository.save(post);
-        return PostResponseDTO.fromEntity(saved, 0L);
+        return PostResponseDTO.fromEntity(saved, List.of(), List.of());
     }
 
     @Override
@@ -111,7 +120,7 @@ public class PostServiceImpl implements PostService {
         post.setTitulo(dto.titulo());
         post.setConteudo(dto.conteudo());
         post.setImagemUrl(dto.imagemUrl());
-        return PostResponseDTO.fromEntity(postRepository.save(post), comentarioRepository.countByPostId(id));
+        return montar(List.of(postRepository.save(post))).getFirst();
     }
 
     @Override
@@ -123,6 +132,7 @@ public class PostServiceImpl implements PostService {
         curtidaRepository.deleteByPostId(id);
         comentarioRepository.deleteByPostId(id);
         postRepository.deleteById(id);
+        eventos.removido(id);
     }
 
 }

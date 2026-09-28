@@ -29,6 +29,7 @@ resources:
   - postgres.yaml
   - rabbitmq.yaml
   - keycloak.yaml
+  - redis.yaml
   - backend.yaml
   - boletim.yaml
   - notificacao.yaml

@@ -1,0 +1,80 @@
+# =========================================================================
+# redis — as sessões de login do gateway, compartilhadas entre as réplicas.
+#
+# Até a 1.0.0 a sessão ficava na memória da réplica que atendeu o login. O
+# Service prendia cada navegador a uma réplica pelo IP de origem, e isso
+# bastava enquanto nada reiniciava. Bastava um reinício — uma atualização, a
+# liveness, o autoescalonamento removendo a réplica — para as sessões dela
+# sumirem: quem estava logado caía, e quem estava no meio do login voltava
+# com "o pedido expirou". Com a sessão aqui, qualquer réplica atende qualquer
+# navegador, e uma réplica a menos não desloga ninguém.
+#
+# Sem disco, de propósito: o que se guarda são sessões, e perdê-las num
+# reinício do Redis custa um login a mais, não um dado. Uma réplica só, pelo
+# mesmo motivo.
+# =========================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  labels: { app.kubernetes.io/name: redis, app.kubernetes.io/component: sessao }
+spec:
+  replicas: 1
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels: { app.kubernetes.io/name: redis }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: redis, app.kubernetes.io/component: sessao }
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: redis
+          image: redis:8-alpine
+          imagePullPolicy: IfNotPresent
+          # A senha vem do segredo pela variável; o $(...) é expandido pelo
+          # Kubernetes, não por um shell.
+          args: ["--requirepass", "$(REDIS_PASS)", "--save", "", "--appendonly", "no",
+                 "--maxmemory", "96mb", "--maxmemory-policy", "volatile-lru"]
+          ports:
+            - { name: redis, containerPort: 6379 }
+          env:
+            - name: REDIS_PASS
+              valueFrom: { secretKeyRef: { name: infnethub-segredos, key: REDIS_PASS } }
+            # Lida pelo redis-cli das sondas, para não pôr a senha na linha de comando.
+            - name: REDISCLI_AUTH
+              valueFrom: { secretKeyRef: { name: infnethub-segredos, key: REDIS_PASS } }
+          readinessProbe:
+            exec: { command: ["redis-cli", "ping"] }
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            exec: { command: ["redis-cli", "ping"] }
+            periodSeconds: 10
+            timeoutSeconds: 3
+          resources:
+            requests: { cpu: 20m, memory: 32Mi }
+            limits: { memory: 128Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - { name: dados, mountPath: /data }
+      volumes:
+        - name: dados
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  labels: { app.kubernetes.io/name: redis }
+spec:
+  selector: { app.kubernetes.io/name: redis }
+  ports:
+    - { name: redis, port: 6379, targetPort: redis }

@@ -48,12 +48,22 @@ public class Notificacao {
     @Column(name = "mensagem_origem_id", nullable = false)
     private UUID mensagemOrigemId;
 
+    /** O post de que a notificação fala, para ela sair junto quando ele for apagado. */
+    @Column(name = "post_id")
+    private Long postId;
+
     public Notificacao(Long destinatarioId, TipoNotificacao tipo, String texto, String link, UUID mensagemOrigemId) {
+        this(destinatarioId, tipo, texto, link, mensagemOrigemId, null);
+    }
+
+    public Notificacao(Long destinatarioId, TipoNotificacao tipo, String texto, String link, UUID mensagemOrigemId,
+                       Long postId) {
         this.destinatarioId = destinatarioId;
         this.tipo = tipo;
         this.texto = texto;
         this.link = link;
         this.mensagemOrigemId = mensagemOrigemId;
+        this.postId = postId;
         this.criadaEm = Instant.now();
     }
 

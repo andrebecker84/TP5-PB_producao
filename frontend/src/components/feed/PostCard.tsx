@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, FormEvent, KeyboardEvent } from "react";
 import { ThumbsUp, MessageCircle, Share2, Pencil, Trash2, X, ChevronDown, ChevronUp, Eye, EyeOff, MoreVertical, Send, Image as ImageIcon, Film, Smile, Code2, CornerDownRight } from "lucide-react";
 import { Post, Usuario, Comentario } from "@/types";
 import { postService } from "@/services/postService";
+import { ErroDaApi } from "@/services/api";
 import { showToast } from "@/utils/toast";
 import { initials, relativo, EMOJIS } from "@/utils/format";
 import { CORES, PAPEL_TXT } from "@/utils/colors";
@@ -16,6 +17,8 @@ interface Props {
   onEditar: () => void;
   onDeletar: () => void;
   onPostUpdated: (p: Post) => void;
+  /** O post foi apagado por outra pessoa enquanto esta tela o mostrava. */
+  onSumiu: () => void;
 }
 
 function renderWithCode(text: string) {
@@ -81,25 +84,23 @@ function TextoExpansivel({ texto, className, compacto = false }: TextoExpansivel
   );
 }
 
-export default function PostCard({ post, currentUser, onEditar, onDeletar, onPostUpdated }: Props) {
+/** A API respondeu que o post não existe mais: apagado depois que o feed carregou. */
+const postSumiu = (erro: unknown) => erro instanceof ErroDaApi && erro.status === 404;
+
+export default function PostCard({ post, currentUser, onEditar, onDeletar, onPostUpdated, onSumiu }: Props) {
   const cor      = CORES[post.autorId % CORES.length];
   const isAuthor = post.autorId === currentUser.id;
 
   const [totalCurtidas,  setTotal]         = useState(post.curtidas);
-  const [curtidoPorMim,  setCurtidoPorMim] = useState(false);
-  const [quemCurtiu,     setQuemCurtiu]    = useState<{ usuarioId: number; usuarioNome: string }[]>([]);
+  // Curtidas e comentários chegam junto com o post, na mesma resposta do feed.
+  // Até a 1.0.0 cada card buscava os seus ao aparecer: duas requisições por
+  // post, e o feed engasgava à medida que crescia.
+  const [curtidoPorMim,  setCurtidoPorMim] = useState(() => post.curtidores.some(c => c.usuarioId === currentUser.id));
+  const [quemCurtiu,     setQuemCurtiu]    = useState(post.curtidores);
   const [showQuem,       setShowQuem]      = useState(false);
   const [curtindo,       setCurtindo]      = useState(false);
   const [showComents,    setShowComents]   = useState(false);
-  const [comentarios,    setComentarios]   = useState<Comentario[]>([]);
-  /* Nasce `true`: os comentários são buscados já na montagem do card, e o
-     estado precisa refletir isso desde o primeiro quadro. Iniciando em `false`,
-     a tela mostrava "Nenhum comentário ainda" no intervalo entre abrir a lista
-     e a resposta chegar — dizendo que não havia comentários quando ainda não se
-     sabia. Reiniciar o estado a cada post não é necessário: o feed monta um
-     PostCard por publicação (`key={post.id}`), então trocar de post cria uma
-     instância nova, com o estado inicial de volta. */
-  const [loadingComents, setLoadingC]      = useState(true);
+  const [comentarios,    setComentarios]   = useState<Comentario[]>(post.comentarios);
   const [novoComent,     setNovoComent]    = useState("");
   const [enviandoC,      setEnviandoC]     = useState(false);
   const [editingCId,     setEditingCId]    = useState<number | null>(null);
@@ -162,21 +163,6 @@ export default function PostCard({ post, currentUser, onEditar, onDeletar, onPos
     }
   };
 
-  useEffect(() => {
-    postService.listarCurtidas(post.id).then(lista => {
-      setQuemCurtiu(lista);
-      setTotal(lista.length);
-      setCurtidoPorMim(lista.some(c => c.usuarioId === currentUser.id));
-    }).catch(() => {});
-
-    // O `finally` é o que encerra o estado de carregamento — inclusive quando a
-    // busca falha. Sem ele o card ficaria preso em "Carregando..." para sempre.
-    postService.listarComentarios(post.id)
-      .then(setComentarios)
-      .catch(() => {})
-      .finally(() => setLoadingC(false));
-  }, [post.id, currentUser.id]);
-
   const handleToggleCurtir = async () => {
     if (curtindo) return;
     setCurtindo(true);
@@ -191,10 +177,15 @@ export default function PostCard({ post, currentUser, onEditar, onDeletar, onPos
       setQuemCurtiu(lista);
       onPostUpdated({ ...post, curtidas: Number(res.total) });
       showToast(res.curtido ? "Publicação curtida!" : "Curtida removida", res.curtido ? "success" : "info");
-    } catch {
+    } catch (erro) {
       setCurtidoPorMim(era);
       setTotal(v => era ? v + 1 : v - 1);
-      showToast("Erro ao curtir. Tente novamente.", "error");
+      if (postSumiu(erro)) {
+        showToast("Esta publicação foi removida pelo autor.", "info");
+        onSumiu();
+      } else {
+        showToast("Erro ao curtir. Tente novamente.", "error");
+      }
     } finally { setCurtindo(false); }
   };
 
@@ -218,8 +209,13 @@ export default function PostCard({ post, currentUser, onEditar, onDeletar, onPos
       setComentarios(prev => [...prev, novo]);
       setNovoComent("");
       showToast("Comentário publicado!", "success");
-    } catch {
-      showToast("Erro ao publicar comentário.", "error");
+    } catch (erro) {
+      if (postSumiu(erro)) {
+        showToast("Esta publicação foi removida pelo autor.", "info");
+        onSumiu();
+      } else {
+        showToast("Erro ao publicar comentário.", "error");
+      }
     } finally { setEnviandoC(false); }
   };
 
@@ -387,13 +383,10 @@ export default function PostCard({ post, currentUser, onEditar, onDeletar, onPos
             )}
           </div>
 
-          {!listCollapsed && loadingComents && (
-            <p className={styles.info}>Carregando...</p>
-          )}
-          {!listCollapsed && !loadingComents && comentarios.length === 0 && (
+          {!listCollapsed && comentarios.length === 0 && (
             <p className={styles.info}>Nenhum comentário ainda.</p>
           )}
-          {!listCollapsed && !loadingComents && comentarios.length > 0 && (
+          {!listCollapsed && comentarios.length > 0 && (
             <div className={styles.comentList}>
               {(showAll ? comentarios : comentarios.slice(0, 5)).map(c => (
                 <div key={c.id} className={styles.comentItem}>

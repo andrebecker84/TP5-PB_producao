@@ -262,6 +262,7 @@ function FeedContent() {
                 onEditar={() => { setEditingPost(post); setShowForm(true); }}
                 onDeletar={() => handleDeletar(post.id)}
                 onPostUpdated={updated => setPosts(prev => prev.map(p => p.id === updated.id ? updated : p))}
+                onSumiu={() => setPosts(prev => prev.filter(p => p.id !== post.id))}
               />
             </div>
           ))

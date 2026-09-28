@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.history.RevisionRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 
 @Repository
@@ -14,6 +15,10 @@ public interface ComentarioRepository extends JpaRepository<Comentario, Long>,
 
     @Query("SELECT c FROM Comentario c JOIN FETCH c.autor WHERE c.post.id = :postId ORDER BY c.criadoEm ASC")
     List<Comentario> findByPostId(Long postId);
+
+    /** Os comentários de vários posts numa consulta só, em ordem de chegada. */
+    @Query("SELECT c FROM Comentario c JOIN FETCH c.autor WHERE c.post.id IN :postIds ORDER BY c.criadoEm ASC, c.id ASC")
+    List<Comentario> findByPostIdIn(Collection<Long> postIds);
 
     long countByPostId(Long postId);
 
