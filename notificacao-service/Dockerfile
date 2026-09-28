@@ -4,7 +4,7 @@
 # infnethub-core/Dockerfile.
 
 # ── 1. Compilação ─────────────────────────────────────────────────────────────
-FROM maven:3.9-eclipse-temurin-25 AS compilacao
+FROM maven:3-eclipse-temurin-24 AS compilacao
 WORKDIR /build
 
 COPY pom.xml .
