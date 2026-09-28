@@ -32,6 +32,10 @@ Correções de estabilidade e desempenho encontradas na operação da 1.0.0.
   notificações da lista, lidas ou não. Agora uma notificação só deixa de
   contar quando é lida — ao clicar nela, no botão de lida ou em "Marcar todas
   como lidas", novo no topo do popup.
+- A tela de login deixada aberta por mais de 30 minutos mostrava "Sua
+  tentativa de login expirou. O processo de login será reiniciado.", que
+  parecia defeito. É o prazo do Keycloak para concluir um login; o tema passa
+  a dizer isso, e que basta entrar de novo.
 - **Reinícios em cascata sob carga**: as sondas usavam o prazo padrão de 1
   segundo, e um pod só ocupado era reiniciado pela liveness. As sondas dos
   serviços Java passam a ter 3 s (readiness) e 5 s (liveness), e o
