@@ -28,6 +28,10 @@ Correções de estabilidade e desempenho encontradas na operação da 1.0.0.
   gateway ficava na memória da réplica, e qualquer reinício dela deslogava
   quem estava conectado e quebrava os logins em andamento. A sessão passa ao
   **Redis** (Spring Session), compartilhada pelas réplicas.
+- **Número do sino sumindo sozinho**: fechar o popup dava baixa em todas as
+  notificações da lista, lidas ou não. Agora uma notificação só deixa de
+  contar quando é lida — ao clicar nela, no botão de lida ou em "Marcar todas
+  como lidas", novo no topo do popup.
 - **Reinícios em cascata sob carga**: as sondas usavam o prazo padrão de 1
   segundo, e um pod só ocupado era reiniciado pela liveness. As sondas dos
   serviços Java passam a ter 3 s (readiness) e 5 s (liveness), e o
