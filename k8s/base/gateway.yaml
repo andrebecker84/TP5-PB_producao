@@ -6,11 +6,11 @@
 #   gateway-navegador  21080  o navegador; a única exposta fora do cluster,
 #                             e que responde 404 às rotas de operação
 #
-# A sessão do login fica na memória da réplica que atendeu (Spring Session em
-# memória). Com duas réplicas, o Service prende cada navegador a uma delas pelo
-# IP de origem (sessionAffinity) — sem isso, metade das requisições chegaria à
-# réplica que não conhece a sessão. Uma sessão compartilhada (Redis) tiraria a
-# necessidade da afinidade; fica registrada como próximo passo no relatório.
+# A sessão do login fica no Redis (redis.yaml), compartilhada pelas réplicas:
+# qualquer uma atende qualquer navegador, e uma réplica que reinicia não leva
+# as sessões junto. O Service ainda prende cada navegador a uma réplica pelo IP
+# de origem (sessionAffinity), agora só por economia: a conexão ao vivo das
+# notificações e as chamadas seguintes reaproveitam a mesma réplica.
 # =========================================================================
 apiVersion: apps/v1
 kind: Deployment
@@ -59,6 +59,8 @@ spec:
             - { name: PORTA_DO_NAVEGADOR, value: "21080" }
             - name: KEYCLOAK_BFF_SECRET
               valueFrom: { secretKeyRef: { name: infnethub-segredos, key: KEYCLOAK_BFF_SECRET } }
+            - name: REDIS_PASS
+              valueFrom: { secretKeyRef: { name: infnethub-segredos, key: REDIS_PASS } }
           startupProbe:
             httpGet: { path: /actuator/health/liveness, port: http }
             periodSeconds: 5
@@ -66,9 +68,11 @@ spec:
           readinessProbe:
             httpGet: { path: /actuator/health/readiness, port: http }
             periodSeconds: 5
+            timeoutSeconds: 3
           livenessProbe:
             httpGet: { path: /actuator/health/liveness, port: http }
             periodSeconds: 10
+            timeoutSeconds: 5
           lifecycle:
             preStop:
               sleep: { seconds: 5 }

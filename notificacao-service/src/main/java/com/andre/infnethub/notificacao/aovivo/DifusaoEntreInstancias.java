@@ -2,10 +2,12 @@ package com.andre.infnethub.notificacao.aovivo;
 
 import com.andre.infnethub.notificacao.mensageria.MensageriaConfig;
 import com.andre.infnethub.notificacao.service.NotificacaoCriada;
+import com.andre.infnethub.notificacao.service.NotificacoesApagadas;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.AmqpException;
+import org.springframework.amqp.rabbit.annotation.RabbitHandler;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
@@ -38,6 +40,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
  * já é durável seria pagar duas vezes pela mesma garantia.
  */
 @Component
+@RabbitListener(queues = "#{filaDeAvisosDestaInstancia.name}", concurrency = "1")
 @RequiredArgsConstructor
 class DifusaoEntreInstancias {
 
@@ -53,21 +56,35 @@ class DifusaoEntreInstancias {
      */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void difundir(NotificacaoCriada criada) {
+        publicar(new AvisoAoVivo(criada.destinatarioId(), criada.notificacao()));
+    }
+
+    /** Mesmo caminho para a remoção: a aba aberta tira da lista o que já não existe. */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    void difundir(NotificacoesApagadas apagadas) {
+        publicar(new RemocaoAoVivo(apagadas.destinatarioId(), apagadas.ids()));
+    }
+
+    private void publicar(Object aviso) {
         try {
-            rabbit.convertAndSend(MensageriaConfig.EXCHANGE_AVISOS, "",
-                    new AvisoAoVivo(criada.destinatarioId(), criada.notificacao()));
+            rabbit.convertAndSend(MensageriaConfig.EXCHANGE_AVISOS, "", aviso);
         } catch (AmqpException e) {
-            log.warn("aviso ao vivo não difundido (a notificação está gravada e aparece na próxima leitura): {}",
+            log.warn("aviso ao vivo não difundido (o banco já está certo e a próxima leitura mostra): {}",
                     e.getMessage());
         }
     }
 
     /**
-     * Um consumidor só: a fila é desta instância, e a entrega ao navegador é
+     * Um consumidor só, declarado na classe: a fila é desta instância, e a entrega ao navegador é
      * rápida — não há trabalho a dividir.
      */
-    @RabbitListener(queues = "#{filaDeAvisosDestaInstancia.name}", concurrency = "1")
+    @RabbitHandler
     void receber(AvisoAoVivo aviso) {
         conexoes.entregar(aviso.destinatarioId(), aviso.notificacao());
+    }
+
+    @RabbitHandler
+    void receber(RemocaoAoVivo remocao) {
+        conexoes.retirar(remocao.destinatarioId(), remocao.ids());
     }
 }

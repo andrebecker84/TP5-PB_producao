@@ -27,6 +27,14 @@ export interface Post {
   curtidas: number;
   totalComentarios: number;
   criadoEm: string;
+  /** quem curtiu e os comentários vêm junto com o post, na resposta do feed */
+  curtidores: Curtidor[];
+  comentarios: Comentario[];
+}
+
+export interface Curtidor {
+  usuarioId: number;
+  usuarioNome: string;
 }
 
 export interface PostRequest {

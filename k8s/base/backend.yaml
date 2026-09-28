@@ -92,13 +92,19 @@ spec:
             httpGet: { path: /actuator/health/liveness, port: http }
             periodSeconds: 5
             failureThreshold: 36
+          # Prazo de resposta das sondas: o padrão do Kubernetes é 1 segundo.
+          # Sob carga, com a CPU no limite e o coletor de lixo trabalhando, a
+          # resposta passava disso; a liveness reiniciava um pod que estava
+          # só ocupado, e a carga dele caía sobre os outros.
           readinessProbe:
             httpGet: { path: /actuator/health/readiness, port: http }
             periodSeconds: 5
+            timeoutSeconds: 3
             failureThreshold: 3
           livenessProbe:
             httpGet: { path: /actuator/health/liveness, port: http }
             periodSeconds: 10
+            timeoutSeconds: 5
             failureThreshold: 3
           # Na saída, alguns segundos antes do SIGTERM: o tempo de o Service
           # tirar o pod da lista de destinos, para nenhuma requisição nova

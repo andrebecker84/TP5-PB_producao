@@ -2,15 +2,20 @@
 # pipeline de CI testa cada um antes de alguém decidir aceitá-lo. Uma
 # dependência vulnerável deixa de depender de alguém lembrar de conferir.
 #
-# Agrupadas por ecossistema e semanais: um PR por biblioteca a cada dia viraria
-# ruído, e ruído é ignorado. Os PRs miram a develop, como qualquer mudança do
-# fluxo; chegam à main na próxima release.
+# Agrupadas por ecossistema e mensais: um PR por biblioteca a cada semana
+# viraria ruído, e ruído é ignorado. Os PRs miram a develop, como qualquer
+# mudança do fluxo; chegam à main na próxima release. Vulnerabilidade não
+# espera o mês: tem caminho próprio, as atualizações de segurança do
+# Dependabot, ligadas nas configurações do repositório.
+#
+# Versão principal nova de compilador, linter e imagem base é migração, não
+# atualização de rotina: fica de fora, para ser feita de propósito.
 version: 2
 updates:
   - package-ecosystem: maven
     directory: /
     target-branch: develop
-    schedule: { interval: weekly, day: monday }
+    schedule: { interval: monthly }
     groups:
       maven:
         patterns: ["*"]
@@ -19,10 +24,19 @@ updates:
   - package-ecosystem: npm
     directory: /frontend
     target-branch: develop
-    schedule: { interval: weekly, day: monday }
+    schedule: { interval: monthly }
     groups:
       npm:
         patterns: ["*"]
+    ignore:
+      # O TypeScript 6/7, o ESLint 10 e os tipos do Node 26 quebram o build do
+      # front-end, que roda no Node 24 (LTS).
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+      - dependency-name: eslint
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     open-pull-requests-limit: 5
 
   - package-ecosystem: docker
@@ -34,15 +48,23 @@ updates:
       - /eureka-server
       - /frontend
     target-branch: develop
-    schedule: { interval: weekly, day: monday }
+    schedule: { interval: monthly }
     groups:
       imagens-base:
         patterns: ["*"]
+    ignore:
+      # A tag do maven mistura as versões do Maven e do JDK
+      # (3.9-eclipse-temurin-25), e o Dependabot a lê errado: chegou a propor
+      # temurin-24, que não compila o projeto. A do node segue a LTS, que muda
+      # de propósito, não por PR automático. As duas são tags móveis: cada
+      # build já recebe as correções da linha escolhida.
+      - dependency-name: maven
+      - dependency-name: node
 
   - package-ecosystem: github-actions
     directory: /
     target-branch: develop
-    schedule: { interval: weekly, day: monday }
+    schedule: { interval: monthly }
     groups:
       actions:
         patterns: ["*"]

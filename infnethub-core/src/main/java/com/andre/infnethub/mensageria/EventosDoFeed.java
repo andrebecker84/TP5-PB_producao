@@ -3,6 +3,7 @@ package com.andre.infnethub.mensageria;
 import com.andre.infnethub.contratos.Canais;
 import com.andre.infnethub.contratos.feed.PostComentadoV1;
 import com.andre.infnethub.contratos.feed.PostCurtidoV1;
+import com.andre.infnethub.contratos.feed.PostRemovidoV1;
 import com.andre.infnethub.contratos.vaga.VagaPublicadaV1;
 import com.andre.infnethub.model.Comentario;
 import com.andre.infnethub.model.Post;
@@ -46,6 +47,15 @@ public class EventosDoFeed {
                 comentario.getId(), comentario.getAutor().getId(), comentario.getAutor().getNome(),
                 cortar(comentario.getConteudo(), TAMANHO_TRECHO)),
                 Canais.ROTA_POST_COMENTADO);
+    }
+
+    /**
+     * Sem este fato, as notificações de curtida e de comentário sobreviviam ao
+     * post: "Fulano curtiu sua publicação", com um link para o nada.
+     */
+    public void removido(Long postId) {
+        caixa.depositar(new PostRemovidoV1(UUID.randomUUID(), Instant.now(), postId),
+                Canais.ROTA_POST_REMOVIDO);
     }
 
     public void vagaPublicada(Vaga vaga) {

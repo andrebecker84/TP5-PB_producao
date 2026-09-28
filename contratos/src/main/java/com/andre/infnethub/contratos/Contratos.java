@@ -7,6 +7,7 @@ import com.andre.infnethub.contratos.expurgo.AnonimizacaoRecusadaV1;
 import com.andre.infnethub.contratos.expurgo.ExpurgoSolicitadoV1;
 import com.andre.infnethub.contratos.feed.PostComentadoV1;
 import com.andre.infnethub.contratos.feed.PostCurtidoV1;
+import com.andre.infnethub.contratos.feed.PostRemovidoV1;
 import com.andre.infnethub.contratos.usuario.UsuarioAtualizadoV1;
 import com.andre.infnethub.contratos.usuario.UsuarioCadastradoV1;
 import com.andre.infnethub.contratos.usuario.UsuarioRemovidoV1;
@@ -41,6 +42,7 @@ public final class Contratos {
                     UsuarioRemovidoV1.class,
                     PostCurtidoV1.class,
                     PostComentadoV1.class,
+                    PostRemovidoV1.class,
                     VagaPublicadaV1.class,
                     ExpurgoSolicitadoV1.class,
                     AlunoAnonimizadoV1.class,

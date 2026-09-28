@@ -2,8 +2,10 @@ package com.andre.infnethub.notificacao.service;
 
 import com.andre.infnethub.notificacao.dto.NotificacaoDTO;
 import com.andre.infnethub.notificacao.model.Notificacao;
+import com.andre.infnethub.notificacao.model.PostRemovido;
 import com.andre.infnethub.notificacao.model.TipoNotificacao;
 import com.andre.infnethub.notificacao.repository.NotificacaoRepository;
+import com.andre.infnethub.notificacao.repository.PostRemovidoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Limit;
@@ -13,7 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Cria, lista e dá baixa nas notificações de cada pessoa.
@@ -30,6 +34,7 @@ public class CentralDeNotificacoes {
     public static final int LIMITE_MAXIMO = 100;
 
     private final NotificacaoRepository repositorio;
+    private final PostRemovidoRepository postsRemovidos;
     private final ApplicationEventPublisher publicador;
 
     /**
@@ -45,12 +50,49 @@ public class CentralDeNotificacoes {
      */
     @Transactional
     public boolean notificar(Long destinatarioId, TipoNotificacao tipo, String texto, String link, UUID origem) {
-        if (repositorio.existsByMensagemOrigemIdAndDestinatarioId(origem, destinatarioId)) {
+        return gravar(new Notificacao(destinatarioId, tipo, texto, link, origem));
+    }
+
+    /**
+     * A notificação que fala de um post: curtida, comentário. Guarda o id do
+     * post, para sair junto com ele, e não é criada se o post já foi apagado.
+     *
+     * @return {@code true} se a notificação foi criada.
+     */
+    @Transactional
+    public boolean notificarSobrePost(Long destinatarioId, TipoNotificacao tipo, String texto, Long postId,
+                                      UUID origem) {
+        if (postsRemovidos.existsById(postId)) {
             return false;
         }
-        Notificacao salva = repositorio.save(new Notificacao(destinatarioId, tipo, texto, link, origem));
-        publicador.publishEvent(new NotificacaoCriada(destinatarioId, NotificacaoDTO.de(salva)));
+        return gravar(new Notificacao(destinatarioId, tipo, texto, "/feed#post-" + postId, origem, postId));
+    }
+
+    private boolean gravar(Notificacao nova) {
+        if (repositorio.existsByMensagemOrigemIdAndDestinatarioId(nova.getMensagemOrigemId(), nova.getDestinatarioId())) {
+            return false;
+        }
+        Notificacao salva = repositorio.save(nova);
+        publicador.publishEvent(new NotificacaoCriada(salva.getDestinatarioId(), NotificacaoDTO.de(salva)));
         return true;
+    }
+
+    /**
+     * O post foi apagado: as notificações sobre ele saem do sino de cada
+     * destinatário, também nas abas abertas, e a lápide barra as que ainda
+     * estiverem a caminho.
+     *
+     * @return quantas notificações foram apagadas.
+     */
+    @Transactional
+    public int apagarDoPost(Long postId) {
+        if (!postsRemovidos.existsById(postId)) {
+            postsRemovidos.save(new PostRemovido(postId));
+        }
+        List<Notificacao> doPost = repositorio.findByPostId(postId);
+        repositorio.deleteAll(doPost);
+        avisarApagadas(doPost);
+        return doPost.size();
     }
 
     @Transactional(readOnly = true)
@@ -88,7 +130,16 @@ public class CentralDeNotificacoes {
     public int excluir(Long usuarioId, Collection<Long> ids) {
         List<Notificacao> doUsuario = repositorio.findByIdInAndDestinatarioId(ids, usuarioId);
         repositorio.deleteAll(doUsuario);
+        // As outras abas da mesma pessoa também deixam de mostrar.
+        avisarApagadas(doUsuario);
         return doUsuario.size();
+    }
+
+    private void avisarApagadas(List<Notificacao> apagadas) {
+        Map<Long, List<Long>> porDestinatario = apagadas.stream().collect(Collectors.groupingBy(
+                Notificacao::getDestinatarioId, Collectors.mapping(Notificacao::getId, Collectors.toList())));
+        porDestinatario.forEach((destinatario, ids) ->
+                publicador.publishEvent(new NotificacoesApagadas(destinatario, ids)));
     }
 
     /** Quando o usuário deixa de existir, as notificações dele deixam também. */

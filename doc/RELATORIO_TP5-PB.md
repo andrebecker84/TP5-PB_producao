@@ -109,7 +109,7 @@ O front-end usa a saída *standalone* do Next.js e roda como o usuário `node`.
 
 ## 5. Topologia no cluster
 
-Manifestos em `k8s/base` (72 objetos no overlay local, 145 somando os dois overlays, todos
+Manifestos em `k8s/base` (75 objetos no overlay local, 151 somando os dois overlays, todos
 válidos no esquema da API — `kubeconform -strict`).
 
 | Componente | Tipo | Réplicas | Observação |
@@ -122,11 +122,12 @@ válidos no esquema da API — `kubeconform -strict`).
 | postgres ×3 | StatefulSet | 1 cada | volume próprio por banco |
 | rabbitmq | StatefulSet | 3 | cluster formado pelo ordinal do pod (plugin k8s do RabbitMQ 4) |
 | keycloak | Deployment | 1 | realm e tema lidos de `infra/keycloak` |
+| redis | Deployment | 1 | sessões de login do gateway, sem disco; só o gateway o alcança (1.0.1) |
 | prometheus, grafana, alloy | Deployment | 1 | Prometheus e Alloy com RBAC só de leitura |
 | loki, tempo | StatefulSet | 1 | volume próprio |
 
 Resultado da implantação a partir do zero: **20 pods prontos em cerca de 2 min 30 s** depois das
-imagens carregadas, distribuídos entre os dois nós de trabalho.
+imagens carregadas, distribuídos entre os dois nós de trabalho. A 1.0.1 soma o Redis: 21 pods.
 
 ## 6. O código adaptado ao orquestrador
 
@@ -320,7 +321,7 @@ depois do período de espera de 1 minuto.*
 
 | Job | Faz |
 |---|---|
-| Testes do back-end | `./mvnw verify` — 246 testes, Testcontainers com PostgreSQL e RabbitMQ reais, cobertura JaCoCo; resumo na página da execução |
+| Testes do back-end | `./mvnw verify` — 250 testes, Testcontainers com PostgreSQL e RabbitMQ reais, cobertura JaCoCo; resumo na página da execução |
 | Front-end | `npm ci`, lint, `tsc --noEmit`, `next build` |
 | Configuração | `docker compose config`; os dois overlays montados; **kubeconform** estrito; **promtool**; `alloy fmt`; **actionlint** nos próprios workflows |
 | Imagens (×6) | Buildx com cache por serviço; tags SHA, `main`, `latest`, semver; publicadas no GHCR só na `main` e nas tags |
@@ -361,7 +362,7 @@ Kubernetes limpo. A promoção a um cluster real usa o overlay `producao` com as
 | Módulo | contratos | core | boletim | notificação | gateway | eureka | **total** |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | TP4 | 24 | 68 | 68 | 24 | 23 | 2 | 209 |
-| TP5 | 24 | 90 | 73 | 24 | 33 | 2 | **246** |
+| TP5 | 24 | 92 | 73 | 26 | 33 | 2 | **250** |
 | Cobertura de linhas (JaCoCo) | 54% | 56% | 73% | 83% | 42% | 33% | — |
 
 A coleção HTTP passou inteira **contra o Compose e contra o cluster Kubernetes**, sem alteração —
@@ -371,9 +372,15 @@ os dois publicam o gateway e o Keycloak nas mesmas portas.
 
 **Perfil `escala`** (até 60 usuários, 7 min, cluster local):
 
-| Requisições | Vazão | Falhas | p50 | p95 | p99 | máx. |
-|---:|---:|---:|---:|---:|---:|---:|
-| 70.190 | 167 req/s | **0,00%** | 16 ms | 47 ms | 90 ms | 327 ms |
+| Versão | Requisições | Vazão | Falhas | p50 | p95 | p99 | máx. |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 1.0.0 | 70.190 | 167 req/s | **0,00%** | 16 ms | 47 ms | 90 ms | 327 ms |
+| 1.0.1 | 64.705 | 154 req/s | **0,00%** | 20 ms | 135 ms | 495 ms | 1,98 s |
+
+Na 1.0.1 a resposta do feed traz as curtidas e os comentários de todos os posts — mais pesada por
+requisição, e é o que o p95 mostra —, enquanto a tela deixou de fazer duas chamadas por post. E,
+ao contrário do que a operação da 1.0.0 mostrou, nenhum pod reiniciou: as réplicas novas vieram só do
+autoescalonamento, que esperou a carga se sustentar antes de agir.
 
 Todos os limites passaram (p95 < 800 ms, p99 < 2 s, falhas < 1%). O HPA escalou os três serviços
 elásticos durante a rampa e os devolveu ao mínimo depois.
@@ -428,11 +435,13 @@ Preparação (antes de começar): `./k8s/implantar.sh --sem-build`; Grafana aber
 | Grafana reiniciado (`OOMKilled`) com painéis abertos sob carga | programa Go sem teto próprio: o coletor de lixo age tarde | `GOMEMLIMIT` abaixo do limite do contêiner, que subiu para 1 GiB |
 | Traces soltos "security filterchain" sem requisição | o filtro descartava a observação da sonda, mas o Spring Security abria as suas sem pai | descartar as observações `spring.security.*` que não têm pai |
 | Build local do Next falhando na fonte do Google | o Turbopack baixa a fonte no build; a rede local recusou | o build oficial é em contêiner (Compose e CI), onde passa |
+| Login voltando com "o pedido expirou" e pessoas deslogadas (1.0.0) | a sessão do gateway vivia na memória da réplica; qualquer reinício dela levava as sessões junto | sessão no **Redis** (Spring Session), e os tokens do Keycloak dentro dela — o padrão os guarda num mapa em memória à parte, e o primeiro teste de reinício ainda voltou 401 |
+| Core reiniciando em cadeia sob carga, login girando sem fim (1.0.0) | sondas com o prazo padrão de 1 s: um pod só ocupado era morto; o autoescalonamento criava réplicas a cada pico de segundos, e as JVMs subindo disputavam a CPU | prazo de 3 s (readiness) e 5 s (liveness); o autoescalonamento espera 30 s de carga |
+| Feed engasgando à medida que crescia (1.0.0) | cada card buscava as suas curtidas e os seus comentários: 2 requisições por post | o post chega com quem curtiu e os comentários; o core monta o feed em três consultas — de 20 requisições para 5 ao abrir a tela |
+| Notificação de curtida sobrevivendo ao post apagado (1.0.0) | apagar o post não virava evento | `PostRemovidoV1`; o serviço de notificação apaga as do post, guarda uma lápide e avisa as abas abertas |
 
 ## 19. Limitações e próximos passos
 
-- **Sessão do gateway em memória**: com várias réplicas, depende de afinidade; Spring Session com
-  Redis a tornaria compartilhada.
 - **Endereço da API no build do front-end**: o Next.js grava `NEXT_PUBLIC_API_URL` no pacote do
   navegador durante o build, e a imagem publicada pela CI aponta para `localhost:21080`. O overlay
   de produção, com domínios de exemplo, precisa de uma imagem do front-end construída com o
@@ -450,7 +459,7 @@ Preparação (antes de começar): `./k8s/implantar.sh --sem-build`; Grafana aber
 | 3 | Configurou agregação de logs e rastreamento de transações? | Alloy → Loki (§8); OpenTelemetry → Tempo atravessando outbox e RabbitMQ (§9); painéis e alertas (§10) |
 | 4 | Usou Git e GitHub para controlar versões e documentar mudanças? | repositório, CHANGELOG, tags semver, PR/issue templates, CODEOWNERS, Dependabot (§11) |
 | 5 | Configurou e utilizou GitHub Actions para CI e CD? | `ci.yml` e `cd.yml` (§12–13) |
-| 6 | Desenvolveu e aplicou testes abrangentes? | 246 automatizados, coleção HTTP de ponta a ponta, k6, testes pós-implantação (§14–15) |
+| 6 | Desenvolveu e aplicou testes abrangentes? | 250 automatizados, coleção HTTP de ponta a ponta, k6, testes pós-implantação (§14–15) |
 | 7 | Apresentou o código adaptado para Docker/Kubernetes? | perfil `k8s`, descoberta pelo cluster, sondas, saída graciosa, perfil `demo`, rastreamento pela outbox (§6, §9) |
 | 8 | Atualizou a documentação (implantação, monitoramento, CI/CD)? | README e este relatório |
 | 9 | Apresentou implantação, monitoramento e funcionamento em ambiente simulado de produção? | `demo/producao.sh` (8 cenários) e o roteiro da §16 |

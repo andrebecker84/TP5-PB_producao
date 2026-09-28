@@ -21,6 +21,8 @@ public interface NotificacaoRepository extends JpaRepository<Notificacao, Long> 
 
     List<Notificacao> findByIdInAndDestinatarioId(Collection<Long> ids, Long destinatarioId);
 
+    List<Notificacao> findByPostId(Long postId);
+
     @Modifying
     @Query("UPDATE Notificacao n SET n.lidaEm = :agora WHERE n.destinatarioId = :destinatario AND n.lidaEm IS NULL")
     int marcarTodasComoLidas(Long destinatario, Instant agora);
