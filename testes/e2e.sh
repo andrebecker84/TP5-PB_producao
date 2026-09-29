@@ -73,16 +73,26 @@ rodar() {
 rodar "${COLECAO[@]}"
 RESULTADO=$?
 
-# O desfecho da saga de expurgo, numa segunda chamada e depois de uma pausa: a
-# saga leva perto de um segundo para dar a volta (core → broker → boletim →
-# broker → core), e o cliente HTTP não sabe esperar. O 00 é repetido porque
-# cada chamada do cliente começa sem as variáveis da anterior.
+# Os desfechos assíncronos — a saga de expurgo e os avisos —, numa segunda
+# chamada e depois de uma pausa: a saga dá a volta por core → broker → boletim
+# → broker → core, os avisos passam pela caixa de saída e pelo broker, e o
+# cliente HTTP não sabe esperar. O 00 é repetido porque cada chamada do cliente
+# começa sem as variáveis da anterior.
+#
+# Esta chamada só lê, e por isso pode ser repetida: num cluster recém-criado,
+# com os serviços ainda frios, a primeira volta às vezes demora mais que a
+# pausa. São até seis tentativas, uma a cada 5 s; o que não chegar em 30 s é
+# falha de verdade.
 if [ $RESULTADO -eq 0 ]; then
   echo
-  echo "Aguardando a saga de expurgo dar a volta…"
-  sleep 5
-  rodar 00-autenticacao.http 12-expurgo-desfecho.http
-  RESULTADO=$?
+  echo "Aguardando os desfechos assíncronos (saga de expurgo e avisos)…"
+  for tentativa in 1 2 3 4 5 6; do
+    sleep 5
+    rodar 00-autenticacao.http 12-expurgo-desfecho.http 13-avisos-desfecho.http
+    RESULTADO=$?
+    [ $RESULTADO -eq 0 ] && break
+    echo "Tentativa $tentativa: ainda não chegou tudo."
+  done
 fi
 
 echo

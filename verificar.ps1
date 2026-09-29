@@ -112,11 +112,19 @@ $http = Invoke-Colecao $Colecao
 # A espera pertence a quem executa a coleção, e é aqui que ela fica — explícita,
 # com o motivo ao lado. O 00 é repetido porque cada chamada do cliente começa
 # sem as variáveis da anterior, tokens inclusive.
+#
+# Os avisos (13) seguem a mesma regra, e esta chamada só lê: pode ser repetida.
+# Num ambiente recém-criado, a primeira volta às vezes demora mais que a pausa;
+# são até seis tentativas, e o que não chegar em 30 s é falha de verdade.
 if ($http -eq 0) {
     Write-Host ""
-    Write-Host "Aguardando a saga de expurgo dar a volta…"
-    Start-Sleep -Seconds 5
-    $http = Invoke-Colecao @("00-autenticacao.http", "12-expurgo-desfecho.http")
+    Write-Host "Aguardando os desfechos assíncronos (saga de expurgo e avisos)…"
+    foreach ($tentativa in 1..6) {
+        Start-Sleep -Seconds 5
+        $http = Invoke-Colecao @("00-autenticacao.http", "12-expurgo-desfecho.http", "13-avisos-desfecho.http")
+        if ($http -eq 0) { break }
+        Write-Host "Tentativa ${tentativa}: ainda não chegou tudo."
+    }
 }
 
 Write-Host ""
