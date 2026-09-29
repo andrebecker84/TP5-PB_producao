@@ -29,11 +29,11 @@ resources:
   - entrada.yaml
 
 images:
-  - { name: infnethub/backend, newName: ghcr.io/andrebecker84/tp5-pb_producao/backend, newTag: 1.0.1 }
-  - { name: infnethub/boletim, newName: ghcr.io/andrebecker84/tp5-pb_producao/boletim, newTag: 1.0.1 }
-  - { name: infnethub/notificacao, newName: ghcr.io/andrebecker84/tp5-pb_producao/notificacao, newTag: 1.0.1 }
-  - { name: infnethub/gateway, newName: ghcr.io/andrebecker84/tp5-pb_producao/gateway, newTag: 1.0.1 }
-  - { name: infnethub/frontend, newName: ghcr.io/andrebecker84/tp5-pb_producao/frontend, newTag: 1.0.1 }
+  - { name: infnethub/backend, newName: ghcr.io/andrebecker84/tp5-pb_producao/backend, newTag: 1.0.2 }
+  - { name: infnethub/boletim, newName: ghcr.io/andrebecker84/tp5-pb_producao/boletim, newTag: 1.0.2 }
+  - { name: infnethub/notificacao, newName: ghcr.io/andrebecker84/tp5-pb_producao/notificacao, newTag: 1.0.2 }
+  - { name: infnethub/gateway, newName: ghcr.io/andrebecker84/tp5-pb_producao/gateway, newTag: 1.0.2 }
+  - { name: infnethub/frontend, newName: ghcr.io/andrebecker84/tp5-pb_producao/frontend, newTag: 1.0.2 }
 
 secretGenerator:
   - name: infnethub-segredos
