@@ -11,6 +11,15 @@ texto da sua seção (`.github/scripts/notas_da_versao.py`).
 
 ## [Não lançado]
 
+### Segurança
+
+- Dependências indiretas do front-end atualizadas para as versões corrigidas
+  (`npm audit fix`, só o `package-lock.json`): `brace-expansion`,
+  `browserslist`, `js-yaml` e `baseline-browser-mapping`, com falhas de
+  negação de serviço por consumo de CPU ou memória. Nenhuma chega ao
+  navegador: três são do lint e da compilação, e a quarta vem com o Next.js
+  e só lê a tabela de compatibilidade dos navegadores.
+
 ## [1.0.1] — 2026-09-28
 
 Correções de estabilidade e desempenho encontradas na operação da 1.0.0.
