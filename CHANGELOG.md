@@ -11,6 +11,18 @@ texto da sua seção (`.github/scripts/notas_da_versao.py`).
 
 ## [Não lançado]
 
+## [1.0.3] — 2026-09-29
+
+### Corrigido
+
+- **CD falhando às vezes, com o mesmo código**: a coleção HTTP conferia a
+  chegada dos avisos poucas requisições depois de pedi-los, e num cluster
+  recém-criado eles às vezes ainda não tinham chegado. A conferência passa à
+  segunda rodada do `testes/e2e.sh` (`13-avisos-desfecho.http`), junto com o
+  desfecho da saga, e essa rodada, que só lê, é repetida por até 30 s.
+- O CD rodava duas vezes a cada release: também o disparava a CI do PR de
+  volta para a `develop`, que sai da `main`. Agora só a CI do push na `main`.
+
 ## [1.0.2] — 2026-09-29
 
 ### Segurança
@@ -184,7 +196,8 @@ Segunda entrega: **persistência com PostgreSQL**
 Primeira entrega: **monólito em camadas com Spring Boot**
 ([TP1-PB_monolito](https://github.com/andrebecker84/TP1-PB_monolito)).
 
-[Não lançado]: https://github.com/andrebecker84/TP5-PB_producao/compare/v1.0.2...HEAD
+[Não lançado]: https://github.com/andrebecker84/TP5-PB_producao/compare/v1.0.3...HEAD
+[1.0.3]: https://github.com/andrebecker84/TP5-PB_producao/releases/tag/v1.0.3
 [1.0.2]: https://github.com/andrebecker84/TP5-PB_producao/releases/tag/v1.0.2
 [1.0.1]: https://github.com/andrebecker84/TP5-PB_producao/releases/tag/v1.0.1
 [1.0.0]: https://github.com/andrebecker84/TP5-PB_producao/releases/tag/v1.0.0

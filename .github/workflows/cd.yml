@@ -1,7 +1,7 @@
 # =========================================================================
 # Entrega contínua — implantação num cluster Kubernetes e testes contra ele.
 #
-# Dispara quando a CI termina com sucesso na main (as imagens do commit já
+# Dispara quando a CI do push na main termina com sucesso (as imagens do commit já
 # estão no GitHub Container Registry), ou à mão.
 #
 #   1. cria um cluster kind no próprio executor — o "ambiente de produção
@@ -41,7 +41,13 @@ env:
 jobs:
   implantacao:
     name: Implantação e testes no cluster
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    # Só a CI do push na main. O PR de volta para a develop (main → develop)
+    # também roda a CI com a main como origem, e sem este filtro o mesmo commit
+    # era implantado duas vezes.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:

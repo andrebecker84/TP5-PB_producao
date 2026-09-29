@@ -1,7 +1,7 @@
 # O desfecho da saga de expurgo
 #
 # Roda numa SEGUNDA chamada do cliente HTTP, depois de uma pausa explícita no
-# `verificar.sh`. Não é detalhe de arrumação: é a única forma honesta de
+# `testes/e2e.sh`. Não é detalhe de arrumação: é a única forma honesta de
 # verificar um desfecho assíncrono a partir de uma coleção de requisições.
 #
 # A alternativa — encher o arquivo anterior de requisições até dar tempo — foi

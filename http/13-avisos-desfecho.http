@@ -1,0 +1,54 @@
+# O desfecho dos avisos
+#
+# O 09 pede os avisos; este arquivo confere que eles chegaram. Roda na segunda
+# chamada do cliente HTTP, junto com o desfecho da saga, pelo mesmo motivo
+# (12-expurgo-desfecho.http): o aviso sai do core pela caixa de saída, passa
+# pelo broker e é escrito por outro serviço, e o cliente HTTP não sabe esperar.
+#
+# Conferidos no próprio 09, algumas requisições depois, os avisos chegavam a
+# tempo quase sempre. Num cluster recém-criado, com os serviços ainda frios,
+# às vezes não: o pipeline de CD falhava num commit e passava no seguinte, com
+# o mesmo código.
+#
+# Não depende das variáveis da primeira chamada: os dois avisos têm texto fixo.
+
+### A matrícula confirmada virou notificação do tipo AVISO
+# Esta é a verificação que importa: o aviso saiu do core como pedido e chegou
+# ao serviço de notificação como notificação — dois bancos, dois serviços,
+# nenhuma chamada HTTP entre eles.
+GET {{notificacaoUrl}}/api/v1/notificacoes
+Authorization: Bearer {{tokenAluno}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+    });
+    client.test("a matrícula confirmada virou notificação do tipo AVISO", () => {
+        const avisos = response.body.filter(n => n.tipo === "AVISO");
+        client.assert(avisos.length > 0, "nenhuma notificação do tipo AVISO chegou");
+        const matricula = avisos.find(n => n.texto.indexOf("Bloco 5") >= 0);
+        client.assert(matricula !== undefined,
+            "o aviso da matrícula não chegou; vieram: " + avisos.map(a => a.texto).join(" | "));
+        client.assert(matricula.link === "/boletim", "link inesperado: " + matricula.link);
+    });
+%}
+
+### O aviso para toda a turma alcançou este aluno
+# Um aviso para uma pessoa escreve uma linha; um para a turma, uma por aluno.
+GET {{notificacaoUrl}}/api/v1/notificacoes
+Authorization: Bearer {{tokenAluno}}
+Accept: application/json
+
+> {%
+    client.test("responde 200", () => {
+        client.assert(response.status === 200, "esperado 200, veio " + response.status);
+    });
+    client.test("um evento, muitas notificações: a do laboratório chegou", () => {
+        const turma = response.body.find(n => n.texto.indexOf("laboratório 3") >= 0);
+        client.assert(turma !== undefined,
+            "o aviso para toda a turma não chegou; vieram: "
+            + response.body.map(n => n.texto).join(" | "));
+        client.assert(turma.tipo === "AVISO", "tipo inesperado: " + turma.tipo);
+    });
+%}
