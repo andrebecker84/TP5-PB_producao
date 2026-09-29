@@ -11,6 +11,17 @@ texto da sua seção (`.github/scripts/notas_da_versao.py`).
 
 ## [Não lançado]
 
+## [1.0.2] — 2026-09-29
+
+### Segurança
+
+- Dependências indiretas do front-end atualizadas para as versões corrigidas
+  (`npm audit fix`, só o `package-lock.json`): `brace-expansion`,
+  `browserslist`, `js-yaml` e `baseline-browser-mapping`, com falhas de
+  negação de serviço por consumo de CPU ou memória. Nenhuma chega ao
+  navegador: três são do lint e da compilação, e a quarta vem com o Next.js
+  e só lê a tabela de compatibilidade dos navegadores.
+
 ## [1.0.1] — 2026-09-28
 
 Correções de estabilidade e desempenho encontradas na operação da 1.0.0.
@@ -173,7 +184,8 @@ Segunda entrega: **persistência com PostgreSQL**
 Primeira entrega: **monólito em camadas com Spring Boot**
 ([TP1-PB_monolito](https://github.com/andrebecker84/TP1-PB_monolito)).
 
-[Não lançado]: https://github.com/andrebecker84/TP5-PB_producao/compare/v1.0.1...HEAD
+[Não lançado]: https://github.com/andrebecker84/TP5-PB_producao/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/andrebecker84/TP5-PB_producao/releases/tag/v1.0.2
 [1.0.1]: https://github.com/andrebecker84/TP5-PB_producao/releases/tag/v1.0.1
 [1.0.0]: https://github.com/andrebecker84/TP5-PB_producao/releases/tag/v1.0.0
 [0.4.0]: https://github.com/andrebecker84/TP4-PB_eventos

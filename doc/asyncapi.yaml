@@ -20,7 +20,7 @@ asyncapi: 3.0.0
 
 info:
   title: Infnet Hub — canais de integração
-  version: 1.0.1
+  version: 1.0.2
   description: |
     Eventos, comandos e consultas trocados entre `infnethub-core`,
     `boletim-service` e `notificacao-service` através do RabbitMQ.
