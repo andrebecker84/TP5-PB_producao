@@ -15,7 +15,7 @@ quinta e última entrega do Projeto de Bloco: Engenharia de Softwares Escalávei
 [![CD](https://github.com/andrebecker84/TP5-PB_producao/actions/workflows/cd.yml/badge.svg)](https://github.com/andrebecker84/TP5-PB_producao/actions/workflows/cd.yml)
 [![Testes](https://img.shields.io/badge/Testes-250_passando-success)](#testes)
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-1.37_·_kind-326CE5?logo=kubernetes&logoColor=white)](#kubernetes)
-[![Versão](https://img.shields.io/badge/Versão-1.0.1-blue)](CHANGELOG.md)
+[![Versão](https://img.shields.io/badge/Versão-1.0.2-blue)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/Licen%C3%A7a-Uso%20Restrito%20%C2%B7%20N%C3%A3o%20Comercial-red)](LICENSE)
 
 <img src="doc/screenshots/login.png" alt="Tela única de login do Infnet Hub" width="820" />
