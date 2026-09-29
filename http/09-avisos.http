@@ -4,9 +4,10 @@
 # aceita o pedido, responde 202 e vai embora. Quem escreve as notificações é
 # outro serviço, com outro banco, que pode até estar fora do ar neste momento.
 #
-# Por isso as verificações vêm em duas partes. Primeiro o contrato — quem pode
-# pedir, o que a resposta promete. Depois, algumas requisições adiante, o
-# efeito: a notificação que o comando gerou do outro lado.
+# Por isso as verificações vêm em duas partes. Aqui, o contrato — quem pode
+# pedir, o que a resposta promete. O efeito, a notificação que o comando gerou
+# do outro lado, fica para a segunda rodada do `testes/e2e.sh`, depois de uma
+# pausa (13-avisos-desfecho.http).
 
 ### Aluno não avisa a turma — 403
 # Autenticado não é autorizado. Sem esta regra, qualquer conta válida mandaria
@@ -141,10 +142,8 @@ Content-Type: application/json
 %}
 
 ### Saúde do core
-# As três verificações a seguir existem por conta própria — são a checagem de
-# que os serviços estão no ar. De quebra, dão ao caminho assíncrono o tempo de
-# uma volta: o relay despacha a cada 500 ms, e três idas e vindas de rede
-# passam disso com folga.
+# As três verificações a seguir são a checagem de que os serviços estão no ar
+# enquanto os avisos seguem pelo broker.
 GET {{baseUrl}}/actuator/health
 
 > {%
@@ -171,31 +170,3 @@ GET {{notificacaoUrl}}/actuator/health
         client.assert(response.status === 200, "esperado 200, veio " + response.status);
     });
 %}
-
-### O comando chegou do outro lado
-# Esta é a verificação que importa: o aviso saiu do core como pedido e chegou
-# ao serviço de notificação como notificação — dois bancos, dois serviços,
-# nenhuma chamada HTTP entre eles.
-GET {{notificacaoUrl}}/api/v1/notificacoes
-Authorization: Bearer {{tokenAluno}}
-Accept: application/json
-
-> {%
-    client.test("responde 200", () => {
-        client.assert(response.status === 200, "esperado 200, veio " + response.status);
-    });
-    client.test("a matrícula confirmada virou notificação do tipo AVISO", () => {
-        const avisos = response.body.filter(n => n.tipo === "AVISO");
-        client.assert(avisos.length > 0, "nenhuma notificação do tipo AVISO chegou");
-        const matricula = avisos.find(n => n.texto.indexOf("Bloco 5") >= 0);
-        client.assert(matricula !== undefined,
-            "o aviso da matrícula não chegou; vieram: " + avisos.map(a => a.texto).join(" | "));
-        client.assert(matricula.link === "/boletim", "link inesperado: " + matricula.link);
-    });
-%}
-
-# O aviso endereçado à turma inteira e o aviso agendado são conferidos no
-# arquivo seguinte, depois de mais algumas idas e vindas. O motivo é o próprio
-# padrão: um aviso para uma pessoa escreve uma linha, um aviso para a turma
-# escreve uma por aluno — e chega alguns centésimos depois. Conferir os dois no
-# mesmo instante seria escrever um teste que às vezes passa.

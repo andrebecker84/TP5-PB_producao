@@ -11,6 +11,16 @@ texto da sua seção (`.github/scripts/notas_da_versao.py`).
 
 ## [Não lançado]
 
+### Corrigido
+
+- **CD falhando às vezes, com o mesmo código**: a coleção HTTP conferia a
+  chegada dos avisos poucas requisições depois de pedi-los, e num cluster
+  recém-criado eles às vezes ainda não tinham chegado. A conferência passa à
+  segunda rodada do `testes/e2e.sh` (`13-avisos-desfecho.http`), junto com o
+  desfecho da saga, e essa rodada, que só lê, é repetida por até 30 s.
+- O CD rodava duas vezes a cada release: também o disparava a CI do PR de
+  volta para a `develop`, que sai da `main`. Agora só a CI do push na `main`.
+
 ## [1.0.2] — 2026-09-29
 
 ### Segurança

@@ -77,27 +77,9 @@ Accept: application/json
 %}
 
 # ── De volta aos avisos ────────────────────────────────────────────────────
-# As duas verificações abaixo pertencem ao arquivo anterior e estão aqui pelo
-# tempo: entre lá e cá passaram quatro idas e vindas, folga de sobra para o
-# caminho assíncrono se completar.
-
-### O aviso para toda a turma alcançou este aluno
-GET {{notificacaoUrl}}/api/v1/notificacoes
-Authorization: Bearer {{tokenAluno}}
-Accept: application/json
-
-> {%
-    client.test("responde 200", () => {
-        client.assert(response.status === 200, "esperado 200, veio " + response.status);
-    });
-    client.test("um evento, muitas notificações: a do laboratório chegou", () => {
-        const turma = response.body.find(n => n.texto.indexOf("laboratório 3") >= 0);
-        client.assert(turma !== undefined,
-            "o aviso para toda a turma não chegou; vieram: "
-            + response.body.map(n => n.texto).join(" | "));
-        client.assert(turma.tipo === "AVISO", "tipo inesperado: " + turma.tipo);
-    });
-%}
+# Esta verificação pertence ao arquivo anterior, mas não depende de tempo: o
+# que ela prova é que algo NÃO chegou. As que esperam uma chegada ficam para a
+# segunda rodada (13-avisos-desfecho.http).
 
 ### O agendado ainda NÃO chegou — e é isso que prova o atraso
 # Pedido na mesma leva dos outros, mas marcado para daqui a uma hora. Se
