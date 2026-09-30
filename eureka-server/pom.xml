@@ -6,7 +6,7 @@
 	<parent>
 		<groupId>com.andre</groupId>
 		<artifactId>infnethub</artifactId>
-		<version>1.0.2</version>
+		<version>1.0.3</version>
 	</parent>
 
 	<artifactId>eureka-server</artifactId>

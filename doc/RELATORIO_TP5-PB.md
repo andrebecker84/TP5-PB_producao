@@ -1,7 +1,7 @@
 # Relatório Técnico — Infnet Hub · TP5: Implantação e Manutenção em Produção
 
 **Disciplina:** Projeto de Bloco: Engenharia de Softwares Escaláveis (DR5) — Instituto Infnet<br/>
-**Aluno:** André Luis Becker · **Trimestre:** 26E2 · **Versão:** 1.0.2<br/>
+**Aluno:** André Luis Becker · **Trimestre:** 26E2 · **Versão:** 1.0.3<br/>
 **Repositório:** [andrebecker84/TP5-PB_producao](https://github.com/andrebecker84/TP5-PB_producao)
 
 > Objetivo da etapa: preparar o sistema desenvolvido para operação através de conteinerização,
@@ -291,7 +291,7 @@ depois do período de espera de 1 minuto.*
 
 ## 11. Git, GitHub e configuração
 
-- Repositório próprio por etapa; esta é a versão **1.0.2**, com o histórico das anteriores no
+- Repositório próprio por etapa; esta é a versão **1.0.3**, com o histórico das anteriores no
   [`CHANGELOG.md`](../CHANGELOG.md) (Keep a Changelog + versionamento semântico).
 - Fluxo de branches (**Git Flow**):
 
