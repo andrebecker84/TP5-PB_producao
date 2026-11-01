@@ -15,7 +15,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>4.1.1</version>
+		<version>4.1.2</version>
 		<relativePath/>
 	</parent>
 
@@ -53,13 +53,13 @@
 		     compatibilidade com o Boot 4.1.1 usado aqui. Trocar uma das duas
 		     versões sem trocar a outra é a forma mais rápida de quebrar o
 		     contexto de todos os módulos de uma vez. -->
-		<spring-cloud.version>2025.1.3</spring-cloud.version>
+		<spring-cloud.version>2025.1.4</spring-cloud.version>
 		<!-- Testes de integração contra um RabbitMQ real, em contêiner. -->
 		<testcontainers.version>2.0.5</testcontainers.version>
 		<!-- Cobertura de testes (TP5). A 0.8.14 foi a primeira a ler as classes
 		     do Java 25; abaixo dela o agente ignora as classes em silêncio e o
 		     relatório sai vazio, sem erro nenhum. -->
-		<jacoco.version>0.8.15</jacoco.version>
+		<jacoco.version>0.8.16</jacoco.version>
 	</properties>
 
 	<dependencyManagement>
